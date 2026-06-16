@@ -1,0 +1,150 @@
+@import "tailwindcss";
+
+@theme {
+  --color-paper: #f7f3ec;
+  --color-paper-2: #f1ebe0;
+  --color-card: #fcfaf5;
+  --color-ink: #1b1a17;
+  --color-ink-soft: #38352f;
+  --color-muted: #6c685f;
+  --color-faint: #9a958a;
+  --color-line: #e4ddcf;
+  --color-line-2: #d8d0bf;
+  --color-accent: #2f4a7c;
+  --color-accent-soft: #5d77a8;
+  --color-clay: #b9543a;
+  --color-signal: #3f7d5a;
+  --color-amber: #ad7a26;
+
+  --font-display: "Fraunces", Georgia, serif;
+  --font-sans: "Hanken Grotesk", ui-sans-serif, system-ui, sans-serif;
+  --font-mono: "JetBrains Mono", ui-monospace, monospace;
+
+  --radius-card: 14px;
+}
+
+@layer base {
+  * {
+    border-color: var(--color-line);
+  }
+  html {
+    -webkit-font-smoothing: antialiased;
+    text-rendering: optimizeLegibility;
+  }
+  body {
+    background-color: var(--color-paper);
+    color: var(--color-ink);
+    font-family: var(--font-sans);
+    font-feature-settings: "ss01", "cv01";
+  }
+  ::selection {
+    background: color-mix(in srgb, var(--color-accent) 22%, transparent);
+  }
+}
+
+/* Paper grain + subtle vignette for atmosphere */
+.bg-grain {
+  background-image:
+    radial-gradient(120% 120% at 100% 0%, rgba(185, 84, 58, 0.05) 0%, transparent 42%),
+    radial-gradient(120% 120% at 0% 100%, rgba(47, 74, 124, 0.05) 0%, transparent 45%);
+}
+
+.hair {
+  border: 1px solid var(--color-line);
+}
+
+.card {
+  background: var(--color-card);
+  border: 1px solid var(--color-line);
+  border-radius: var(--radius-card);
+}
+
+.mono {
+  font-family: var(--font-mono);
+  font-feature-settings: "tnum";
+  letter-spacing: -0.01em;
+}
+
+.kicker {
+  font-family: var(--font-mono);
+  font-size: 11px;
+  letter-spacing: 0.16em;
+  text-transform: uppercase;
+  color: var(--color-faint);
+}
+
+.display {
+  font-family: var(--font-display);
+  font-optical-sizing: auto;
+  letter-spacing: -0.02em;
+}
+
+/* Animations */
+@keyframes rise {
+  from { opacity: 0; transform: translateY(10px); }
+  to { opacity: 1; transform: translateY(0); }
+}
+@keyframes fade {
+  from { opacity: 0; }
+  to { opacity: 1; }
+}
+@keyframes pulse-ring {
+  0% { box-shadow: 0 0 0 0 rgba(63, 125, 90, 0.45); }
+  70% { box-shadow: 0 0 0 9px rgba(63, 125, 90, 0); }
+  100% { box-shadow: 0 0 0 0 rgba(63, 125, 90, 0); }
+}
+@keyframes scan {
+  0% { top: 4%; opacity: 0; }
+  20% { opacity: 1; }
+  80% { opacity: 1; }
+  100% { top: 94%; opacity: 0; }
+}
+.rise { animation: rise 0.6s cubic-bezier(0.22, 1, 0.36, 1) both; }
+.fade-in { animation: fade 0.8s ease both; }
+.live-dot { animation: pulse-ring 1.8s infinite; }
+
+.stagger > * { animation: rise 0.6s cubic-bezier(0.22, 1, 0.36, 1) both; }
+.stagger > *:nth-child(1) { animation-delay: 0.04s; }
+.stagger > *:nth-child(2) { animation-delay: 0.10s; }
+.stagger > *:nth-child(3) { animation-delay: 0.16s; }
+.stagger > *:nth-child(4) { animation-delay: 0.22s; }
+.stagger > *:nth-child(5) { animation-delay: 0.28s; }
+.stagger > *:nth-child(6) { animation-delay: 0.34s; }
+
+/* Skin-scan visual */
+.scan-line {
+  position: absolute;
+  left: 0; right: 0;
+  height: 2px;
+  background: linear-gradient(90deg, transparent, rgba(63,125,90,0.9), transparent);
+  animation: scan 3.2s ease-in-out infinite;
+}
+
+.btn {
+  display: inline-flex; align-items: center; gap: 8px;
+  font-size: 13px; font-weight: 500;
+  padding: 9px 15px; border-radius: 10px;
+  transition: all 0.18s ease;
+  cursor: pointer;
+}
+.btn-primary { background: var(--color-ink); color: var(--color-paper); }
+.btn-primary:hover { background: var(--color-accent); }
+.btn-ghost { background: transparent; color: var(--color-ink); border: 1px solid var(--color-line-2); }
+.btn-ghost:hover { background: var(--color-paper-2); }
+
+.chip {
+  display: inline-flex; align-items: center; gap: 6px;
+  font-size: 11.5px; font-weight: 500;
+  padding: 3px 9px; border-radius: 999px;
+  border: 1px solid var(--color-line-2);
+  background: var(--color-paper);
+}
+
+.scrollbar-thin::-webkit-scrollbar { width: 8px; height: 8px; }
+.scrollbar-thin::-webkit-scrollbar-thumb { background: var(--color-line-2); border-radius: 99px; }
+.scrollbar-thin::-webkit-scrollbar-track { background: transparent; }
+
+/* Embed-mode: gemmer tenant-header/footer når booking-flowet vises i iframe-modal */
+html.praxis-embed header,
+html.praxis-embed footer { display: none !important; }
+html.praxis-embed main { padding: 28px 24px !important; }
