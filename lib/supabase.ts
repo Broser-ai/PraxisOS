@@ -10,7 +10,9 @@
 
 export type DbMode = "mock" | "supabase-local" | "supabase-eu";
 
-export const DB_MODE: DbMode = (process.env.PRAXIS_DB as DbMode) ?? "mock";
+const VALID_MODES: ReadonlyArray<DbMode> = ["mock", "supabase-local", "supabase-eu"];
+const _rawMode = process.env.PRAXIS_DB?.trim() ?? "mock";
+export const DB_MODE: DbMode = VALID_MODES.includes(_rawMode as DbMode) ? (_rawMode as DbMode) : "mock";
 
 export type DbConfig = {
   mode: DbMode;
@@ -52,7 +54,7 @@ export const DB_CONFIGS: Record<DbMode, DbConfig> = {
   },
 };
 
-export const currentConfig = DB_CONFIGS[DB_MODE];
+export const currentConfig = DB_CONFIGS[DB_MODE] ?? DB_CONFIGS["mock"];
 
 // ========================================================================
 // Generic interface · samme shape uanset backend
