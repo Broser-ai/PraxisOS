@@ -275,6 +275,89 @@ export const MOOD_COLOR: Record<AgentMood, string> = {
   celebrating: "var(--color-amber)",
 };
 
+// =============================================================================
+// EPIC 1 · Multi-Agent Orchestration additions (2026-07-11)
+// Kontrakt: docs/harness/EPIC-1-Orchestration.md
+// PRINCIP: Ingen af de ovenstående eksporter (AgentId, Persona, AGENTS,
+// getAgent, MOOD_COLOR, routeMessage) er ændret. Kun ny metadata tilføjes
+// nedenfor via separate maps, så eksisterende UI/API forbliver stabile
+// (INV-17, INV-18).
+// =============================================================================
+
+/** Rolle-adgangskontrol pr. agent (INV-7). */
+export type Role = "owner" | "practitioner" | "reception" | "support" | "system";
+
+export const AGENT_ALLOWED_ROLES: Record<AgentId, Role[]> = {
+  aria:   ["owner", "practitioner", "reception", "support", "system"],
+  niels:  ["owner", "practitioner", "support"],
+  sigrid: ["owner", "practitioner", "reception", "support"],
+  magnus: ["owner", "reception", "support"],
+  frej:   ["owner", "support", "system"],
+  vega:   ["owner", "reception", "support"],
+  bjorn:  ["owner", "practitioner", "reception", "support"],
+  liv:    ["owner", "practitioner", "support"],
+  atlas:  ["owner", "support", "system"],
+};
+
+/** Model-tier pr. agent (§8 beslutning 2). */
+export type ModelTier = "smart" | "fast" | "clinical";
+
+export const AGENT_MODEL_TIER: Record<AgentId, ModelTier> = {
+  // Klog tier
+  frej:   "smart",
+  // Klinisk tier
+  niels:  "clinical",
+  atlas:  "clinical",
+  // Hurtig tier
+  aria:   "fast",
+  sigrid: "fast",
+  magnus: "fast",
+  vega:   "fast",
+  bjorn:  "fast",
+  liv:    "fast",
+};
+
+/** Konkret model-ID pr. tier. Kan overrides via env-var i orchestrator. */
+export const MODEL_BY_TIER: Record<ModelTier, string> = {
+  smart:    "claude-opus-4-7",
+  clinical: "claude-sonnet-5",
+  fast:     "claude-haiku-4-5-20251001",
+};
+
+/** Deterministisk vs stokastisk (INV-12). Agenter med compliance-krav kører temperature=0. */
+export const AGENT_COMPLIANCE_MODE: Record<AgentId, boolean> = {
+  aria:   false,
+  niels:  true,   // klinisk dokumentation skal være reproducerbar
+  sigrid: true,   // tilskuds-afregning er compliance-kritisk
+  magnus: false,
+  frej:   true,   // compliance ér definition compliance
+  vega:   false,
+  bjorn:  false,
+  liv:    false,
+  atlas:  true,   // kode-gen forslag skal være reproducerbare
+};
+
+/**
+ * INV-19-verifier: ingen agent må bruge en model uden for sin whitelist.
+ * Bruges i test-suite til at bevise runtime-integritet.
+ */
+export function isAllowedModelForAgent(agentId: AgentId, model: string): boolean {
+  const tier = AGENT_MODEL_TIER[agentId];
+  return MODEL_BY_TIER[tier] === model;
+}
+
+/**
+ * INV-7-verifier: rolle-check før en worker-node dispatches.
+ */
+export function canRoleInvokeAgent(role: Role, agentId: AgentId): boolean {
+  return AGENT_ALLOWED_ROLES[agentId].includes(role);
+}
+
+/** Alle worker-IDs som Supervisor kan route til. Rækkefølgen matcher AGENTS[]. */
+export const WORKER_IDS: AgentId[] = [
+  "aria", "niels", "sigrid", "magnus", "frej", "vega", "bjorn", "liv", "atlas",
+];
+
 // Chat-router · finder den agent der bedst passer til en besked
 export function routeMessage(message: string): { agent: AgentId; confidence: number; reason: string } {
   const lower = message.toLowerCase();

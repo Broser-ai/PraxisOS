@@ -1,7 +1,25 @@
-import { FootScan } from "@/components/FootScan";
-import { FootMesh3D } from "@/components/FootMesh3D";
+import { RealisticFoot } from "@/components/RealisticFoot";
 import { SwarmPanel } from "@/components/SwarmPanel";
 import { sensorBridge, footMetrics, biomarkers, codeLog, FEATURE_CAD_EXPORT } from "@/lib/scan";
+
+// Sample plantar zones matching the biomech report shape
+const LEFT_ZONES = [
+  { label: "Hæl",             cx: 0.50, cy: 0.10, radius_mm: 22, peak_kpa: 205 },
+  { label: "Lateral midfod",  cx: 0.62, cy: 0.45, radius_mm: 15, peak_kpa: 110 },
+  { label: "MTP 1",           cx: 0.32, cy: 0.80, radius_mm: 12, peak_kpa: 175 },
+  { label: "Forfods-ballen",  cx: 0.50, cy: 0.78, radius_mm: 18, peak_kpa: 184 },
+  { label: "MTP 5",           cx: 0.68, cy: 0.80, radius_mm: 10, peak_kpa: 155 },
+  { label: "Hallux",          cx: 0.35, cy: 0.94, radius_mm: 8,  peak_kpa: 120 },
+];
+
+const RIGHT_ZONES = [
+  { label: "Hæl",             cx: 0.50, cy: 0.10, radius_mm: 22, peak_kpa: 220 },
+  { label: "Lateral midfod",  cx: 0.62, cy: 0.45, radius_mm: 15, peak_kpa: 125 },
+  { label: "MTP 1",           cx: 0.30, cy: 0.80, radius_mm: 14, peak_kpa: 220 },
+  { label: "Forfods-ballen",  cx: 0.50, cy: 0.78, radius_mm: 20, peak_kpa: 242 },
+  { label: "MTP 5",           cx: 0.70, cy: 0.80, radius_mm: 11, peak_kpa: 190 },
+  { label: "Hallux",          cx: 0.32, cy: 0.94, radius_mm: 9,  peak_kpa: 135 },
+];
 
 export default function FodScanPage() {
   return (
@@ -47,17 +65,44 @@ export default function FodScanPage() {
       </div>
 
       <div className="mt-3 grid grid-cols-1 gap-3 lg:grid-cols-[1.4fr_1fr]">
-        {/* Foden — STOR */}
+        {/* Foden — STOR — photorealistic 3D */}
         <section className="card rise p-5" style={{ animationDelay: "0.08s" }}>
           <div className="flex items-center justify-between">
             <div>
-              <h2 className="display text-[17px] font-semibold">Fod-topologi · 3 vinkler</h2>
-              <div className="kicker !text-[9px]">3D-mesh · 312k punkter · top + side + bund</div>
+              <h2 className="display text-[17px] font-semibold">Fod-topologi · fotorealistisk 3D</h2>
+              <div className="kicker !text-[9px]">PBR-hud · subsurface · HDR-lys · rigtige anatomiske proportioner</div>
             </div>
           </div>
 
-          <div className="mt-5">
-            <FootScan />
+          <div className="mt-5 grid grid-cols-2 gap-3">
+            <div>
+              <div className="kicker mb-2">Venstre fod</div>
+              <RealisticFoot
+                side="L"
+                lengthMm={265}
+                forefootWidthMm={100}
+                heelWidthMm={65}
+                archIndex={0.24}
+                halluxValgusDeg={12}
+                navicularDropMm={6.1}
+                pressureZones={LEFT_ZONES}
+                height={360}
+              />
+            </div>
+            <div>
+              <div className="kicker mb-2">Højre fod · hallux valgus 18°</div>
+              <RealisticFoot
+                side="R"
+                lengthMm={265}
+                forefootWidthMm={102}
+                heelWidthMm={65}
+                archIndex={0.28}
+                halluxValgusDeg={18}
+                navicularDropMm={8.4}
+                pressureZones={RIGHT_ZONES}
+                height={360}
+              />
+            </div>
           </div>
 
           {/* Metrics */}
@@ -139,18 +184,22 @@ export default function FodScanPage() {
         </div>
       </div>
 
-      {/* 3D-mesh · roterbar */}
+      {/* 3D-mesh · fri rotation · auto-spin */}
       <section className="card rise mt-3 p-5" style={{ animationDelay: "0.22s" }}>
         <div className="flex items-center justify-between mb-3">
           <div>
-            <h2 className="display text-[17px] font-semibold">3D-mesh · roterbar</h2>
-            <div className="kicker !text-[9px]">træk for at rotere · klik snap-vinkel · auto-spin når idle</div>
+            <h2 className="display text-[17px] font-semibold">3D-mesh · fri rotation</h2>
+            <div className="kicker !text-[9px]">træk for at rotere · scroll for zoom · auto-spin når idle</div>
           </div>
-          <span className="chip mono !text-[10px]">Cosmos 3 · NeRF + Gaussian Splatting</span>
+          <span className="chip mono !text-[10px]">three.js · PBR · Environment HDR</span>
         </div>
         <div className="grid grid-cols-1 gap-3 lg:grid-cols-2">
-          <FootMesh3D side="L" />
-          <FootMesh3D side="R" />
+          <RealisticFoot side="L" lengthMm={265} forefootWidthMm={100} heelWidthMm={65}
+                         archIndex={0.24} halluxValgusDeg={12} navicularDropMm={6.1}
+                         pressureZones={LEFT_ZONES} height={420} autoRotate />
+          <RealisticFoot side="R" lengthMm={265} forefootWidthMm={102} heelWidthMm={65}
+                         archIndex={0.28} halluxValgusDeg={18} navicularDropMm={8.4}
+                         pressureZones={RIGHT_ZONES} height={420} autoRotate />
         </div>
       </section>
 

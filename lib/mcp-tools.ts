@@ -226,6 +226,155 @@ export const MCP_TOOLS: McpTool[] = [
     },
   },
 
+  // -------- Physical AI · Foot-scanner (broer til Python-engine) -------- //
+  {
+    name: "foot_scan.new_session",
+    description: "Start ny fod-scan-session for en klient. Returnerer session_id og optageguide.",
+    category: "journal",
+    requiresScope: "write:journal",
+    inputSchema: {
+      type: "object",
+      properties: {
+        tenant: { type: "string", description: "Tenant-slug" },
+        clientId: { type: "string", description: "Klient-ID" },
+        side: { type: "string", description: "Fod-side", enum: ["L", "R"] },
+        source: { type: "string", description: "Optagelseskilde", enum: ["phone_video", "phone_photos", "structured_light", "laser", "pressure_mat"] },
+        markerType: { type: "string", description: "Skala-reference", enum: ["a4", "letter", "aruco", "sam_shoe"] },
+      },
+      required: ["tenant", "clientId", "side"],
+    },
+    outputSample: { id: "fs_abc123", status: "capturing", frame_count: 0 },
+  },
+  {
+    name: "foot_scan.ingest_video",
+    description: "Slice en smartphone-video til keyframes (skarphedsvægtet, IMU-varieret vinkler).",
+    category: "journal",
+    requiresScope: "write:journal",
+    inputSchema: {
+      type: "object",
+      properties: {
+        sessionId: { type: "string", description: "Session-ID" },
+        videoPath: { type: "string", description: "Absolut sti eller signed-upload-url" },
+      },
+      required: ["sessionId", "videoPath"],
+    },
+    outputSample: { session_id: "fs_abc123", frames_ingested: 27, total: 27 },
+  },
+  {
+    name: "foot_scan.calibrate_scale",
+    description: "Kør A4 / ArUco / SAM-baseret skala-detektion på første frame. Returnerer mm/px.",
+    category: "journal",
+    requiresScope: "write:journal",
+    inputSchema: {
+      type: "object",
+      properties: {
+        sessionId: { type: "string", description: "Session-ID" },
+        markerType: { type: "string", description: "Reference-metode", enum: ["a4", "letter", "aruco", "sam_shoe"] },
+      },
+      required: ["sessionId"],
+    },
+    outputSample: { mm_per_px: 0.412, method: "a4_contour", marker_confidence: 0.92 },
+  },
+  {
+    name: "foot_scan.reconstruct_mesh",
+    description: "Kør COLMAP + Open3D (eller NeuralMeshing / Gaussian Splat) på keyframes. Returnerer mesh-URI + stats.",
+    category: "journal",
+    requiresScope: "write:journal",
+    inputSchema: {
+      type: "object",
+      properties: {
+        sessionId: { type: "string", description: "Session-ID" },
+        engine: { type: "string", description: "Rekonstruktions-engine", enum: ["colmap+open3d", "neural_meshing", "gaussian_splat", "hybrid"] },
+        voxelSizeMm: { type: "number", description: "Voxel-størrelse i mm (default 0.5)" },
+        maxPoints: { type: "number", description: "Max punkt-antal (default 400000)" },
+        fillHoles: { type: "boolean", description: "Anatomisk hul-udfyldning (default true)" },
+      },
+      required: ["sessionId"],
+    },
+    outputSample: {
+      session_id: "fs_abc123",
+      engine: "colmap+open3d",
+      duration_ms: 84321,
+      mesh_uri: "file:///var/lib/praxisos/foot-scanner/fs_abc123/mesh.ply",
+      stats: { vertex_count: 312487, face_count: 618203, watertight: true, volume_ml: 486.2, bbox_mm: [102, 265, 78] },
+    },
+  },
+  {
+    name: "foot_scan.biomechanical_report",
+    description: "Analysér 3D-mesh og generer arch-index, hallux valgus, plantar pressure-zoner + kliniske anbefalinger.",
+    category: "journal",
+    requiresScope: "write:journal",
+    inputSchema: {
+      type: "object",
+      properties: {
+        sessionId: { type: "string", description: "Session-ID" },
+      },
+      required: ["sessionId"],
+    },
+    outputSample: {
+      arch_type: "low",
+      arch_index: 0.28,
+      hallux_valgus_deg: 18.4,
+      navicular_drop_mm: 8.4,
+      recommendations: ["Medial arch-support 8–10 mm", "Metatarsal-pad + toe-splint"],
+      icd10_suggestions: ["M20.1", "M21.4"],
+    },
+  },
+  {
+    name: "foot_scan.generate_orthotic",
+    description: "Emit parametrisk OpenSCAD + STL indlæg tilpasset scanningens biomekanik. Kræver FEATURE_CAD_EXPORT for tenant.",
+    category: "journal",
+    requiresScope: "write:journal",
+    inputSchema: {
+      type: "object",
+      properties: {
+        sessionId: { type: "string", description: "Session-ID" },
+        material: { type: "string", description: "Materiale", enum: ["EVA_shore45", "EVA_shore55", "TPU_95A", "PLA_matte"] },
+        archSupportMm: { type: "number", description: "Arch-dome-højde i mm (default 8)" },
+        heelCupMm: { type: "number", description: "Hælskål-højde i mm (default 12)" },
+        metatarsalPad: { type: "boolean", description: "Metatarsal-pad on/off" },
+        heelWedgeDeg: { type: "number", description: "Hælkile i grader (medial +)" },
+        forefootWedgeDeg: { type: "number", description: "Forfodskile i grader" },
+        topCover: { type: "string", description: "Overside-materiale", enum: ["none", "leather", "poron", "cambrelle"] },
+        printStyle: { type: "string", description: "Produktionsmetode", enum: ["fdm", "sla", "cnc_mill", "vacuum_form"] },
+      },
+      required: ["sessionId"],
+    },
+    outputSample: {
+      stl_uri: "file:///var/lib/praxisos/foot-scanner/fs_abc123/orthotic/fs_abc123_orthotic.stl",
+      scad_uri: "file:///var/lib/praxisos/foot-scanner/fs_abc123/orthotic/fs_abc123_orthotic.scad",
+      estimated_print_hours: 3.4,
+    },
+  },
+  {
+    name: "foot_scan.list_sessions",
+    description: "List fod-scan-sessioner for en tenant (og evt. specifik klient).",
+    category: "journal",
+    requiresScope: "read:clients",
+    inputSchema: {
+      type: "object",
+      properties: {
+        tenant: { type: "string", description: "Tenant-slug" },
+        clientId: { type: "string", description: "Klient-ID (valgfri)" },
+      },
+      required: ["tenant"],
+    },
+    outputSample: { count: 3, sessions: [{ id: "fs_abc123", side: "R", status: "ready", frame_count: 27 }] },
+  },
+  {
+    name: "foot_scan.get_session",
+    description: "Hent fuld session-status: frames, mesh-uri, report-uri, orthotic-uri.",
+    category: "journal",
+    requiresScope: "read:clients",
+    inputSchema: {
+      type: "object",
+      properties: {
+        sessionId: { type: "string", description: "Session-ID" },
+      },
+      required: ["sessionId"],
+    },
+  },
+
   // Payments
   {
     name: "create_payment_intent",
