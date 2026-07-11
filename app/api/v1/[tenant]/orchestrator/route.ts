@@ -107,11 +107,16 @@ export async function POST(
       inflightRuns.delete(runId);
     });
 
-  // Synk-sti: race mod SYNC_DEADLINE_MS
+  // Synk-sti: race mod SYNC_DEADLINE_MS med clean timer-cancel
+  let syncTimer: ReturnType<typeof setTimeout> | undefined;
+  const timeoutPromise = new Promise<{ type: "timeout" }>((resolve) => {
+    syncTimer = setTimeout(() => resolve({ type: "timeout" }), SYNC_DEADLINE_MS);
+  });
   const raceResult = await Promise.race([
     runPromise.then((r) => ({ type: "done" as const, r })),
-    sleep(SYNC_DEADLINE_MS).then(() => ({ type: "timeout" as const })),
+    timeoutPromise,
   ]);
+  if (syncTimer) clearTimeout(syncTimer);
 
   if (raceResult.type === "done") {
     return NextResponse.json({ run_id: runId, ...raceResult.r }, { status: 200 });
@@ -126,10 +131,6 @@ export async function POST(
     },
     { status: 202 },
   );
-}
-
-function sleep(ms: number): Promise<void> {
-  return new Promise((res) => setTimeout(res, ms));
 }
 
 function withTimeout<T>(p: Promise<T>, ms: number, code: string): Promise<T> {
