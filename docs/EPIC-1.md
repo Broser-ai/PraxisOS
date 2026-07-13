@@ -1,4 +1,4 @@
-The Multi-Agent Brain (Opgradering af lib/agents.ts)
+Epic 1: The Multi-Agent Brain (Opgradering af lib/agents.ts)
 Før AI'erne kan undervise, diagnosticere eller generere grafik, skal de kunne tale sammen struktureret. Vi skifter jeres "stubs" ud med en rigtig agent-orkestrator.
 
 Dette skal bygges:
