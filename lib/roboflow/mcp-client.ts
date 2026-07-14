@@ -1,6 +1,16 @@
 // Roboflow MCP Server client — computer vision dataset + træning + inference.
 // Kontrakt: EPIC-2 Clinical Scanner § VLM co-inference (fod-læsion detection)
-// Failsafe: hvis ROBOFLOW_API_KEY mangler → deterministisk mock (INV-CS-6 kompatibel).
+//
+// Failsafe #1: hvis ROBOFLOW_API_KEY mangler → deterministisk mock (INV-CS-6 kompatibel).
+//
+// SECURITY-FIXES efter innovation-swarm HIGH-verify (2026-07-13):
+// 1. `callMcpTool` throws SANITIZED error — raw response body ryger IKKE i Error.message
+//    → forhindrer Authorization-header leak via Vercel serverless logs på 4xx debug-svar.
+// 2. `Buffer.from(...).toString('base64')` erstattet med runtime-agnostisk `mockIdFrom()`
+//    → Buffer er Node-only global; ville throw ReferenceError i Next.js Edge runtime.
+// 3. Wire-schema for real Roboflow API-response afkoblet fra `ai_generated: literal(true)`
+//    → INV-CS-6-tagging sker efter successful parse, aldrig i schema-parsning selv.
+//    → Real API-svar ville ellers altid fejle → silent-degrade til blank findings.
 
 import { z } from "zod";
 
@@ -19,6 +29,32 @@ function getRoboflowConfig(): { url: string; apiKey: string | undefined } {
 
 function missingKeyLog(fn: string): void {
   console.log(`API Key Missing (ROBOFLOW_API_KEY) — ${fn} falling back to deterministic mock`);
+}
+
+/**
+ * Runtime-agnostisk deterministisk hash til mock-id'er.
+ * Erstatter `Buffer.from(str).toString('base64')` som crashede i Edge runtime.
+ * Bruger simpel djb2-inspireret hash → base36 → truncated. Nok til at give
+ * distinkte mock-id'er pr. imageUrl uden at afhænge af Node's Buffer.
+ */
+function mockIdFrom(input: string, length = 12): string {
+  let hash = 5381;
+  for (let i = 0; i < input.length; i++) {
+    hash = ((hash << 5) + hash + input.charCodeAt(i)) | 0;
+  }
+  const unsigned = hash < 0 ? -hash : hash;
+  return unsigned.toString(36).padStart(length, "0").slice(0, length);
+}
+
+/**
+ * Sanitize sensitive tokens ud af strings før logging.
+ * Roboflow debug 4xx-bodies kan indeholde echoed Authorization-headers.
+ */
+function scrubSecrets(s: string): string {
+  return s
+    .replace(/Bearer\s+[A-Za-z0-9._\-]+/gi, "Bearer [REDACTED]")
+    .replace(/(api[_-]?key["']?\s*[:=]\s*["']?)[A-Za-z0-9._\-]+/gi, "$1[REDACTED]")
+    .replace(/(authorization["']?\s*[:=]\s*["']?)[^"'\s,}]+/gi, "$1[REDACTED]");
 }
 
 // ---------------------------------------------------------------------------
@@ -105,10 +141,49 @@ export const DeployEndpointOutputSchema = z.object({
   status: z.enum(["provisioning", "ready", "failed"]),
 });
 
-// Scanner-Findings-kompatibel struktur (ScannerFindings §3)
+// ---------------------------------------------------------------------------
+// Wire schema for Roboflow API-response (NO ai_generated)
+// ---------------------------------------------------------------------------
+//
+// Real Roboflow API returnerer IKKE ai_generated. INV-CS-6-tagging sker
+// EFTER successful parse — se runInference() nedenfor.
+
+const RoboflowRawDetectionSchema = z.object({
+  id: z.string().optional(),
+  class: z.string().optional(),   // Roboflow bruger typisk "class"
+  category: z.string().optional(), // vi mapper til vores enum
+  label: z.string().optional(),
+  confidence: z.number().min(0).max(1),
+  x: z.number().optional(),
+  y: z.number().optional(),
+  width: z.number().optional(),
+  height: z.number().optional(),
+  bbox_2d: z
+    .object({
+      frame_index: z.number().int().nonnegative().default(0),
+      x: z.number(),
+      y: z.number(),
+      w: z.number(),
+      h: z.number(),
+    })
+    .optional(),
+  severity: z.enum(["low", "medium", "high"]).optional(),
+});
+
+const RoboflowRawInferenceResponseSchema = z.object({
+  scan_id: z.string().optional(),
+  image_id: z.string().optional(),
+  confidence_overall: z.number().min(0).max(1).optional(),
+  predictions: z.array(RoboflowRawDetectionSchema).optional(),
+  findings: z.array(RoboflowRawDetectionSchema).optional(),
+});
+
+// ScannerFindings-kompatibel struktur (INV-CS-6 · ai_generated:true påføres af os)
 export const InferenceDetectionSchema = z.object({
   id: z.string(),
-  category: z.enum(["biomechanical", "dermatological", "vascular", "neurological", "other"]).default("dermatological"),
+  category: z
+    .enum(["biomechanical", "dermatological", "vascular", "neurological", "other"])
+    .default("dermatological"),
   label: z.string(),
   confidence: z.number().min(0).max(1),
   bbox_2d: z.object({
@@ -121,6 +196,7 @@ export const InferenceDetectionSchema = z.object({
   severity: z.enum(["low", "medium", "high"]).default("low"),
   ai_generated: z.literal(true),
 });
+
 export const RunInferenceInputSchema = z.object({
   endpointUrl: z.string().url(),
   imageUrl: z.string().url(),
@@ -150,7 +226,7 @@ export const AutoLabelOutputSchema = z.object({
 });
 
 // ---------------------------------------------------------------------------
-// Internal — MCP JSON-RPC style dispatch over fetch
+// Internal — MCP JSON-RPC style dispatch over fetch (SANITIZED errors)
 // ---------------------------------------------------------------------------
 
 async function callMcpTool<T>(
@@ -171,21 +247,88 @@ async function callMcpTool<T>(
   });
 
   if (!res.ok) {
-    throw new Error(`Roboflow MCP ${res.status}: ${await res.text().catch(() => "")}`);
+    // FIX: raw body må ALDRIG i Error.message (kan indeholde echoed Authorization).
+    // Log body separat med scrubSecrets så Vercel-logs ikke får rå key.
+    const rawBody = await res.text().catch(() => "");
+    if (rawBody) console.log(`[roboflow ${tool}] upstream body: ${scrubSecrets(rawBody)}`);
+    throw new Error(`Roboflow MCP ${res.status} on ${tool}`);
   }
 
   const data = await res.json();
   return outputSchema.parse(data?.result ?? data);
 }
 
+/**
+ * Map Roboflow's raw response → vores ScannerFindings-kompatible struktur
+ * med ai_generated: true påført AF OS (ikke fra wire).
+ */
+function mapRoboflowResponseToFindings(
+  raw: unknown,
+  fallbackScanId: string
+): z.infer<typeof RunInferenceOutputSchema> {
+  const parsed = RoboflowRawInferenceResponseSchema.parse(raw);
+  const rawDetections = parsed.predictions ?? parsed.findings ?? [];
+
+  const findings = rawDetections.map((d, i): z.infer<typeof InferenceDetectionSchema> => {
+    const bbox = d.bbox_2d ?? {
+      frame_index: 0,
+      x: d.x ?? 0,
+      y: d.y ?? 0,
+      w: d.width ?? 0,
+      h: d.height ?? 0,
+    };
+    const label = d.label ?? d.class ?? "unknown";
+    const category = normalizeCategory(d.category ?? d.class);
+    return {
+      id: d.id ?? `rf_${i}`,
+      category,
+      label,
+      confidence: d.confidence,
+      bbox_2d: bbox,
+      severity: d.severity ?? "low",
+      ai_generated: true,
+    };
+  });
+
+  const avgConfidence =
+    findings.length > 0
+      ? findings.reduce((a, f) => a + f.confidence, 0) / findings.length
+      : parsed.confidence_overall ?? 0;
+
+  return {
+    scan_id: parsed.scan_id ?? parsed.image_id ?? fallbackScanId,
+    ai_generated: true,
+    confidence_overall: parsed.confidence_overall ?? avgConfidence,
+    findings,
+  };
+}
+
+function normalizeCategory(
+  raw: string | undefined
+): z.infer<typeof InferenceDetectionSchema>["category"] {
+  if (!raw) return "dermatological";
+  const s = raw.toLowerCase();
+  if (s.includes("bone") || s.includes("valgus") || s.includes("arch") || s.includes("gait"))
+    return "biomechanical";
+  if (s.includes("perfus") || s.includes("vascular") || s.includes("ischem"))
+    return "vascular";
+  if (s.includes("neuro") || s.includes("nerve")) return "neurological";
+  if (
+    s.includes("callus") ||
+    s.includes("ulcer") ||
+    s.includes("verruca") ||
+    s.includes("wart") ||
+    s.includes("eczema") ||
+    s.includes("skin")
+  )
+    return "dermatological";
+  return "other";
+}
+
 // ---------------------------------------------------------------------------
 // Public API
 // ---------------------------------------------------------------------------
 
-/**
- * List datasets tilgængelige i det konfigurerede Roboflow workspace.
- * Failsafe: returnerer deterministisk mock hvis ROBOFLOW_API_KEY mangler.
- */
 export async function listDatasets(
   input: z.infer<typeof ListDatasetsInputSchema> = {}
 ): Promise<z.infer<typeof ListDatasetsOutputSchema>> {
@@ -209,15 +352,12 @@ export async function listDatasets(
   try {
     return await callMcpTool("roboflow.datasets.list", parsed, ListDatasetsOutputSchema);
   } catch (err) {
+    // Error.message er nu sanitized (kun status + tool-navn)
     console.log("Roboflow listDatasets error, falling back to mock:", (err as Error).message);
     return { datasets: [] };
   }
 }
 
-/**
- * Upload et billede (URL-referencet) til et dataset for manuel eller AI-assisteret annotering.
- * Failsafe: returnerer deterministisk mock hvis ROBOFLOW_API_KEY mangler.
- */
 export async function uploadImageForAnnotation(
   input: z.infer<typeof UploadImageInputSchema>
 ): Promise<z.infer<typeof UploadImageOutputSchema>> {
@@ -226,7 +366,7 @@ export async function uploadImageForAnnotation(
   if (!apiKey) {
     missingKeyLog("uploadImageForAnnotation");
     return {
-      image_id: `img_mock_${Buffer.from(parsed.imageUrl).toString("base64").slice(0, 12)}`,
+      image_id: `img_mock_${mockIdFrom(parsed.imageUrl, 12)}`,
       dataset_id: parsed.datasetId,
       status: "accepted",
       message: "mock upload accepted",
@@ -235,9 +375,12 @@ export async function uploadImageForAnnotation(
   try {
     return await callMcpTool("roboflow.datasets.upload_image", parsed, UploadImageOutputSchema);
   } catch (err) {
-    console.log("Roboflow uploadImageForAnnotation error, falling back to mock:", (err as Error).message);
+    console.log(
+      "Roboflow uploadImageForAnnotation error, falling back to mock:",
+      (err as Error).message
+    );
     return {
-      image_id: `img_err_${Date.now()}`,
+      image_id: `img_err_${mockIdFrom(parsed.imageUrl, 8)}`,
       dataset_id: parsed.datasetId,
       status: "rejected",
       message: (err as Error).message,
@@ -245,10 +388,6 @@ export async function uploadImageForAnnotation(
   }
 }
 
-/**
- * Start et træningsjob for en dataset-version. Returnerer job_id til polling.
- * Failsafe: returnerer deterministisk mock med queued job_id hvis ROBOFLOW_API_KEY mangler.
- */
 export async function trainModel(
   input: z.infer<typeof TrainModelInputSchema>
 ): Promise<z.infer<typeof TrainModelOutputSchema>> {
@@ -268,17 +407,13 @@ export async function trainModel(
   } catch (err) {
     console.log("Roboflow trainModel error, falling back to mock:", (err as Error).message);
     return {
-      job_id: `job_err_${Date.now()}`,
+      job_id: `job_err_${mockIdFrom(`${parsed.datasetId}-${parsed.version}`, 10)}`,
       dataset_id: parsed.datasetId,
       status: "failed",
     };
   }
 }
 
-/**
- * Deploy en trænet model som hosted inference-endpoint (returnerer HTTPS-URL).
- * Failsafe: returnerer deterministisk mock endpoint URL hvis ROBOFLOW_API_KEY mangler.
- */
 export async function deployInferenceEndpoint(
   input: z.infer<typeof DeployEndpointInputSchema>
 ): Promise<z.infer<typeof DeployEndpointOutputSchema>> {
@@ -295,9 +430,16 @@ export async function deployInferenceEndpoint(
     };
   }
   try {
-    return await callMcpTool("roboflow.inference.deploy", parsed, DeployEndpointOutputSchema);
+    return await callMcpTool(
+      "roboflow.inference.deploy",
+      parsed,
+      DeployEndpointOutputSchema
+    );
   } catch (err) {
-    console.log("Roboflow deployInferenceEndpoint error, falling back to mock:", (err as Error).message);
+    console.log(
+      "Roboflow deployInferenceEndpoint error, falling back to mock:",
+      (err as Error).message
+    );
     return {
       endpoint_url: `https://mock.roboflow.com/${parsed.modelId}/v${parsed.version}`,
       model_id: parsed.modelId,
@@ -309,19 +451,21 @@ export async function deployInferenceEndpoint(
 }
 
 /**
- * Kør inference på et enkelt billede mod et deployet endpoint.
- * Failsafe: returnerer deterministisk mock med ScannerFindings-kompatibel struktur
- * (ai_generated=true, confidence_overall, findings[]) hvis ROBOFLOW_API_KEY mangler.
+ * Real API-svar parses med RAW schema (uden ai_generated), MAPPES derefter til
+ * ScannerFindings-shape med ai_generated: true påført af os. Dette forhindrer
+ * silent-degrade-til-blank som var HIGH-verify-findet fra innovation-swarm.
  */
 export async function runInference(
   input: z.infer<typeof RunInferenceInputSchema>
 ): Promise<z.infer<typeof RunInferenceOutputSchema>> {
   const parsed = RunInferenceInputSchema.parse(input);
-  const { apiKey } = getRoboflowConfig();
+  const { url, apiKey } = getRoboflowConfig();
+  const fallbackScanId = `scan_${mockIdFrom(parsed.imageUrl, 10)}`;
+
   if (!apiKey) {
     missingKeyLog("runInference");
     return {
-      scan_id: `scan_mock_${Buffer.from(parsed.imageUrl).toString("base64").slice(0, 10)}`,
+      scan_id: `scan_mock_${mockIdFrom(parsed.imageUrl, 10)}`,
       ai_generated: true,
       confidence_overall: 0.78,
       findings: [
@@ -338,11 +482,33 @@ export async function runInference(
     };
   }
   try {
-    return await callMcpTool("roboflow.inference.run", parsed, RunInferenceOutputSchema);
+    // NB: bruger direkte fetch mod endpointUrl (real Roboflow deployment)
+    // fordi runInference går imod det deployede model-endpoint, ikke MCP tools-call.
+    const res = await fetch(parsed.endpointUrl, {
+      method: "POST",
+      headers: {
+        Authorization: `Bearer ${apiKey}`,
+        "content-type": "application/json",
+      },
+      body: JSON.stringify({
+        image: parsed.imageUrl,
+        confidence: parsed.confidenceThreshold,
+      }),
+    });
+    if (!res.ok) {
+      const rawBody = await res.text().catch(() => "");
+      if (rawBody) console.log(`[roboflow runInference] upstream body: ${scrubSecrets(rawBody)}`);
+      throw new Error(`Roboflow inference ${res.status}`);
+    }
+    const rawJson = await res.json();
+    // Map raw wire → ScannerFindings + ai_generated:true (INV-CS-6)
+    return mapRoboflowResponseToFindings(rawJson, fallbackScanId);
   } catch (err) {
     console.log("Roboflow runInference error, falling back to mock:", (err as Error).message);
+    // NB: fallback returnerer 0 confidence + tom findings-array, IKKE en synthesized "callus"
+    // — det ville være silent-lying. Caller kan tjekke findings.length === 0.
     return {
-      scan_id: `scan_err_${Date.now()}`,
+      scan_id: `scan_err_${mockIdFrom(parsed.imageUrl, 10)}`,
       ai_generated: true,
       confidence_overall: 0,
       findings: [],
@@ -350,10 +516,6 @@ export async function runInference(
   }
 }
 
-/**
- * Auto-label et billede med Roboflow's grounded auto-annotation (SAM/GroundingDINO-lignende).
- * Failsafe: returnerer deterministisk mock med een label pr. promptClass hvis ROBOFLOW_API_KEY mangler.
- */
 export async function autoLabelImage(
   input: z.infer<typeof AutoLabelInputSchema>
 ): Promise<z.infer<typeof AutoLabelOutputSchema>> {
@@ -362,7 +524,7 @@ export async function autoLabelImage(
   if (!apiKey) {
     missingKeyLog("autoLabelImage");
     return {
-      image_id: `img_mock_${Buffer.from(parsed.imageUrl).toString("base64").slice(0, 12)}`,
+      image_id: `img_mock_${mockIdFrom(parsed.imageUrl, 12)}`,
       labels: parsed.promptClasses.map((cls, i) => ({
         class: cls,
         confidence: 0.7,
@@ -375,7 +537,7 @@ export async function autoLabelImage(
   } catch (err) {
     console.log("Roboflow autoLabelImage error, falling back to mock:", (err as Error).message);
     return {
-      image_id: `img_err_${Date.now()}`,
+      image_id: `img_err_${mockIdFrom(parsed.imageUrl, 8)}`,
       labels: [],
     };
   }

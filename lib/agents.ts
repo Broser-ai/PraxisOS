@@ -378,3 +378,99 @@ export function routeMessage(message: string): { agent: AgentId; confidence: num
   }
   return { agent: "aria", confidence: 0.5, reason: "standard · receptionen tager den" };
 }
+
+// =============================================================================
+// Sprint 1 · MDR classification split (2026-07-13)
+// Kontrakt: STATE-OF-THE-ART-MASTER-REPORT.md §3, §8 (kill list #3)
+//
+// PRINCIP: Bevar alle 9 persona-eksporter for backwards-compat, men marker
+// hver enkelt med MDR-tier + status. Orchestrator + UI må kun dispatche til
+// agenter hvor:
+//   - AGENT_MDR_TIER[id] === 'class_0' (non-medical, ship-ready), ELLER
+//   - AGENT_MDR_TIER[id] === 'class_iia' AND tenant.mdr_status === 'ce_marked'
+//
+// Contrarian-panel-consensus (Thiel + Ries): 6 af 9 agenter er prompt-templates,
+// ikke moat. De 3 vi beholder aktive = Aria (booking, non-medical), Sigrid
+// (dansk subsidy engine, non-medical calc) og Frej (compliance, altid nødvendig).
+// =============================================================================
+
+/**
+ * MDR classification pr. agent per MDCG 2019-11 Rev.1 Rule 11.
+ * - class_0:      Non-medical software · no clinical claim
+ * - class_iia:    Medical device software · suggests diagnosis / treatment
+ *                 → må IKKE køre uden tenant.mdr_status = 'ce_marked'
+ */
+export type MdrTier = "class_0" | "class_iia";
+
+export const AGENT_MDR_TIER: Record<AgentId, MdrTier> = {
+  // Class 0 · non-medical (ships Sprint 1)
+  aria:   "class_0",   // Booking + telefon-triage · ingen klinisk claim
+  sigrid: "class_0",   // Tilskuds-beregning + indberetning · administrativ
+  magnus: "class_0",   // Marketing/recall · non-medical
+  vega:   "class_0",   // Fakturering · administrativ
+  bjorn:  "class_0",   // Rute-optimering · logistik
+  // Class IIa · medical device (frozen behind CE-mark feature flag)
+  niels:  "class_iia", // SOAP-udkast + ICD-10 kandidater = MDCG 2019-11 Rule 11
+  liv:    "class_iia", // Patient-coach · risiko for medicinsk rådgivning
+  frej:   "class_iia", // Compliance-agent der beslutter escalation
+  atlas:  "class_iia", // Kode-gen kan påvirke patient-safety code paths
+};
+
+/**
+ * Deployment-status pr. agent efter Sprint-1 kill-list konsolidering.
+ * - active:     Aktivt persona i UI + orchestrator (kun class_0 default)
+ * - deprecated: Bevaret som eksport for backwards-compat, men UI viser IKKE
+ *               som separat persona · funktionalitet foldet ind i 'back-office'
+ * - frozen:     Class-IIa · må ikke dispatches uden CE-mark feature flag
+ */
+export type AgentDeploymentStatus = "active" | "deprecated" | "frozen";
+
+export const AGENT_DEPLOYMENT_STATUS: Record<AgentId, AgentDeploymentStatus> = {
+  aria:   "active",       // KEEP · booking-flow er hjerteslag
+  sigrid: "active",       // KEEP · dansk subsidy engine = eneste reelle moat (Thiel)
+  frej:   "active",       // KEEP · compliance-agent er altid nødvendig
+  magnus: "deprecated",   // FOLD → 'back-office' persona
+  vega:   "deprecated",   // FOLD → 'back-office' persona
+  bjorn:  "deprecated",   // FOLD → 'back-office' persona
+  niels:  "frozen",       // FROZEN til CE-mark
+  liv:    "frozen",       // FROZEN til CE-mark
+  atlas:  "frozen",       // FROZEN til CE-mark
+};
+
+/** IDs vi aktivt viser i UI + dispatcher til fra orchestrator. */
+export const ACTIVE_AGENT_IDS: AgentId[] = (Object.keys(AGENT_DEPLOYMENT_STATUS) as AgentId[])
+  .filter((id) => AGENT_DEPLOYMENT_STATUS[id] === "active");
+
+/** Class-IIa IDs — orchestrator afviser dispatch uden ce_marked-flag. */
+export const CLASS_IIA_AGENT_IDS: AgentId[] = (Object.keys(AGENT_MDR_TIER) as AgentId[])
+  .filter((id) => AGENT_MDR_TIER[id] === "class_iia");
+
+/**
+ * Gate for orchestrator + API-lag. Returnerer true hvis agenten må invokes
+ * på en tenant med givent mdr_status.
+ * Class 0 agenter: altid tilladt.
+ * Class IIa agenter: kun hvis tenant.mdr_status === 'ce_marked'.
+ */
+export type TenantMdrStatus = "none" | "pre_market" | "ce_marked";
+
+export function canDispatchAgent(
+  agentId: AgentId,
+  tenantMdrStatus: TenantMdrStatus,
+): { allowed: boolean; reason: string } {
+  const status = AGENT_DEPLOYMENT_STATUS[agentId];
+  if (status === "active") return { allowed: true, reason: "active class_0 agent" };
+  if (status === "deprecated") {
+    return {
+      allowed: false,
+      reason: `agent ${agentId} deprecated · folded into back-office`,
+    };
+  }
+  // status === 'frozen' (Class IIa)
+  if (tenantMdrStatus !== "ce_marked") {
+    return {
+      allowed: false,
+      reason: `agent ${agentId} is Class IIa · tenant.mdr_status=${tenantMdrStatus} (need ce_marked)`,
+    };
+  }
+  return { allowed: true, reason: "class_iia agent on ce_marked tenant" };
+}
