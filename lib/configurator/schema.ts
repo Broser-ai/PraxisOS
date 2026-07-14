@@ -30,7 +30,13 @@ export const biophysicalRegionSchema = z.object({
   face_ids: z.array(z.number().int().nonnegative()),
   collagen_density: z.number().min(0).max(1),
   shore_a_hardness: z.number().min(20).max(90),
-  perfusion_index: z.number().min(0).max(1),
+  /**
+   * perfusion_index MUST be null when no clinician-captured vascular
+   * assessment exists. Software NEVER infers perfusion from images
+   * (Armstrong CRITICAL · migration 0007 vascular_assessments table).
+   */
+  perfusion_index: z.number().min(0).max(1).nullable(),
+  unknown_perfusion: z.boolean().default(false),
   ai_generated: z.literal(true).default(true),
 });
 
