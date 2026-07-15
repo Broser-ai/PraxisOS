@@ -456,6 +456,7 @@ export type TenantMdrStatus = "none" | "pre_market" | "ce_marked";
 export function canDispatchAgent(
   agentId: AgentId,
   tenantMdrStatus: TenantMdrStatus,
+  tenantSlug?: string,
 ): { allowed: boolean; reason: string } {
   const status = AGENT_DEPLOYMENT_STATUS[agentId];
   if (status === "active") return { allowed: true, reason: "active class_0 agent" };
@@ -467,6 +468,15 @@ export function canDispatchAgent(
   }
   // status === 'frozen' (Class IIa)
   if (tenantMdrStatus !== "ce_marked") {
+    // Sprint 5: by Pilar dev-mode bypass · KUN når PRAXIS_CLINICAL_DEV=1
+    // og tenant er 'bypilar' og vi ikke er i produktion.
+    if (tenantSlug === "bypilar" && process.env.PRAXIS_CLINICAL_DEV === "1"
+        && process.env.NODE_ENV !== "production") {
+      return {
+        allowed: true,
+        reason: `class_iia agent · by Pilar clinical-dev-mode bypass (PRAXIS_CLINICAL_DEV=1)`,
+      };
+    }
     return {
       allowed: false,
       reason: `agent ${agentId} is Class IIa · tenant.mdr_status=${tenantMdrStatus} (need ce_marked)`,
