@@ -662,20 +662,23 @@ Trial-mekanismen er central. By Pilar betaler **0 kr** indtil PraxisOS er commer
 | Linked til Supabase | ✓ Yes (auto-deploy ikke aktivt endnu) |
 
 ### 15.4 · Env-vars (Vercel Production)
-**Status: tomme · skal sættes manuelt** (CLI hænger på `--value` flag).
+**Status: sat** (2026-07-31) · Production + Preview.
 
 ```
 PRAXIS_DB                       = supabase-eu
 NEXT_PUBLIC_SUPABASE_URL        = https://jajdtvduzkitjzcazcng.supabase.co
-NEXT_PUBLIC_SUPABASE_ANON_KEY   = eyJhbG...v5HVICFOg6bkxvh4DuWvo8r-kQOYePMQmS4wPy7vLys
-SUPABASE_SERVICE_ROLE_KEY       = eyJhbG...fhyoPGQqL4nYO5ok3m7UOw6TiGzWtowdvgZUqT5Kay0
+SUPABASE_URL                    = https://jajdtvduzkitjzcazcng.supabase.co
+NEXT_PUBLIC_SUPABASE_ANON_KEY   = (sat · sensitive)
+SUPABASE_ANON_KEY               = (sat · sensitive)
+SUPABASE_SERVICE_ROLE_KEY       = (sat · sensitive)
 NEXT_PUBLIC_BASE_URL            = https://praxis-os-mu.vercel.app
 NEXT_PUBLIC_APP_REGION          = eu-west-1
-SUPABASE_URL                    = (samme som NEXT_PUBLIC_SUPABASE_URL)
-SUPABASE_ANON_KEY               = (samme som NEXT_PUBLIC_SUPABASE_ANON_KEY)
 ```
 
-**Sættes manuelt** på: https://vercel.com/michaels-projects-78cbfa56/praxis-os/settings/environment-variables
+Dashboard: https://vercel.com/michaels-projects-78cbfa56/praxis-os/settings/environment-variables
+
+> Bemærk: Appen kører stadig mock-data-paths i kode indtil `@supabase/supabase-js` er wired.
+> Env-vars er på plads, så næste skridt er rigtig client i `lib/supabase.ts`.
 
 ---
 
@@ -802,9 +805,8 @@ Manipulation kan opdages ved at re-køre kæden.
 
 | # | Issue | Severity | Fix |
 |---|-------|----------|-----|
-| 1 | Env-vars tomme i Vercel · prod falder tilbage til mock | medium | Manuel via UI · 90 sek |
-| 2 | Produktion kører i mock-mode (`PRAXIS_DB` ikke sat) | medium | Fixes med #1 |
-| 3 | `/api/signup` opretter mock-tenant · mangler ægte Supabase-insert | medium | Sprint 1 (service_role) |
+| 1 | Env-vars sat, men kode bruger stadig mock-storage (ingen `@supabase/supabase-js` endnu) | medium | Sprint 1 · wire client |
+| 2 | `/api/signup` opretter mock-tenant · mangler ægte Supabase-insert | medium | Sprint 1 (service_role) |
 | 4 | Stripe Connect ikke koblet · ingen rigtig billing | high | Sprint 2 |
 | 5 | MitID-flow er mock · Idura broker ikke aktiveret | high | Sprint efter Idura-onboarding |
 | 6 | Email-pipeline mangler · ingen booking-bekræftelser sendes | high | Sprint 2 + Bird.com |
@@ -817,7 +819,7 @@ Manipulation kan opdages ved at re-køre kæden.
 ## 20 · Next Steps · Roadmap
 
 ### Sprint 1 · Nuværende
-- [ ] **Brugeren**: sæt env-vars i Vercel · merge/redeploy
+- [x] **Env-vars sat i Vercel** (Production + Preview) · redeployet
 - [x] GitHub ↔ Vercel forbundet ([`praxis-os`](https://vercel.com/michaels-projects-78cbfa56/praxis-os))
 - [x] `/api/signup` POST-handler (mock in-memory · wired fra `/signup`)
 - [ ] `/api/signup` → ægte Supabase-insert via service_role
