@@ -25,6 +25,7 @@ const secondary = [
   { href: "/admin/api", label: "Universal API", icon: "M4 16l-3-3 3-3M20 8l3 3-3 3M14 4l-4 16" },
   { href: "/admin/nemsms", label: "NemSMS", icon: "M21 11.5a8.38 8.38 0 01-.9 3.8 8.5 8.5 0 01-7.6 4.7 8.38 8.38 0 01-3.8-.9L3 21l1.9-5.7a8.38 8.38 0 01-.9-3.8 8.5 8.5 0 014.7-7.6 8.38 8.38 0 013.8-.9h.5a8.48 8.48 0 018 8v.5z" },
   { href: "/admin/agents", label: "Agent-team", icon: "M16 21v-2a4 4 0 00-4-4H6a4 4 0 00-4 4v2M9 11a4 4 0 100-8 4 4 0 000 8zM22 21v-2a4 4 0 00-3-3.9M16 3.1a4 4 0 010 7.8" },
+  { href: "/admin/swarm", label: "S-H Swarm · 24/7", icon: "M12 2v4M12 18v4M4.9 4.9l2.8 2.8M16.3 16.3l2.8 2.8M2 12h4M18 12h4M4.9 19.1l2.8-2.8M16.3 7.7l2.8-2.8" },
   { href: "/admin/sundhed-dk", label: "Sundhed.dk", icon: "M22 11.08V12a10 10 0 11-5.93-9.14M22 4l-10 10-3-3" },
   { href: "/admin/medcom", label: "MedCom", icon: "M4 4h16v16H4zM4 9h16M9 4v16" },
   { href: "/admin/mcp", label: "MCP-server", icon: "M12 2L2 7l10 5 10-5-10-5zM2 17l10 5 10-5M2 12l10 5 10-5" },

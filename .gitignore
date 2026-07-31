@@ -50,6 +50,7 @@ screenshots/
 
 # Swarm worktrees (savage parallel execution)
 .worktrees/
+.swarm-data/
 
 # Word-doc · sendes separat til ma@keap.me
 PraxisOS-Forarbejde.docx

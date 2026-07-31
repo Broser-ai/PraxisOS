@@ -1,7 +1,8 @@
 // ARIA_META · meta-harness for S-H swarm (savage execution, human-gated merge)
 
-import { getSwarmMemory } from "@/lib/swarm/memory";
+import { flushSwarmMemory, getSwarmMemory } from "@/lib/swarm/memory";
 import { writeJournal } from "@/lib/swarm/journal";
+import { publishSwarmEvent } from "@/lib/swarm/events";
 import { runSAgent } from "@/lib/swarm/s-agents";
 import { runHBridge } from "@/lib/swarm/h-bridge";
 import { approveMergeWorktree } from "@/lib/swarm/worktree-manager";
@@ -123,6 +124,8 @@ export async function executeSwarmTask(taskId: string): Promise<SwarmTask> {
   }
 
   task.updatedAt = new Date().toISOString();
+  publishSwarmEvent({ type: "task", task });
+  flushSwarmMemory();
   return task;
 }
 

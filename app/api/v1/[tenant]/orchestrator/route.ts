@@ -21,11 +21,10 @@ import type { Role } from "@/lib/agents";
 import { createDefaultLLMCaller } from "@/lib/llm-adapter";
 import { redactPII } from "@/lib/redact";
 import { decodeSession, SESSION_COOKIE, type Role as AuthRole, type Session } from "@/lib/auth";
+import { orchRunMaps } from "@/lib/orchestrator-runs";
 
-// Simpel in-memory run-registry for demo/async-sti. I prod erstattes med
-// Supabase agent_runs + agent_steps writer.
-const inflightRuns = new Map<string, Promise<RunResult>>();
-const completedRuns = new Map<string, RunResult>();
+// Shared with GET …/orchestrator/runs/[runId]
+const { inflight: inflightRuns, completed: completedRuns } = orchRunMaps();
 
 function newRunId(): string {
   // Simpelt UUID v4 alternativ uden crypto-import for Edge-compat

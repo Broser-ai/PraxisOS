@@ -72,9 +72,12 @@ async function atlasCode(task: SwarmTask): Promise<SAgentResult> {
     };
   }
 
-  // Write a concrete plan file into the worktree (real filesystem change)
   const { writeFileSync, mkdirSync } = await import("node:fs");
   const { join } = await import("node:path");
+  const { execFile } = await import("node:child_process");
+  const { promisify } = await import("node:util");
+  const execFileAsync = promisify(execFile);
+
   const planDir = join(wt.path, "docs", "swarm-plans");
   mkdirSync(planDir, { recursive: true });
   const planPath = join(planDir, `${task.id}.md`);
@@ -97,11 +100,24 @@ async function atlasCode(task: SwarmTask): Promise<SAgentResult> {
       "1. Extend working-core data path if needed",
       "2. Add/adjust H-agent tools via MCP",
       "3. Vitest for invariants",
-      "4. Human review → approve token → merge",
+      "4. Human review → approve token → PR merge",
       "",
     ].join("\n"),
     "utf8",
   );
+
+  let committed = false;
+  try {
+    await execFileAsync("git", ["add", "docs/swarm-plans"], { cwd: wt.path });
+    await execFileAsync(
+      "git",
+      ["commit", "-m", `swarm(atlas): plan ${task.id} — ${task.title.slice(0, 60)}`],
+      { cwd: wt.path },
+    );
+    committed = true;
+  } catch {
+    committed = false;
+  }
 
   await markWorktreeReadyForReview(task.id);
 
@@ -109,12 +125,16 @@ async function atlasCode(task: SwarmTask): Promise<SAgentResult> {
     agent: "ATLAS_CODE",
     kind: "result",
     taskId: task.id,
-    content: `Plan committed in worktree ${wt.branchName}`,
-    meta: { branchName: wt.branchName, path: wt.path },
+    content: committed
+      ? `Plan git-committed in worktree ${wt.branchName}`
+      : `Plan written (git commit skipped) in ${wt.branchName}`,
+    meta: { branchName: wt.branchName, path: wt.path, committed },
   });
 
   return {
-    summary: `Worktree ${wt.branchName} ready for review with plan artifact`,
+    summary: committed
+      ? `Worktree ${wt.branchName} has committed plan — awaiting human PR approve`
+      : `Worktree ${wt.branchName} has plan file — awaiting human review`,
     artifacts: [planPath, wt.branchName],
     needsHuman: true,
   };

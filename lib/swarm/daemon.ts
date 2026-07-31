@@ -1,30 +1,25 @@
 // PraxisOS · 24/7 Meta-Harness Daemon
 //
-// Recurring real-time S-H swarm cycles in worktree mode.
-// SAFETY (locked):
-//   - Does NOT auto-merge to main
-//   - Does NOT auto-deploy
-//   - FREJ_GATE + human approve token still required for merge
-//
-// Run locally / on a worker: `npm run awaken`
-// On Vercel: hit POST /api/v1/{tenant}/swarm/tick via cron every N minutes
+// Recurring S-H swarm cycles. Local awaken uses setInterval; Vercel uses cron ticks.
+// SAFETY: NO_AUTO_MERGE / NO_AUTO_DEPLOY — human approve still required.
 
 import { publishSwarmEvent } from "@/lib/swarm/events";
 import { writeJournal } from "@/lib/swarm/journal";
-import { getSwarmMemory } from "@/lib/swarm/memory";
-import { savageRun, listSwarmTasks } from "@/lib/swarm/meta-harness";
+import { flushSwarmMemory, getSwarmMemory } from "@/lib/swarm/memory";
+import { listSwarmTasks, savageRun } from "@/lib/swarm/meta-harness";
 import { SWARM_INVARIANTS, type SwarmTaskType } from "@/lib/swarm/types";
 
 export type DaemonState = {
   running: boolean;
+  cronEnabled: boolean;
   startedAt: string | null;
   cycle: number;
   lastTickAt: string | null;
   lastError: string | null;
   tenantSlug: string;
   intervalMs: number;
-  /** rotating agenda index */
   agendaIndex: number;
+  tickInFlight: boolean;
 };
 
 type DaemonRoot = {
@@ -34,9 +29,7 @@ type DaemonRoot = {
 
 const KEY = "__praxisos_swarm_daemon_v1__";
 
-/** Default 6h between full cycles in long-running mode; override with SWARM_INTERVAL_MS */
 export const DEFAULT_SWARM_INTERVAL_MS = 6 * 60 * 60 * 1000;
-/** Fast tick for "real-time" feel in demos / continuous mode */
 export const DEFAULT_REALTIME_INTERVAL_MS = 60_000;
 
 type AgendaItem = {
@@ -58,8 +51,8 @@ const AGENDA: AgendaItem[] = [
   },
   {
     type: "clinical_h",
-    title: "H-bridge · Aria/Niels pulse",
-    brief: "Route a synthetic clinic pulse: booking confirmation + journal draft readiness check.",
+    title: "H-bridge · Aria clinic pulse",
+    brief: "Confirm clinic loop: list bookings and create a follow-up booking for swarm pulse client.",
   },
   {
     type: "audit",
@@ -76,16 +69,19 @@ const AGENDA: AgendaItem[] = [
 function getRoot(): DaemonRoot {
   const g = globalThis as typeof globalThis & { [KEY]?: DaemonRoot };
   if (!g[KEY]) {
+    const slice = getSwarmMemory().daemonSlice;
     g[KEY] = {
       state: {
         running: false,
+        cronEnabled: slice.cronEnabled,
         startedAt: null,
-        cycle: 0,
-        lastTickAt: null,
+        cycle: slice.cycle,
+        lastTickAt: slice.lastTickAt,
         lastError: null,
-        tenantSlug: "bypilar",
-        intervalMs: Number(process.env.SWARM_INTERVAL_MS) || DEFAULT_REALTIME_INTERVAL_MS,
-        agendaIndex: 0,
+        tenantSlug: slice.tenantSlug,
+        intervalMs: slice.intervalMs || DEFAULT_REALTIME_INTERVAL_MS,
+        agendaIndex: slice.agendaIndex,
+        tickInFlight: false,
       },
       timer: null,
     };
@@ -93,18 +89,35 @@ function getRoot(): DaemonRoot {
   return g[KEY];
 }
 
+function syncSlice(): void {
+  const state = getRoot().state;
+  const mem = getSwarmMemory();
+  mem.daemonSlice = {
+    cycle: state.cycle,
+    agendaIndex: state.agendaIndex,
+    tenantSlug: state.tenantSlug,
+    intervalMs: state.intervalMs,
+    lastTickAt: state.lastTickAt,
+    running: state.running || state.cronEnabled,
+    cronEnabled: state.cronEnabled,
+  };
+  flushSwarmMemory();
+}
+
 export function getDaemonState(): DaemonState {
   return { ...getRoot().state };
 }
 
 export function isDaemonRunning(): boolean {
-  return getRoot().state.running;
+  const s = getRoot().state;
+  return s.running || s.cronEnabled;
 }
 
-/**
- * One autonomous cycle: rotate S/H agents, journal everything, emit realtime events.
- * Never merges or deploys.
- */
+/** Test-only: force/clear tick mutex. */
+export function __setTickInFlightForTests(value: boolean): void {
+  getRoot().state.tickInFlight = value;
+}
+
 export async function tickDaemon(opts?: { tenantSlug?: string }): Promise<{
   cycle: number;
   taskId: string;
@@ -113,25 +126,31 @@ export async function tickDaemon(opts?: { tenantSlug?: string }): Promise<{
 }> {
   const root = getRoot();
   const state = root.state;
-  if (opts?.tenantSlug) state.tenantSlug = opts.tenantSlug;
 
-  const item = AGENDA[state.agendaIndex % AGENDA.length]!;
-  state.agendaIndex = (state.agendaIndex + 1) % AGENDA.length;
-  state.cycle += 1;
-  state.lastTickAt = new Date().toISOString();
-
-  writeJournal({
-    agent: "ARIA_META",
-    kind: "thought",
-    content: `24/7 cycle #${state.cycle} · launching ${item.type} · merge=${SWARM_INVARIANTS.NO_AUTO_MERGE} deploy=${SWARM_INVARIANTS.NO_AUTO_DEPLOY}`,
-  });
-  publishSwarmEvent({
-    type: "daemon",
-    status: "tick",
-    detail: `cycle ${state.cycle} → ${item.type}`,
-  });
+  if (state.tickInFlight) {
+    throw new Error("tick_in_flight");
+  }
+  state.tickInFlight = true;
 
   try {
+    if (opts?.tenantSlug) state.tenantSlug = opts.tenantSlug;
+
+    const item = AGENDA[state.agendaIndex % AGENDA.length]!;
+    state.agendaIndex = (state.agendaIndex + 1) % AGENDA.length;
+    state.cycle += 1;
+    state.lastTickAt = new Date().toISOString();
+
+    writeJournal({
+      agent: "ARIA_META",
+      kind: "thought",
+      content: `24/7 cycle #${state.cycle} · ${item.type} · merge=${SWARM_INVARIANTS.NO_AUTO_MERGE} deploy=${SWARM_INVARIANTS.NO_AUTO_DEPLOY}`,
+    });
+    publishSwarmEvent({
+      type: "daemon",
+      status: "tick",
+      detail: `cycle ${state.cycle} → ${item.type}`,
+    });
+
     const task = await savageRun({
       type: item.type,
       title: `${item.title} · c${state.cycle}`,
@@ -141,10 +160,6 @@ export async function tickDaemon(opts?: { tenantSlug?: string }): Promise<{
     });
 
     publishSwarmEvent({ type: "task", task });
-    for (const entry of getSwarmMemory().journals.slice(0, 3)) {
-      publishSwarmEvent({ type: "journal", entry });
-    }
-
     const summary = `cycle ${state.cycle}: ${task.assignedTo} → ${task.status}`;
     publishSwarmEvent({
       type: "cycle",
@@ -154,6 +169,7 @@ export async function tickDaemon(opts?: { tenantSlug?: string }): Promise<{
     });
 
     state.lastError = null;
+    syncSlice();
     return {
       cycle: state.cycle,
       taskId: task.id,
@@ -169,7 +185,10 @@ export async function tickDaemon(opts?: { tenantSlug?: string }): Promise<{
       kind: "result",
       content: `Daemon tick failed: ${message}`,
     });
+    syncSlice();
     throw err;
+  } finally {
+    state.tickInFlight = false;
   }
 }
 
@@ -178,50 +197,68 @@ export function startDaemon(opts?: {
   intervalMs?: number;
 }): DaemonState {
   const root = getRoot();
-  if (root.state.running) return getDaemonState();
-
-  root.state.running = true;
-  root.state.startedAt = new Date().toISOString();
-  root.state.tenantSlug = opts?.tenantSlug ?? root.state.tenantSlug;
   const envInterval = Number(process.env.SWARM_INTERVAL_MS);
+  root.state.tenantSlug = opts?.tenantSlug ?? root.state.tenantSlug;
   root.state.intervalMs =
     opts?.intervalMs ??
     (Number.isFinite(envInterval) && envInterval > 0
       ? envInterval
       : DEFAULT_REALTIME_INTERVAL_MS);
+  root.state.cronEnabled = true;
   root.state.lastError = null;
 
-  writeJournal({
-    agent: "ARIA_META",
-    kind: "action",
-    content: `Daemon AWAKENED · interval ${root.state.intervalMs}ms · tenant=${root.state.tenantSlug}`,
-  });
-  publishSwarmEvent({
-    type: "daemon",
-    status: "started",
-    detail: `interval=${root.state.intervalMs}ms`,
-  });
+  // On Vercel: only enable cron flag (no setInterval in lambda)
+  const isServerless = process.env.VERCEL === "1";
 
-  // Immediate first tick, then recurring
-  void tickDaemon().catch(() => undefined);
+  if (!isServerless) {
+    if (root.state.running && root.timer) return getDaemonState();
+    root.state.running = true;
+    root.state.startedAt = new Date().toISOString();
 
-  root.timer = setInterval(() => {
-    void tickDaemon().catch(() => undefined);
-    const uptime = root.state.startedAt
-      ? Date.now() - new Date(root.state.startedAt).getTime()
-      : 0;
-    publishSwarmEvent({
-      type: "heartbeat",
-      at: new Date().toISOString(),
-      uptimeMs: uptime,
+    writeJournal({
+      agent: "ARIA_META",
+      kind: "action",
+      content: `Daemon AWAKENED · interval ${root.state.intervalMs}ms · tenant=${root.state.tenantSlug}`,
     });
-  }, root.state.intervalMs);
+    publishSwarmEvent({
+      type: "daemon",
+      status: "started",
+      detail: `interval=${root.state.intervalMs}ms`,
+    });
 
-  // Prevent Node from refusing to keep process alive issues with unref in tests
-  if (process.env.NODE_ENV === "test" && root.timer && "unref" in root.timer) {
-    root.timer.unref();
+    void tickDaemon().catch(() => undefined);
+
+    root.timer = setInterval(() => {
+      void tickDaemon().catch(() => undefined);
+      const uptime = root.state.startedAt
+        ? Date.now() - new Date(root.state.startedAt).getTime()
+        : 0;
+      publishSwarmEvent({
+        type: "heartbeat",
+        at: new Date().toISOString(),
+        uptimeMs: uptime,
+      });
+    }, root.state.intervalMs);
+
+    if (process.env.NODE_ENV === "test" && root.timer && "unref" in root.timer) {
+      root.timer.unref();
+    }
+  } else {
+    root.state.running = false;
+    root.state.startedAt = new Date().toISOString();
+    writeJournal({
+      agent: "ARIA_META",
+      kind: "action",
+      content: `Cron-enabled AWAKEN · Vercel ticks via /api/cron/swarm-tick · tenant=${root.state.tenantSlug}`,
+    });
+    publishSwarmEvent({
+      type: "daemon",
+      status: "started",
+      detail: "vercel-cron-mode",
+    });
   }
 
+  syncSlice();
   return getDaemonState();
 }
 
@@ -232,12 +269,14 @@ export function stopDaemon(): DaemonState {
     root.timer = null;
   }
   root.state.running = false;
+  root.state.cronEnabled = false;
   writeJournal({
     agent: "ARIA_META",
     kind: "action",
     content: `Daemon STOPPED after ${root.state.cycle} cycles`,
   });
   publishSwarmEvent({ type: "daemon", status: "stopped" });
+  syncSlice();
   return getDaemonState();
 }
 
@@ -249,6 +288,10 @@ export function getAutonomousSnapshot() {
     invariants: SWARM_INVARIANTS,
     recentTasks: tasks.slice(0, 10),
     agenda: AGENDA.map((a) => a.type),
-    mode: "24/7 recurring · human-gated merge/deploy",
+    mode: state.running
+      ? "24/7 in-process interval"
+      : state.cronEnabled
+        ? "24/7 cron ticks"
+        : "idle",
   };
 }

@@ -143,6 +143,16 @@ export default function SwarmAdminPage() {
     }
   };
 
+  const approveTask = async (taskId: string) => {
+    const token = window.prompt("Approve token (dev: I-APPROVE-MERGE)") ?? "";
+    if (!token) return;
+    await post({
+      action: "approve",
+      taskId,
+      approveToken: token,
+    });
+  };
+
   const daemon = status?.daemon;
 
   return (
@@ -273,6 +283,16 @@ export default function SwarmAdminPage() {
                   {t.assignedTo} · {t.type}
                   {t.branchName ? ` · ${t.branchName}` : ""}
                 </div>
+                {t.status === "awaiting_human" && (
+                  <button
+                    type="button"
+                    disabled={busy}
+                    onClick={() => void approveTask(t.id)}
+                    className="mt-2 rounded-[8px] border border-line px-2.5 py-1 text-[11px] hover:bg-paper-2"
+                  >
+                    Human approve →
+                  </button>
+                )}
               </div>
             ))}
           </div>

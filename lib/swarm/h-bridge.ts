@@ -1,61 +1,124 @@
-// H-bridge · routes clinical/humanized work through LangGraph orchestrator
+// H-bridge · clinical pulse through real clinic data + LangGraph orchestrator
 
-import { buildOrchestrator } from "@/lib/orchestrator";
-import { createStubLLMCaller, createDefaultLLMCaller } from "@/lib/llm-adapter";
+import type { Role } from "@/lib/agents";
+import {
+  createBookingForTenant,
+  listBookingsForTenant,
+  listClientsForTenant,
+} from "@/lib/data/repo";
+import { createDefaultLLMCaller, createStubLLMCaller } from "@/lib/llm-adapter";
+import { buildOrchestrator, isOrchestrationEnabled } from "@/lib/orchestrator";
 import { writeJournal } from "@/lib/swarm/journal";
 import type { SwarmTask } from "@/lib/swarm/types";
-import type { Role } from "@/lib/agents";
 
-export async function runHBridge(task: SwarmTask, opts?: {
-  actorRole?: Role;
-  useLiveLlm?: boolean;
-}): Promise<{ summary: string; status: "completed" | "failed"; steps: number }> {
+export async function runHBridge(
+  task: SwarmTask,
+  opts?: {
+    actorRole?: Role;
+    useLiveLlm?: boolean;
+  },
+): Promise<{ summary: string; status: "completed" | "failed"; steps: number }> {
   writeJournal({
     agent: "H_BRIDGE",
     kind: "action",
     taskId: task.id,
-    content: `Dispatching H-agents via LangGraph for: ${task.title}`,
+    content: `Clinic pulse for ${task.tenantSlug}: list → book → orchestrate`,
   });
 
-  const orch = buildOrchestrator({
-    llmCall: opts?.useLiveLlm ? createDefaultLLMCaller() : createStubLLMCaller(),
-  });
+  try {
+    const existing = await listBookingsForTenant(task.tenantSlug, { limit: 5 });
+    const clients = await listClientsForTenant(task.tenantSlug);
 
-  const result = await orch.invoke({
-    tenantId: task.tenantSlug,
-    tenantSlug: task.tenantSlug,
-    actorRole: opts?.actorRole ?? "owner",
-    origin: "api",
-    messages: [{ role: "user", content: task.brief || task.title }],
-    tenantMdrStatus: "none",
-  });
+    const startsAt = new Date(Date.now() + 2 * 86400000);
+    startsAt.setHours(10, 0, 0, 0);
 
-  if (result.status !== "done") {
+    const booking = await createBookingForTenant(task.tenantSlug, {
+      serviceId: "fod-med",
+      startsAt: startsAt.toISOString(),
+      client: {
+        name: "Swarm Pulse Patient",
+        email: `swarm-pulse-${task.id.slice(-6)}@praxis.local`,
+        phone: "+45 70 00 00 00",
+      },
+      modality: "Klinik",
+      notes: `Autonomous H-bridge pulse · task ${task.id}`,
+      source: "aria",
+    });
+
+    if ("error" in booking) {
+      writeJournal({
+        agent: "H_BRIDGE",
+        kind: "result",
+        taskId: task.id,
+        content: `Booking failed: ${booking.error}`,
+      });
+      return { summary: booking.error, status: "failed", steps: 0 };
+    }
+
     writeJournal({
       agent: "H_BRIDGE",
       kind: "result",
       taskId: task.id,
-      content: `H-bridge failed: ${result.error?.code ?? "unknown"} ${result.error?.message ?? ""}`,
+      content: `Created booking ${booking.id} for ${booking.clientName} · priorBookings=${existing.length} clients=${clients.length}`,
+      meta: { bookingId: booking.id, clientId: booking.clientId },
     });
+
+    const useLive =
+      opts?.useLiveLlm ??
+      (isOrchestrationEnabled() && Boolean(process.env.ANTHROPIC_API_KEY));
+
+    const orch = buildOrchestrator({
+      llmCall: useLive ? createDefaultLLMCaller() : createStubLLMCaller(),
+    });
+
+    const result = await orch.invoke({
+      tenantId: task.tenantSlug,
+      tenantSlug: task.tenantSlug,
+      actorRole: opts?.actorRole ?? "owner",
+      origin: "booking",
+      messages: [
+        {
+          role: "user",
+          content: `Bekræft booking ${booking.id} for ${booking.clientName} · ${booking.service} · ${booking.startsAt}`,
+        },
+      ],
+      tenantMdrStatus: "none",
+    });
+
+    const summary = [
+      `booking=${booking.id}`,
+      `orch=${result.status}`,
+      `steps=${result.steps.length}`,
+      result.error ? `err=${result.error.code}` : null,
+    ]
+      .filter(Boolean)
+      .join(" · ");
+
+    writeJournal({
+      agent: "H_BRIDGE",
+      kind: "result",
+      taskId: task.id,
+      content: summary,
+      meta: {
+        bookingId: booking.id,
+        orchStatus: result.status,
+        steps: result.steps.length,
+      },
+    });
+
     return {
-      summary: result.error?.message ?? "h_bridge_failed",
-      status: "failed",
+      summary,
+      status: result.status === "error" && !booking.id ? "failed" : "completed",
       steps: result.steps.length,
     };
+  } catch (err) {
+    const message = err instanceof Error ? err.message : String(err);
+    writeJournal({
+      agent: "H_BRIDGE",
+      kind: "result",
+      taskId: task.id,
+      content: `H-bridge failed: ${message}`,
+    });
+    return { summary: message, status: "failed", steps: 0 };
   }
-
-  const last = result.output.filter((m) => m.role === "assistant").at(-1)?.content;
-  writeJournal({
-    agent: "H_BRIDGE",
-    kind: "result",
-    taskId: task.id,
-    content: last ?? `H-run done in ${result.steps.length} steps`,
-    meta: { steps: result.steps.length, finalAgent: result.finalAgent },
-  });
-
-  return {
-    summary: last ?? `Orchestrator finished (${result.steps.length} steps)`,
-    status: "completed",
-    steps: result.steps.length,
-  };
 }

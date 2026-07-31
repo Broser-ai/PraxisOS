@@ -149,25 +149,17 @@ export async function approveMergeWorktree(input: {
   const job = getSwarmMemory().worktrees.find((w) => w.taskId === input.taskId);
   if (!job) return { error: "worktree_not_found" };
 
-  try {
-    // Record intent; actual git merge left to human/CI in production.
-    // For local savage mode we can merge into target if it is NOT protected.
-    if (target !== "main" && target !== "production") {
-      await git(["merge", "--no-ff", job.branchName, "-m", `swarm: merge ${job.branchName}`]);
-    }
-    job.status = "merged";
-    writeJournal({
-      agent: "FREJ_GATE",
-      kind: "result",
-      taskId: input.taskId,
-      content: `Human-approved merge intent by ${input.approvedBy} → ${target}`,
-      meta: { approvedBy: input.approvedBy, target },
-    });
-    return { ok: true, mergedInto: target };
-  } catch (err) {
-    const message = err instanceof Error ? err.message : String(err);
-    return { error: message.slice(0, 200) };
-  }
+  // Never merge into the running app's checkout from a web request.
+  // Approval records intent + marks worktree ready for human/CI PR merge.
+  job.status = "merged";
+  writeJournal({
+    agent: "FREJ_GATE",
+    kind: "result",
+    taskId: input.taskId,
+    content: `Human-approved by ${input.approvedBy} → open PR from ${job.branchName} into ${target} (no auto-merge executed)`,
+    meta: { approvedBy: input.approvedBy, target, branchName: job.branchName },
+  });
+  return { ok: true, mergedInto: target };
 }
 
 export async function discardWorktree(taskId: string): Promise<void> {
