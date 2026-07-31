@@ -1,4 +1,6 @@
-// Bookings mock-data — past + upcoming på tværs af tenants.
+// Bookings — seed + durable memory store (lib/data/memory).
+
+import { ensureBookingSeed, getMemoryStore } from "@/lib/data/memory";
 
 export type BookingStatus = "confirmed" | "completed" | "cancelled" | "noshow" | "pending";
 
@@ -54,8 +56,13 @@ export const bookings: Booking[] = [
   { id: "bk_p5", tenant: "bypilar", clientId: "amira",  clientName: "Amira Haddad", clientInitials: "AH", service: "Luksus fodpleje", serviceId: "fod-lux", practitioner: "Pilar", startsAt: isoOffset(-30, 10), durationMin: 75, modality: "Klinik", status: "cancelled", priceKr: 745, paid: false, noShowRisk: 0, source: "online", notes: "Aflyst af patient · genbooket til ny tid." },
 ];
 
+function readyStore() {
+  ensureBookingSeed(bookings);
+  return getMemoryStore();
+}
+
 export function listBookings(opts?: { tenant?: string; status?: BookingStatus[]; clientId?: string }): Booking[] {
-  return bookings.filter((b) => {
+  return readyStore().bookings.filter((b) => {
     if (opts?.tenant && b.tenant !== opts.tenant) return false;
     if (opts?.status && !opts.status.includes(b.status)) return false;
     if (opts?.clientId && b.clientId !== opts.clientId) return false;
@@ -64,7 +71,7 @@ export function listBookings(opts?: { tenant?: string; status?: BookingStatus[];
 }
 
 export function getBooking(id: string): Booking | undefined {
-  return bookings.find((b) => b.id === id);
+  return readyStore().bookings.find((b) => b.id === id);
 }
 
 export const statusLabel: Record<BookingStatus, { label: string; color: string; bg: string }> = {

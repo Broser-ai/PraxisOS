@@ -1,11 +1,15 @@
 "use client";
 
 import Link from "next/link";
+import { useRouter } from "next/navigation";
 import { useState } from "react";
 import { CvrLookup } from "@/components/CvrLookup";
 
 export default function SignupPage() {
+  const router = useRouter();
   const [step, setStep] = useState<1 | 2 | 3>(1);
+  const [submitting, setSubmitting] = useState(false);
+  const [submitError, setSubmitError] = useState<string | null>(null);
   const [data, setData] = useState({
     cvr: "",
     legalName: "",
@@ -19,6 +23,34 @@ export default function SignupPage() {
 
   const slugify = (s: string) =>
     s.toLowerCase().replace(/[^a-z0-9]+/g, "-").replace(/^-|-$/g, "").slice(0, 32);
+
+  const createClinic = async () => {
+    setSubmitting(true);
+    setSubmitError(null);
+    try {
+      const res = await fetch("/api/signup", {
+        method: "POST",
+        headers: { "content-type": "application/json" },
+        body: JSON.stringify(data),
+      });
+      const json = await res.json();
+      if (!res.ok) {
+        setSubmitError(
+          json.error === "slug_taken"
+            ? "Klinik-slug er optaget — vælg et andet navn."
+            : json.error === "email_taken"
+              ? "Email er allerede i brug."
+              : json.error ?? "Kunne ikke oprette klinik",
+        );
+        return;
+      }
+      router.push(`/login?created=${encodeURIComponent(data.slug)}&email=${encodeURIComponent(data.email)}`);
+    } catch {
+      setSubmitError("Netværksfejl — prøv igen.");
+    } finally {
+      setSubmitting(false);
+    }
+  };
 
   return (
     <div className="min-h-screen bg-paper">
@@ -155,16 +187,18 @@ export default function SignupPage() {
               </div>
             </div>
 
+            {submitError && (
+              <p className="mt-4 text-[13px] text-clay">{submitError}</p>
+            )}
             <div className="mt-6 flex gap-2">
               <button onClick={() => setStep(2)} className="rounded-[10px] border border-line bg-card px-4 py-2.5 text-[13px]">← Tilbage</button>
               <button
-                onClick={() => {
-                  // I prod: POST /api/signup → opretter tenant + sender invite
-                  alert(`Tenant '${data.slug}' oprettet (mock).\n\nI prod sender vi MitID-invite til ${data.phone}.`);
-                }}
-                className="flex-1 rounded-[10px] bg-ink px-4 py-2.5 text-[13.5px] font-medium text-paper"
+                type="button"
+                disabled={submitting}
+                onClick={() => void createClinic()}
+                className="flex-1 rounded-[10px] bg-ink px-4 py-2.5 text-[13.5px] font-medium text-paper disabled:opacity-60"
               >
-                Opret klinik
+                {submitting ? "Opretter…" : "Opret klinik"}
               </button>
             </div>
           </div>
