@@ -1,0 +1,7 @@
+export * from "@/lib/swarm/types";
+export * from "@/lib/swarm/memory";
+export * from "@/lib/swarm/journal";
+export * from "@/lib/swarm/worktree-manager";
+export * from "@/lib/swarm/s-agents";
+export * from "@/lib/swarm/h-bridge";
+export * from "@/lib/swarm/meta-harness";

@@ -38,6 +38,8 @@ const INTEGRATIONS: { name: string; modul: string; status: Status; note: string;
   { name: "Sygesikringen danmark", modul: "EDIFACT D04A", status: "stub", note: "webservice-aftale" },
   { name: "PraxisOS Pay", modul: "UI + config", status: "stub", note: "ingen Stripe/processor endnu", href: "/admin/payments" },
   { name: "AI · Aria/Niels/Sigrid", modul: "9 personas", status: "stub", note: "demo-svar · ikke LLM-koblet", href: "/admin/agents" },
+  { name: "S-H Swarm · Savage", modul: "ARIA_META + worktrees", status: "live", note: "human-gated merge · NO_AUTO_DEPLOY", href: "/admin/swarm" },
+  { name: "LangGraph orchestrator", modul: "EPIC-1", status: "live", note: "feature-flag AGENT_ORCHESTRATION_ENABLED", href: "/admin/swarm" },
   { name: "MCP-server", modul: "JSON-RPC 2.0", status: "stub", note: "katalog · demo tools", href: "/admin/mcp" },
   { name: "Modul-marketplace", modul: "UI", status: "stub", note: "aktivering er lokal state", href: "/admin/marketplace" },
 ];

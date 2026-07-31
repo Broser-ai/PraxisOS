@@ -275,6 +275,80 @@ export const MOOD_COLOR: Record<AgentMood, string> = {
   celebrating: "var(--color-amber)",
 };
 
+/** Rolle-adgangskontrol pr. agent (INV-7). */
+export type Role = "owner" | "practitioner" | "reception" | "support" | "system";
+
+export const AGENT_ALLOWED_ROLES: Record<AgentId, Role[]> = {
+  aria:   ["owner", "practitioner", "reception", "support", "system"],
+  niels:  ["owner", "practitioner", "support"],
+  sigrid: ["owner", "practitioner", "reception", "support"],
+  magnus: ["owner", "reception", "support"],
+  frej:   ["owner", "support", "system"],
+  vega:   ["owner", "reception", "support"],
+  bjorn:  ["owner", "practitioner", "reception", "support"],
+  liv:    ["owner", "practitioner", "support"],
+  atlas:  ["owner", "support", "system"],
+};
+
+/** Model-tier pr. agent (§8 beslutning 2). */
+export type ModelTier = "smart" | "fast" | "clinical";
+
+export const AGENT_MODEL_TIER: Record<AgentId, ModelTier> = {
+  // Klog tier
+  frej:   "smart",
+  // Klinisk tier
+  niels:  "clinical",
+  atlas:  "clinical",
+  // Hurtig tier
+  aria:   "fast",
+  sigrid: "fast",
+  magnus: "fast",
+  vega:   "fast",
+  bjorn:  "fast",
+  liv:    "fast",
+};
+
+/** Konkret model-ID pr. tier. Kan overrides via env-var i orchestrator. */
+export const MODEL_BY_TIER: Record<ModelTier, string> = {
+  smart:    "claude-opus-4-7",
+  clinical: "claude-sonnet-5",
+  fast:     "claude-haiku-4-5-20251001",
+};
+
+/** Deterministisk vs stokastisk (INV-12). Agenter med compliance-krav kører temperature=0. */
+export const AGENT_COMPLIANCE_MODE: Record<AgentId, boolean> = {
+  aria:   false,
+  niels:  true,   // klinisk dokumentation skal være reproducerbar
+  sigrid: true,   // tilskuds-afregning er compliance-kritisk
+  magnus: false,
+  frej:   true,   // compliance ér definition compliance
+  vega:   false,
+  bjorn:  false,
+  liv:    false,
+  atlas:  true,   // kode-gen forslag skal være reproducerbare
+};
+
+/**
+ * INV-19-verifier: ingen agent må bruge en model uden for sin whitelist.
+ * Bruges i test-suite til at bevise runtime-integritet.
+ */
+export function isAllowedModelForAgent(agentId: AgentId, model: string): boolean {
+  const tier = AGENT_MODEL_TIER[agentId];
+  return MODEL_BY_TIER[tier] === model;
+}
+
+/**
+ * INV-7-verifier: rolle-check før en worker-node dispatches.
+ */
+export function canRoleInvokeAgent(role: Role, agentId: AgentId): boolean {
+  return AGENT_ALLOWED_ROLES[agentId].includes(role);
+}
+
+/** Alle worker-IDs som Supervisor kan route til. Rækkefølgen matcher AGENTS[]. */
+export const WORKER_IDS: AgentId[] = [
+  "aria", "niels", "sigrid", "magnus", "frej", "vega", "bjorn", "liv", "atlas",
+];
+
 // Chat-router · finder den agent der bedst passer til en besked
 export function routeMessage(message: string): { agent: AgentId; confidence: number; reason: string } {
   const lower = message.toLowerCase();
@@ -294,4 +368,110 @@ export function routeMessage(message: string): { agent: AgentId; confidence: num
     if (hits > 0) return { agent: t.agent, confidence: Math.min(0.95, 0.5 + hits * 0.15), reason: t.reason };
   }
   return { agent: "aria", confidence: 0.5, reason: "standard · receptionen tager den" };
+}
+
+// =============================================================================
+// Sprint 1 · MDR classification split (2026-07-13)
+// Kontrakt: STATE-OF-THE-ART-MASTER-REPORT.md §3, §8 (kill list #3)
+//
+// PRINCIP: Bevar alle 9 persona-eksporter for backwards-compat, men marker
+// hver enkelt med MDR-tier + status. Orchestrator + UI må kun dispatche til
+// agenter hvor:
+//   - AGENT_MDR_TIER[id] === 'class_0' (non-medical, ship-ready), ELLER
+//   - AGENT_MDR_TIER[id] === 'class_iia' AND tenant.mdr_status === 'ce_marked'
+//
+// Contrarian-panel-consensus (Thiel + Ries): 6 af 9 agenter er prompt-templates,
+// ikke moat. De 3 vi beholder aktive = Aria (booking, non-medical), Sigrid
+// (dansk subsidy engine, non-medical calc) og Frej (compliance, altid nødvendig).
+// =============================================================================
+
+/**
+ * MDR classification pr. agent per MDCG 2019-11 Rev.1 Rule 11.
+ * - class_0:      Non-medical software · no clinical claim
+ * - class_iia:    Medical device software · suggests diagnosis / treatment
+ *                 → må IKKE køre uden tenant.mdr_status = 'ce_marked'
+ */
+export type MdrTier = "class_0" | "class_iia";
+
+export const AGENT_MDR_TIER: Record<AgentId, MdrTier> = {
+  // Class 0 · non-medical (ships Sprint 1)
+  aria:   "class_0",   // Booking + telefon-triage · ingen klinisk claim
+  sigrid: "class_0",   // Tilskuds-beregning + indberetning · administrativ
+  magnus: "class_0",   // Marketing/recall · non-medical
+  vega:   "class_0",   // Fakturering · administrativ
+  bjorn:  "class_0",   // Rute-optimering · logistik
+  // Class IIa · medical device (frozen behind CE-mark feature flag)
+  niels:  "class_iia", // SOAP-udkast + ICD-10 kandidater = MDCG 2019-11 Rule 11
+  liv:    "class_iia", // Patient-coach · risiko for medicinsk rådgivning
+  frej:   "class_iia", // Compliance-agent der beslutter escalation
+  atlas:  "class_iia", // Kode-gen kan påvirke patient-safety code paths
+};
+
+/**
+ * Deployment-status pr. agent efter Sprint-1 kill-list konsolidering.
+ * - active:     Aktivt persona i UI + orchestrator (kun class_0 default)
+ * - deprecated: Bevaret som eksport for backwards-compat, men UI viser IKKE
+ *               som separat persona · funktionalitet foldet ind i 'back-office'
+ * - frozen:     Class-IIa · må ikke dispatches uden CE-mark feature flag
+ */
+export type AgentDeploymentStatus = "active" | "deprecated" | "frozen";
+
+export const AGENT_DEPLOYMENT_STATUS: Record<AgentId, AgentDeploymentStatus> = {
+  aria:   "active",       // KEEP · booking-flow er hjerteslag
+  sigrid: "active",       // KEEP · dansk subsidy engine = eneste reelle moat (Thiel)
+  frej:   "active",       // KEEP · compliance-agent er altid nødvendig
+  magnus: "deprecated",   // FOLD → 'back-office' persona
+  vega:   "deprecated",   // FOLD → 'back-office' persona
+  bjorn:  "deprecated",   // FOLD → 'back-office' persona
+  niels:  "frozen",       // FROZEN til CE-mark
+  liv:    "frozen",       // FROZEN til CE-mark
+  atlas:  "frozen",       // FROZEN til CE-mark
+};
+
+/** IDs vi aktivt viser i UI + dispatcher til fra orchestrator. */
+export const ACTIVE_AGENT_IDS: AgentId[] = (Object.keys(AGENT_DEPLOYMENT_STATUS) as AgentId[])
+  .filter((id) => AGENT_DEPLOYMENT_STATUS[id] === "active");
+
+/** Class-IIa IDs — orchestrator afviser dispatch uden ce_marked-flag. */
+export const CLASS_IIA_AGENT_IDS: AgentId[] = (Object.keys(AGENT_MDR_TIER) as AgentId[])
+  .filter((id) => AGENT_MDR_TIER[id] === "class_iia");
+
+/**
+ * Gate for orchestrator + API-lag. Returnerer true hvis agenten må invokes
+ * på en tenant med givent mdr_status.
+ * Class 0 agenter: altid tilladt.
+ * Class IIa agenter: kun hvis tenant.mdr_status === 'ce_marked'.
+ */
+export type TenantMdrStatus = "none" | "pre_market" | "ce_marked";
+
+export function canDispatchAgent(
+  agentId: AgentId,
+  tenantMdrStatus: TenantMdrStatus,
+  tenantSlug?: string,
+): { allowed: boolean; reason: string } {
+  const status = AGENT_DEPLOYMENT_STATUS[agentId];
+  if (status === "active") return { allowed: true, reason: "active class_0 agent" };
+  if (status === "deprecated") {
+    return {
+      allowed: false,
+      reason: `agent ${agentId} deprecated · folded into back-office`,
+    };
+  }
+  // status === 'frozen' (Class IIa)
+  if (tenantMdrStatus !== "ce_marked") {
+    // Sprint 5: by Pilar dev-mode bypass · KUN når PRAXIS_CLINICAL_DEV=1
+    // og tenant er 'bypilar' og vi ikke er i produktion.
+    if (tenantSlug === "bypilar" && process.env.PRAXIS_CLINICAL_DEV === "1"
+        && process.env.NODE_ENV !== "production") {
+      return {
+        allowed: true,
+        reason: `class_iia agent · by Pilar clinical-dev-mode bypass (PRAXIS_CLINICAL_DEV=1)`,
+      };
+    }
+    return {
+      allowed: false,
+      reason: `agent ${agentId} is Class IIa · tenant.mdr_status=${tenantMdrStatus} (need ce_marked)`,
+    };
+  }
+  return { allowed: true, reason: "class_iia agent on ce_marked tenant" };
 }

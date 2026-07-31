@@ -22,6 +22,8 @@ const PROTECTED_PATH_PATTERNS: RegExp[] = [
   /^\/indstillinger(?:\/|$)/,
   /^\/api\/v1\/[^/]+\/clients(?:\/|$)/,
   /^\/api\/v1\/[^/]+\/bookings\/list(?:\/|$)/,
+  /^\/api\/v1\/[^/]+\/swarm(?:\/|$)/,
+  /^\/api\/v1\/[^/]+\/orchestrator(?:\/|$)/,
 ];
 
 const PUBLIC_PATH_PATTERNS: RegExp[] = [
@@ -169,5 +171,9 @@ export const config = {
     "/api/v1/:tenant/clients",
     "/api/v1/:tenant/clients/:path*",
     "/api/v1/:tenant/bookings/list",
+    "/api/v1/:tenant/swarm",
+    "/api/v1/:tenant/swarm/:path*",
+    "/api/v1/:tenant/orchestrator",
+    "/api/v1/:tenant/orchestrator/:path*",
   ],
 };

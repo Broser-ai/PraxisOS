@@ -48,5 +48,8 @@ Thumbs.db
 # Screenshots (lokale tests)
 screenshots/
 
+# Swarm worktrees (savage parallel execution)
+.worktrees/
+
 # Word-doc · sendes separat til ma@keap.me
 PraxisOS-Forarbejde.docx
