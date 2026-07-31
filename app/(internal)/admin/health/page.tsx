@@ -4,7 +4,7 @@ import { DB_MODE, currentConfig } from "@/lib/supabase";
 type Status = "live" | "stub" | "pending" | "down";
 
 const INTEGRATIONS: { name: string; modul: string; status: Status; note: string; href?: string }[] = [
-  { name: "Next.js · App Router", modul: "next 16.2.7", status: "live", note: "49 routes · build ✓" },
+  { name: "Next.js · App Router", modul: "next 16.2.12", status: "live", note: "60 pages + 15 API · build ✓" },
   { name: "Database · Postgres", modul: `Supabase · ${DB_MODE}`, status: DB_MODE === "mock" ? "stub" : "live", note: currentConfig.region, href: "/admin/database" },
   { name: "Row-Level Security", modul: "16/18 tables", status: "live", note: "tenant_isolation enforced" },
   { name: "MitID OIDC", modul: "Signaturgruppen broker", status: "stub", note: "afventer trust-aftale", href: "/login/mitid?mode=patient" },
@@ -45,7 +45,7 @@ export default function HealthPage() {
         <Stat label="Live integrationer" value={live.toString()} color="var(--color-signal)" />
         <Stat label="Stub · klar til kobling" value={INTEGRATIONS.filter((i) => i.status === "stub").length.toString()} color="var(--color-amber)" />
         <Stat label="Pending · afventer aftale" value={INTEGRATIONS.filter((i) => i.status === "pending").length.toString()} />
-        <Stat label="Build-status" value="✓ Compiled" color="var(--color-signal)" sub="49 routes · TypeScript OK" />
+        <Stat label="Build-status" value="✓ Compiled" color="var(--color-signal)" sub="75 routes · TypeScript OK" />
       </div>
 
       {/* Integrations */}
