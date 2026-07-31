@@ -43,6 +43,8 @@ const SECTION_LABELS: Record<SoapSection["section"], string> = {
 
 export function SoapReviewPane(props: SoapReviewPaneProps): React.ReactElement {
   const { draft, audioUrl, onDecision, onSignOff } = props;
+  const shortcutsId = React.useId();
+  const rootRef = useRef<HTMLDivElement | null>(null);
 
   // Flat list of {section, index} pointers for keyboard navigation
   const flatIndex = useMemo(() => {
@@ -166,7 +168,14 @@ export function SoapReviewPane(props: SoapReviewPaneProps): React.ReactElement {
   ).length;
 
   return (
-    <div className="w-full max-w-[860px] rounded-xl bg-neutral-950 text-neutral-100 border border-neutral-800 overflow-hidden">
+    <div
+      ref={rootRef}
+      className="w-full max-w-[860px] rounded-xl bg-neutral-950 text-neutral-100 border border-neutral-800 overflow-hidden"
+      role="region"
+      aria-label="SOAP-review · sætning-for-sætning gennemgang"
+      aria-describedby={shortcutsId}
+      tabIndex={-1}
+    >
       <header className="px-4 py-3 border-b border-neutral-800 flex items-center gap-3">
         <div>
           <p className="text-[10px] uppercase tracking-widest text-neutral-500">
@@ -186,7 +195,12 @@ export function SoapReviewPane(props: SoapReviewPaneProps): React.ReactElement {
         </div>
       </header>
 
-      <div className="px-4 py-3 bg-neutral-900/70 border-b border-neutral-800 text-[11px] text-neutral-400 flex gap-3 flex-wrap">
+      <div
+        id={shortcutsId}
+        role="group"
+        aria-label="Keyboard-genveje til SOAP-review"
+        className="px-4 py-3 bg-neutral-900/70 border-b border-neutral-800 text-[11px] text-neutral-400 flex gap-3 flex-wrap"
+      >
         <kbd className="px-1.5 py-0.5 rounded bg-neutral-800 border border-neutral-700 font-mono">j / k</kbd> navigate
         <kbd className="px-1.5 py-0.5 rounded bg-neutral-800 border border-neutral-700 font-mono">a</kbd> accept
         <kbd className="px-1.5 py-0.5 rounded bg-neutral-800 border border-neutral-700 font-mono">e</kbd> edit
@@ -201,7 +215,11 @@ export function SoapReviewPane(props: SoapReviewPaneProps): React.ReactElement {
 
       {audioUrl && <audio ref={audioRef} src={audioUrl} preload="auto" className="hidden" />}
 
-      <div className="p-4 space-y-5 max-h-[560px] overflow-y-auto">
+      <div
+        className="p-4 space-y-5 max-h-[560px] overflow-y-auto"
+        role="list"
+        aria-label={`SOAP-udkast — ${acceptedCount} af ${flatIndex.length} sætninger reviewed`}
+      >
         {draft.sections.map((section) => (
           <section key={section.section}>
             <h3 className="text-xs uppercase tracking-widest text-neutral-500 mb-2">
@@ -354,6 +372,7 @@ function SentenceRow(props: {
           onClick={props.onClickAccept}
           className="text-emerald-400 hover:text-emerald-300 text-xs"
           title="Accept (a)"
+          aria-label={`Accepter sætning ${props.sentenceIndex + 1} i sektion ${props.section}`}
         >
           ✓
         </button>
@@ -362,6 +381,7 @@ function SentenceRow(props: {
           onClick={props.onClickReject}
           className="text-red-400 hover:text-red-300 text-xs"
           title="Reject (r)"
+          aria-label={`Afvis sætning ${props.sentenceIndex + 1} i sektion ${props.section}`}
         >
           ✕
         </button>

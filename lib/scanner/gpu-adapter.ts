@@ -1,15 +1,25 @@
-// GPU-lift adapter (INV-CS-14 cost-loft håndhæves her).
-// Kontrakt: docs/harness/EPIC-2-Clinical-Scanner.md §11 beslutning 1
+// GPU-lift adapter (INV-CS-14 cost-loft haandhaeves her).
+// Kontrakt: docs/harness/EPIC-2-Clinical-Scanner.md paragraph 11 beslutning 1
 //
-// Interface `GpuLifter` så vi kan skifte mellem Replicate (MVP) og
-// egne A100/H100-workers senere uden at røre pipeline-koden.
+// Interface `GpuLifter` saa vi kan skifte mellem Replicate (MVP) og
+// egne A100/H100-workers senere uden at roere pipeline-koden.
+//
+// Sprint 6 B5: cost-tracking flyttet fra lokal Map til SharedStore saa
+// budget-haandhaevelsen holder paa tvaers af serverless-instances. Uden det
+// kunne en angriber ramme forskellige warm-instances og omgaa CS-14.
 
 import type { MeshLike } from "./watertight";
+import {
+  getDefaultSharedStore,
+  setDefaultSharedStore,
+  type SharedStore,
+} from "@/lib/shared-store/adapter";
+import { createMemorySharedStore } from "@/lib/shared-store/memory-store";
 
 export type LiftInput = {
   scanId: string;
   tenantId: string;
-  framesUrl: string;     // Supabase Storage path prefix
+  framesUrl: string;
   framesCount: number;
   calibrationMode: "aruco" | "monocular";
 };
@@ -17,7 +27,7 @@ export type LiftInput = {
 export type LiftOutput = {
   sparseCloudUrl: string;
   denseMeshUrl: string;
-  mesh: MeshLike;          // in-memory representation til watertight-check
+  mesh: MeshLike;
   volumeMetrics: {
     lengthMm: number;
     widthMm: number;
@@ -30,55 +40,100 @@ export type LiftOutput = {
 export type GpuLifter = (input: LiftInput) => Promise<LiftOutput>;
 
 // ---------------------------------------------------------------------------
-// Cost-tracking (INV-CS-14)
+// Cost-tracking (INV-CS-14) via SharedStore
 // ---------------------------------------------------------------------------
 
-const tenantGpuBudget = new Map<string, { seconds: number; windowStart: number }>();
 const HOUR_MS = 60 * 60 * 1000;
 export const GPU_HOURLY_LIMIT_SEC = 300;
 
-export function assertGpuBudget(tenantId: string, requestedSeconds: number): void {
-  const now = Date.now();
-  const bucket = tenantGpuBudget.get(tenantId);
-  if (!bucket || now - bucket.windowStart > HOUR_MS) {
-    tenantGpuBudget.set(tenantId, { seconds: 0, windowStart: now });
-  }
-  const current = tenantGpuBudget.get(tenantId)!;
-  if (current.seconds + requestedSeconds > GPU_HOURLY_LIMIT_SEC) {
+function budgetKey(tenantId: string): string {
+  return `gpu:budget:hourly:${tenantId}`;
+}
+
+/**
+ * Kaster hvis tenanten ville overskride CS-14 cost-loft. Bruger SharedStore
+ * saa haandhaevelsen holder paa tvaers af serverless-instances.
+ */
+export async function assertGpuBudget(
+  tenantId: string,
+  requestedSeconds: number,
+  store: SharedStore = getDefaultSharedStore(),
+): Promise<void> {
+  const current = await store.getCounter(budgetKey(tenantId));
+  if (current + requestedSeconds > GPU_HOURLY_LIMIT_SEC) {
     throw new Error(
       `INV-CS-14 violation: tenant ${tenantId} would exceed ${GPU_HOURLY_LIMIT_SEC}s/hour GPU budget`,
     );
   }
 }
 
-export function recordGpuUsage(tenantId: string, seconds: number): void {
-  const bucket = tenantGpuBudget.get(tenantId);
-  if (bucket) bucket.seconds += seconds;
+/**
+ * Registrer forbrug. Foerste gang i en time saetter vi TTL saa bucketten
+ * ruller efter HOUR_MS.
+ */
+export async function recordGpuUsage(
+  tenantId: string,
+  seconds: number,
+  store: SharedStore = getDefaultSharedStore(),
+): Promise<void> {
+  const key = budgetKey(tenantId);
+  const existing = await store.getCounter(key);
+  if (existing === 0) {
+    await store.setCounterWithTtl(key, seconds, HOUR_MS);
+  } else {
+    await store.incrementCounter(key, seconds);
+  }
 }
 
-// Testing helper
-export function resetGpuBudget(): void {
-  tenantGpuBudget.clear();
+/**
+ * Testing/admin helper. Med tenantId: nulstiller kun den tenants bucket.
+ * Uden tenantId: nulstiller HELE default-store'n (behaviourpreserving for
+ * legacy tests der ryddede den lokale Map). Multi-tenant prod boer altid
+ * bruge den tenant-scopede variant.
+ */
+export async function resetGpuBudget(
+  tenantId?: string,
+  store: SharedStore = getDefaultSharedStore(),
+): Promise<void> {
+  if (tenantId) {
+    await store.resetCounter(budgetKey(tenantId));
+    return;
+  }
+  // Ingen enumerate-API i SharedStore-kontrakten - swap default-store i
+  // stedet saa alle counters (inkl. rate-limit) starter forfra.
+  setDefaultSharedStore(createMemorySharedStore());
 }
 
 // ---------------------------------------------------------------------------
-// Replicate adapter (real) — kaldes kun hvis REPLICATE_API_TOKEN er sat.
+// Replicate adapter (real) - kaldes kun hvis REPLICATE_API_TOKEN er sat.
 // ---------------------------------------------------------------------------
+
+// Sprint 6 blocker B7 · fail-closed clinical guard
+function assertGpuStubAllowed(reason: string): void {
+  const isProd = process.env.NODE_ENV === "production";
+  const allow = process.env.PRAXIS_GPU_ALLOW_STUB === "1";
+  if (isProd && !allow) {
+    throw new Error(
+      `[scanner/gpu] Refuser stub-lift i produktion (${reason}). ` +
+      "Fake mesh + volumeMetrics kan ende i clinical findings via SPRG. " +
+      "Sæt PRAXIS_GPU_ALLOW_STUB=1 kun for dev-tests.",
+    );
+  }
+}
 
 export function createReplicateLifter(): GpuLifter {
   return async (input) => {
     const stub = createStubLifter();
 
     if (!process.env.REPLICATE_API_TOKEN) {
-      console.log("API Key Missing (REPLICATE_API_TOKEN) — falling back to stub lifter");
+      console.log("API Key Missing (REPLICATE_API_TOKEN) - falling back to stub lifter");
+      assertGpuStubAllowed("REPLICATE_API_TOKEN missing");
       return stub(input);
     }
 
-    assertGpuBudget(input.tenantId, 30);
+    await assertGpuBudget(input.tenantId, 30);
 
     try {
-      // 1. Create prediction (Gaussian Splatting model på Replicate)
-      // Model reference kan konfigureres via env; default eksempel-navn
       const modelVersion =
         process.env.REPLICATE_LIFTER_VERSION ??
         "gaussian-splatting/latest";
@@ -107,7 +162,6 @@ export function createReplicateLifter(): GpuLifter {
       const predictionUrl = createData?.urls?.get as string | undefined;
       if (!predictionUrl) throw new Error("No prediction URL from Replicate");
 
-      // 2. Poll status (max 60 iterationer × 2 sek = 120 sek — matches CS-14)
       let output: Record<string, unknown> | null = null;
       let gpuSeconds = 0;
       for (let i = 0; i < 60; i++) {
@@ -129,14 +183,13 @@ export function createReplicateLifter(): GpuLifter {
 
       if (!output) throw new Error("Replicate polling timeout");
 
-      recordGpuUsage(input.tenantId, gpuSeconds);
+      await recordGpuUsage(input.tenantId, gpuSeconds);
 
-      // Map Replicate output til LiftOutput
       const stubOutput = await stub(input);
       return {
         sparseCloudUrl: (output.sparse_url as string) ?? stubOutput.sparseCloudUrl,
         denseMeshUrl: (output.mesh_url as string) ?? stubOutput.denseMeshUrl,
-        mesh: stubOutput.mesh, // real mesh loading kræver separat GLB parse
+        mesh: stubOutput.mesh,
         volumeMetrics:
           (output.volume_metrics as LiftOutput["volumeMetrics"]) ??
           stubOutput.volumeMetrics,
@@ -144,7 +197,7 @@ export function createReplicateLifter(): GpuLifter {
       };
     } catch (err) {
       console.log("Live Replicate error, falling back to stub:", (err as Error).message);
-      // Failsafe #1: pipeline fortsætter med stub
+      assertGpuStubAllowed(`Replicate error: ${(err as Error).message}`);
       return stub(input);
     }
   };
@@ -155,13 +208,12 @@ function sleep(ms: number): Promise<void> {
 }
 
 // ---------------------------------------------------------------------------
-// Stub-lifter — deterministisk output til tests og lokal dev.
+// Stub-lifter - deterministisk output til tests og lokal dev.
 // ---------------------------------------------------------------------------
 
 export function createStubLifter(): GpuLifter {
   return async (input) => {
-    assertGpuBudget(input.tenantId, 1);
-    // Simpel tetraeder-mesh (watertight) fra watertight-modulet
+    await assertGpuBudget(input.tenantId, 1);
     const mesh: MeshLike = {
       vertices: [
         [0, 0, 0],
@@ -176,7 +228,7 @@ export function createStubLifter(): GpuLifter {
         [1, 3, 2],
       ],
     };
-    recordGpuUsage(input.tenantId, 1);
+    await recordGpuUsage(input.tenantId, 1);
     return {
       sparseCloudUrl: `stub://sparse/${input.scanId}.ply`,
       denseMeshUrl: `stub://mesh/${input.scanId}.glb`,

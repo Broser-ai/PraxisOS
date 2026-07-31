@@ -77,6 +77,19 @@ export function createStubVlmCaller(): VlmCaller {
 // Live caller (Claude Sonnet 5 vision) — kaldes kun hvis nøgle er sat
 // ---------------------------------------------------------------------------
 
+// Sprint 6 blocker B7 · fail-closed clinical guard
+function assertVlmStubAllowed(reason: string): void {
+  const isProd = process.env.NODE_ENV === "production";
+  const allow = process.env.PRAXIS_VLM_ALLOW_STUB === "1";
+  if (isProd && !allow) {
+    throw new Error(
+      `[scanner/vlm] Refuser stub-VLM output i produktion (${reason}). ` +
+      "Stub-findings kan glide gennem enforceAiGenerated og lande i journal " +
+      "som fake clinical evidence. Sæt PRAXIS_VLM_ALLOW_STUB=1 kun for dev.",
+    );
+  }
+}
+
 export function createLiveVlmCaller(): VlmCaller {
   return async (input) => {
     const apiKey = process.env.ANTHROPIC_API_KEY;
@@ -84,6 +97,7 @@ export function createLiveVlmCaller(): VlmCaller {
 
     if (!apiKey) {
       console.log("API Key Missing (ANTHROPIC_API_KEY) — falling back to stub VLM output");
+      assertVlmStubAllowed("ANTHROPIC_API_KEY missing");
       return stub(input);
     }
 
@@ -138,7 +152,8 @@ export function createLiveVlmCaller(): VlmCaller {
       return enforceAiGenerated({ ...parsed, scan_id: input.scanId });
     } catch (err) {
       console.log("Live VLM error, falling back to stub:", (err as Error).message);
-      // Failsafe #1: mock-svar så pipeline ikke crasher
+      assertVlmStubAllowed(`VLM error: ${(err as Error).message}`);
+      // Failsafe #1: mock-svar så pipeline ikke crasher (kun tilladt i dev)
       return stub(input);
     }
   };

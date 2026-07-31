@@ -16,6 +16,7 @@ import { MCP_TOOLS } from "@/lib/mcp-tools";
 import { listTenants } from "@/lib/tenants";
 import { AGENTS } from "@/lib/agents";
 import * as footScanner from "@/lib/foot-scanner";
+import { verifyBearerToken } from "@/lib/api-keys";
 
 const SERVER_INFO = {
   name: "praxisos",
@@ -33,36 +34,64 @@ type JsonRpcRequest = {
   params?: any;
 };
 
-function rpcOk(id: any, result: any) {
+// Sprint 6 Batch 2 · CORS-allowlist. Wildcard `*` accepteres kun i
+// development. I test/prod tages listen fra `PRAXIS_MCP_ORIGINS`
+// (komma-separeret). Origin echoes kun tilbage hvis den matcher.
+export function resolveCorsOrigin(reqOrigin: string | null): string | null {
+  const raw = process.env.PRAXIS_MCP_ORIGINS ?? "";
+  const allowed = raw.split(",").map((s) => s.trim()).filter(Boolean);
+  const isDev = process.env.NODE_ENV === "development";
+
+  if (isDev && allowed.length === 0) return "*";
+  if (!reqOrigin) return null;
+  if (allowed.includes("*")) return isDev ? "*" : null;
+  return allowed.includes(reqOrigin) ? reqOrigin : null;
+}
+
+function corsHeaders(req: Request): Record<string, string> {
+  const origin = resolveCorsOrigin(req.headers.get("origin"));
+  if (!origin) return {};
+  return {
+    "access-control-allow-origin": origin,
+    "access-control-allow-headers": "authorization, content-type",
+    "access-control-allow-methods": "POST, GET, OPTIONS",
+    vary: "Origin",
+  };
+}
+
+function rpcOk(req: Request, id: any, result: any) {
   return NextResponse.json({ jsonrpc: "2.0", id, result }, {
-    headers: { "access-control-allow-origin": "*" },
+    headers: corsHeaders(req),
   });
 }
 
-function rpcErr(id: any, code: number, message: string, data?: any) {
+function rpcErr(req: Request, id: any, code: number, message: string, data?: any) {
   return NextResponse.json({ jsonrpc: "2.0", id, error: { code, message, data } }, {
     status: code === -32600 ? 400 : 200,
-    headers: { "access-control-allow-origin": "*" },
+    headers: corsHeaders(req),
   });
 }
 
 export async function POST(req: Request) {
   let body: JsonRpcRequest;
-  try { body = await req.json(); } catch { return rpcErr(null, -32700, "Parse error"); }
+  try { body = await req.json(); } catch { return rpcErr(req, null, -32700, "Parse error"); }
 
-  if (body.jsonrpc !== "2.0") return rpcErr(body.id, -32600, "Invalid JSON-RPC version");
-  if (!body.method) return rpcErr(body.id, -32600, "Missing method");
+  if (body.jsonrpc !== "2.0") return rpcErr(req, body.id, -32600, "Invalid JSON-RPC version");
+  if (!body.method) return rpcErr(req, body.id, -32600, "Missing method");
 
-  // Auth-tjek (lempelig for prototype — i prod: validér Bearer mod api-keys)
+  // Sprint 6 · C2-fix — timing-safe api_keys lookup mod hashedSecret. Erstatter
+  // den tidligere prefix-only check der lod alle "Bearer whatever" komme ind.
+  // initialize + ping må stadig anonymt for discovery-flow.
   const auth = req.headers.get("authorization");
-  const isAuthed = auth?.startsWith("Bearer ");
-  if (!isAuthed && body.method !== "initialize" && body.method !== "ping") {
-    return rpcErr(body.id, -32001, "Unauthorized · add Authorization: Bearer sk_live_...");
+  const isDiscovery = body.method === "initialize" || body.method === "ping";
+  const verified = isDiscovery ? null : verifyBearerToken(auth);
+  if (!isDiscovery && !verified) {
+    return rpcErr(req, body.id, -32001, "Unauthorized · invalid or revoked bearer token");
   }
 
   switch (body.method) {
     case "initialize":
-      return rpcOk(body.id, {
+      return rpcOk(req, body.id, {
         protocolVersion: PROTOCOL_VERSION,
         serverInfo: SERVER_INFO,
         capabilities: {
@@ -74,10 +103,10 @@ export async function POST(req: Request) {
       });
 
     case "ping":
-      return rpcOk(body.id, {});
+      return rpcOk(req, body.id, {});
 
     case "tools/list":
-      return rpcOk(body.id, {
+      return rpcOk(req, body.id, {
         tools: MCP_TOOLS.map((t) => ({
           name: t.name,
           description: t.description,
@@ -88,19 +117,19 @@ export async function POST(req: Request) {
     case "tools/call": {
       const { name, arguments: args } = body.params ?? {};
       const tool = MCP_TOOLS.find((t) => t.name === name);
-      if (!tool) return rpcErr(body.id, -32601, `Unknown tool: ${name}`);
+      if (!tool) return rpcErr(req, body.id, -32601, `Unknown tool: ${name}`);
 
       // Foot-scanner tools proxy til Python engine — falder tilbage til stub
       // hvis engine er offline (dev-mode).
       if (name.startsWith("foot_scan.")) {
         try {
           const result = await handleFootScanTool(name, args ?? {});
-          return rpcOk(body.id, {
+          return rpcOk(req, body.id, {
             content: [{ type: "text", text: JSON.stringify(result, null, 2) }],
             isError: false,
           });
         } catch (e: any) {
-          return rpcOk(body.id, {
+          return rpcOk(req, body.id, {
             content: [{ type: "text", text: JSON.stringify({ error: String(e?.message ?? e) }, null, 2) }],
             isError: true,
           });
@@ -109,14 +138,14 @@ export async function POST(req: Request) {
 
       // Stub-implementering — i prod kalder vi den ægte handler
       const sample = simulateToolResult(name, args);
-      return rpcOk(body.id, {
+      return rpcOk(req, body.id, {
         content: [{ type: "text", text: JSON.stringify(sample, null, 2) }],
         isError: false,
       });
     }
 
     case "resources/list":
-      return rpcOk(body.id, {
+      return rpcOk(req, body.id, {
         resources: [
           ...listTenants().map((t) => ({
             uri: `praxisos://tenant/${t.slug}`,
@@ -138,32 +167,32 @@ export async function POST(req: Request) {
       if (uri.startsWith("praxisos://tenant/")) {
         const slug = uri.replace("praxisos://tenant/", "");
         const t = listTenants().find((x) => x.slug === slug);
-        if (!t) return rpcErr(body.id, -32602, "Resource not found");
-        return rpcOk(body.id, {
+        if (!t) return rpcErr(req, body.id, -32602, "Resource not found");
+        return rpcOk(req, body.id, {
           contents: [{ uri, mimeType: "application/json", text: JSON.stringify(t, null, 2) }],
         });
       }
       if (uri.startsWith("praxisos://agent/")) {
         const id = uri.replace("praxisos://agent/", "");
         const a = AGENTS.find((x) => x.id === id);
-        if (!a) return rpcErr(body.id, -32602, "Resource not found");
-        return rpcOk(body.id, {
+        if (!a) return rpcErr(req, body.id, -32602, "Resource not found");
+        return rpcOk(req, body.id, {
           contents: [{ uri, mimeType: "application/json", text: JSON.stringify(a, null, 2) }],
         });
       }
-      return rpcErr(body.id, -32602, "Unknown resource scheme");
+      return rpcErr(req, body.id, -32602, "Unknown resource scheme");
     }
 
     case "prompts/list":
-      return rpcOk(body.id, { prompts: [] });
+      return rpcOk(req, body.id, { prompts: [] });
 
     default:
-      return rpcErr(body.id, -32601, `Method not found: ${body.method}`);
+      return rpcErr(req, body.id, -32601, `Method not found: ${body.method}`);
   }
 }
 
 // GET = MCP-discovery (manifest)
-export async function GET() {
+export async function GET(req: Request) {
   return NextResponse.json({
     name: SERVER_INFO.name,
     version: SERVER_INFO.version,
@@ -180,7 +209,7 @@ export async function GET() {
     toolCount: MCP_TOOLS.length,
     resourceCount: listTenants().length + AGENTS.length,
     documentation: "/admin/mcp",
-  }, { headers: { "access-control-allow-origin": "*" } });
+  }, { headers: corsHeaders(req) });
 }
 
 // Physical AI · foot-scanner MCP handlers.
@@ -330,4 +359,9 @@ function simulateToolResult(name: string, args: any): any {
     default:
       return { ok: true, message: `${name} executed (prototype stub)`, args };
   }
+}
+
+// CORS-preflight. Returnerer 204 med samme header-allowlist som POST/GET.
+export async function OPTIONS(req: Request) {
+  return new Response(null, { status: 204, headers: corsHeaders(req) });
 }

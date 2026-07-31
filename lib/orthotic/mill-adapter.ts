@@ -1,5 +1,6 @@
 // Orthotic mill CAM adapter · Vorum / Cadman / Amfit STL-handshake.
 // Kontrakt: STATE-OF-THE-ART §9 Sprint 3 · Vorum CAM guru-input · Petersen operational moat
+// Sprint 6 Batch 2: audit-wiring · emit mill.submit ved laboratorie-transfer (R§).
 //
 // PRINCIP:
 //   Vorum Canfit / Cadman OrthoCAD accepterer binary STL med metadata-manifest
@@ -18,6 +19,7 @@
 
 import { z } from "zod";
 import type { OrthoticParams } from "../configurator/schema";
+import { auditLog, auditError } from "../audit";
 
 // ---------------------------------------------------------------------------
 // Vendor + workflow types
@@ -168,6 +170,19 @@ export function createStubMillAdapter(vendor: MillVendor = "stub"): MillAdapter 
         },
       };
       STUB_JOB_STORE.set(jobId, result);
+      // Sprint 6 B2: R§ audit — mill.submit (klinisk-aktiv laboratorie-transfer).
+      // Manifest.patient_ref er pseudonymt (opaque); target_ref bruger config_id.
+      auditLog("mill.submit", {
+        tenant_id: parsed.tenant_id,
+        actor_user_id: parsed.practitioner_signoff.user_id,
+        target_ref: `config/${parsed.config_id}`,
+        vendor,
+        job_id: jobId,
+        side: parsed.side,
+        stl_bytes: stlBytes.byteLength,
+        face_count: result.post_verify?.face_count ?? 0,
+        eta_at: etaAt,
+      });
       return {
         job_id: jobId,
         vendor,
@@ -250,14 +265,34 @@ export function createLiveVorumAdapter(): MillAdapter {
         });
         if (!res.ok) throw new Error(`Vorum ${res.status}`);
         const data = await res.json();
-        return millSubmissionResultSchema.parse({
+        const parsed = millSubmissionResultSchema.parse({
           job_id: data.job_id ?? data.id,
           vendor: "vorum-canfit",
           status: (data.status as MillJobStatus) ?? "accepted",
           eta_at: data.eta_at,
           message: data.message,
         });
+        // Sprint 6 B2: R§ audit — live mill.submit (production laboratorie-transfer).
+        auditLog("mill.submit", {
+          tenant_id: manifest.tenant_id,
+          actor_user_id: manifest.practitioner_signoff.user_id,
+          target_ref: `config/${manifest.config_id}`,
+          vendor: "vorum-canfit",
+          job_id: parsed.job_id,
+          side: manifest.side,
+          stl_bytes: stlBytes.byteLength,
+          eta_at: parsed.eta_at,
+          upstream: "live",
+        });
+        return parsed;
       } catch (err) {
+        // Sprint 6 B2: R§ audit — upstream mill-fejl (post-market surveillance).
+        auditError("mill.submit.upstream_error", err, {
+          tenant_id: manifest.tenant_id,
+          actor_user_id: manifest.practitioner_signoff.user_id,
+          target_ref: `config/${manifest.config_id}`,
+          vendor: "vorum-canfit",
+        });
         console.log("Vorum submit error, falling back to stub:", (err as Error).message);
         return stub.submit(stlBytes, manifest);
       }

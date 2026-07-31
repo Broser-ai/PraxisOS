@@ -143,12 +143,19 @@ export default function LearningPage(): React.ReactElement {
 
   return (
     <div className="min-h-screen bg-neutral-950 text-neutral-100">
-      <div className="max-w-[1200px] mx-auto p-4 lg:p-6">
+      {/* a11y · skip-link · giver tastatur-brugere adgang til hovedindhold */}
+      <a
+        href="#learning-main"
+        className="sr-only focus:not-sr-only focus:absolute focus:top-2 focus:left-2 focus:z-50 focus:px-3 focus:py-2 focus:bg-emerald-500 focus:text-neutral-950 focus:rounded-md focus:font-semibold"
+      >
+        Spring til hovedindhold
+      </a>
+      <main id="learning-main" className="max-w-[1200px] mx-auto p-4 lg:p-6" aria-labelledby="learning-heading">
         <header className="mb-5">
           <p className="text-[11px] uppercase tracking-widest text-neutral-500">
             PraxisOS · Adaptive Learning
           </p>
-          <h1 className="text-2xl font-semibold mt-1">Reflexion Tutor</h1>
+          <h1 id="learning-heading" className="text-2xl font-semibold mt-1">Reflexion Tutor</h1>
           <p className="text-sm text-neutral-400 mt-1 max-w-2xl">
             Personaliseret læring via Reflexion-loop (max 3 iterationer) mod
             evidens-baseret korpus. Alle svar redagteres for CPR før de sendes til LLM.
@@ -204,6 +211,10 @@ export default function LearningPage(): React.ReactElement {
             <div
               ref={scrollRef}
               className="flex-1 overflow-y-auto px-4 py-4 space-y-3"
+              role="log"
+              aria-live="polite"
+              aria-relevant="additions"
+              aria-label={`Chat med Reflexion Tutor · læringssti ${selectedTrack.name}`}
             >
               {messages.map((m, i) => (
                 <ChatBubble key={i} msg={m} />
@@ -238,13 +249,19 @@ export default function LearningPage(): React.ReactElement {
               }}
               className="px-4 py-3 border-t border-neutral-800 flex gap-2"
             >
+              <label htmlFor="learning-chat-input" className="sr-only">
+                Spørg Reflexion Tutor om {selectedTrack.name.toLowerCase()}
+              </label>
               <input
+                id="learning-chat-input"
                 type="text"
                 value={input}
                 onChange={(e) => setInput(e.target.value)}
                 placeholder={`Spørg om ${selectedTrack.name.toLowerCase()}…`}
                 className="flex-1 bg-neutral-950 border border-neutral-800 rounded-md px-3 py-2 text-sm focus:outline-none focus:border-emerald-400"
                 disabled={sending}
+                aria-label={`Spørg Reflexion Tutor om ${selectedTrack.name.toLowerCase()}`}
+                autoComplete="off"
               />
               <button
                 type="submit"
@@ -256,7 +273,7 @@ export default function LearningPage(): React.ReactElement {
             </form>
           </section>
         </div>
-      </div>
+      </main>
     </div>
   );
 }

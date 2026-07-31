@@ -1,5 +1,6 @@
 // Parametric orthotic generator.
 // Kontrakt: docs/harness/EPIC-3-Neural-Configurator.md §4.2
+// Sprint 6 Batch 2: audit-wiring · emit config.generate ved klinisk-aktiv parameter-udledning.
 
 import {
   orthoticParamsSchema,
@@ -8,11 +9,19 @@ import {
   type ClientProfile,
 } from "./schema";
 import type { ScannerFindings } from "../scanner/findings-schema";
+import { auditLog } from "../audit";
 
 export type GeneratorInput = {
   findings: ScannerFindings;
   biophysical: BiophysicalMap;
   clientProfile: ClientProfile;
+  /** Optional context til audit-trail (kaldes fra API-route eller worker). */
+  auditContext?: {
+    tenantId: string;
+    actorUserId?: string;
+    configId?: string;
+    scanId?: string;
+  };
 };
 
 /** Default midpoint parameters. */
@@ -40,6 +49,8 @@ export function defaultParams(): OrthoticParams {
 /**
  * Deterministisk mapping fra findings + biofysik + klient til parameter-vektor.
  * INV-NC-3 håndhæves ved final Zod-parse (clamps + range-check).
+ * Sprint 6 B2: audit-log emitteres når auditContext leveres (klinisk-relevant
+ * mutation af parameter-vektor · MDR Art. 83 + Presafe letter).
  */
 export function generateParams(input: GeneratorInput): OrthoticParams {
   const p = { ...defaultParams() };
@@ -84,7 +95,29 @@ export function generateParams(input: GeneratorInput): OrthoticParams {
   }
 
   // Final validation (INV-NC-3)
-  return orthoticParamsSchema.parse(p);
+  const finalParams = orthoticParamsSchema.parse(p);
+
+  // Sprint 6 B2: R§ audit — config.generate (parameter-vektor udledt).
+  // Meta indeholder kun aggregat-tal + counts (ingen fri-tekst-labels der kan lække PHI).
+  if (input.auditContext) {
+    auditLog("config.generate", {
+      tenant_id: input.auditContext.tenantId,
+      actor_user_id: input.auditContext.actorUserId,
+      target_ref: input.auditContext.configId
+        ? `config/${input.auditContext.configId}`
+        : input.auditContext.scanId
+          ? `scan/${input.auditContext.scanId}`
+          : undefined,
+      scan_id: input.auditContext.scanId,
+      findings_count: input.findings.findings.length,
+      bp_confidence: bpConfidence,
+      shore_a_forefoot: finalParams.shore_a_forefoot,
+      shore_a_heel: finalParams.shore_a_heel,
+      recess_zones: finalParams.plantar_recess_zones,
+    });
+  }
+
+  return finalParams;
 }
 
 function clamp(v: number, lo: number, hi: number): number {

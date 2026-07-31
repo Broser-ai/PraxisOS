@@ -55,6 +55,8 @@ describe("INV-15 · max node-transitions", () => {
     const result = await orch.invoke({
       tenantId: "test-tenant-11111111-1111-1111-1111-111111111111",
       actorRole: "practitioner",
+      tenantMdrStatus: "ce_marked",
+      tenantSlug: "test",
       origin: "api",
       messages: [{ role: "user", content: "loop me" }],
     });
@@ -71,6 +73,8 @@ describe("INV-15 · max node-transitions", () => {
     const result = await orch.invoke({
       tenantId: "test-tenant-22222222-2222-2222-2222-222222222222",
       actorRole: "practitioner",
+      tenantMdrStatus: "ce_marked",
+      tenantSlug: "test",
       origin: "api",
       messages: [{ role: "user", content: "short loop" }],
     });
@@ -84,10 +88,14 @@ describe("INV-15 · max node-transitions", () => {
     const result = await orch.invoke({
       tenantId: "test-tenant-33333333-3333-3333-3333-333333333333",
       actorRole: "owner",
+      tenantMdrStatus: "ce_marked",
+      tenantSlug: "test",
       origin: "api",
       messages: [{ role: "user", content: "cycle through workers" }],
     });
-    expect(["done", "aborted"]).toContain(result.status);
+    // Cycle-stub kan ramme et deprecated-agent (magnus/vega/bjorn) hvilket giver
+    // INV-CS-7 error — det er FORVENTET adfærd med Sprint 6 MDR-gate.
+    expect(["done", "aborted", "error"]).toContain(result.status);
     expect(result.steps.length).toBeLessThanOrEqual(MAX_STEPS);
   });
 
@@ -106,6 +114,8 @@ describe("INV-15 · max node-transitions", () => {
     const result = await orch.invoke({
       tenantId: "test-tenant-44444444-4444-4444-4444-444444444444",
       actorRole: "practitioner",
+      tenantMdrStatus: "ce_marked",
+      tenantSlug: "test",
       origin: "api",
       messages: [{ role: "user", content: "hi" }],
     });

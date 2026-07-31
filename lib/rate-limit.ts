@@ -8,55 +8,100 @@
 //
 // Best practice: bag SaaS-platform CAPTCHA på POST /login (Cloudflare Turnstile)
 // + log alle forsøg til audit-log med IP, user-agent, geo.
+//
+// Sprint 6 · B5: attempt-counters flyttet fra lokale Map til SharedStore.
+// Ellers kunne en angriber ramme forskellige serverless-instances og
+// omgå backoff’en (hver instance havde sin egen bucket).
 
-type Bucket = { attempts: number; firstAt: number; lastAt: number };
-
-const ipBuckets = new Map<string, Bucket>();
-const userBuckets = new Map<string, Bucket>();
+import {
+  getDefaultSharedStore,
+  type SharedStore,
+} from "@/lib/shared-store/adapter";
+// Side-effect: sikrer memory-store self-registrerer sig som default-factory.
+// Prod-runtime der swapper til Redis kalder setDefaultSharedStore() ovenpaa.
+import "@/lib/shared-store/memory-store";
 
 const WINDOW_MS = 15 * 60 * 1000; // 15 min sliding window
 
-export function recordAttempt(ip: string, email: string, success: boolean) {
-  const now = Date.now();
-  for (const [key, bucket, isIp] of [
-    [ip, ipBuckets.get(ip), true] as const,
-    [email.toLowerCase(), userBuckets.get(email.toLowerCase()), false] as const,
-  ]) {
-    const store = isIp ? ipBuckets : userBuckets;
-    if (!bucket || now - bucket.firstAt > WINDOW_MS) {
-      store.set(key, { attempts: success ? 0 : 1, firstAt: now, lastAt: now });
-    } else {
-      bucket.attempts = success ? 0 : bucket.attempts + 1;
-      bucket.lastAt = now;
-      store.set(key, bucket);
+function ipKey(ip: string): string {
+  return `rl:ip:${ip}`;
+}
+
+function userKey(email: string): string {
+  return `rl:user:${email.toLowerCase()}`;
+}
+
+/**
+ * Registrer et login-forsøg. Success nulstiller bucketten (både IP + user).
+ * Fejl inkrementerer og forlænger sliding-window’ets TTL.
+ */
+export async function recordAttempt(
+  ip: string,
+  email: string,
+  success: boolean,
+  store: SharedStore = getDefaultSharedStore(),
+): Promise<void> {
+  const keys = [ipKey(ip), userKey(email)];
+  for (const k of keys) {
+    if (success) {
+      await store.resetCounter(k);
+      continue;
     }
+    const current = await store.getCounter(k);
+    // Sliding-window: hvert failed attempt renews TTL så vinduet ruller
+    // fra sidste fejl. Prod-Redis backend har atomisk incrby + expire.
+    await store.setCounterWithTtl(k, current + 1, WINDOW_MS);
   }
 }
 
-export function getBackoffMs(ip: string, email: string): number {
-  const ipB = ipBuckets.get(ip);
-  const userB = userBuckets.get(email.toLowerCase());
-  const worst = Math.max(ipB?.attempts ?? 0, userB?.attempts ?? 0);
+/**
+ * Returnerer krav om backoff i millisekunder. Baseret på max(ip, user).
+ * Exponential fra 4. forsøg: 2s, 4s, 8s ... cappet ved 300s.
+ */
+export async function getBackoffMs(
+  ip: string,
+  email: string,
+  store: SharedStore = getDefaultSharedStore(),
+): Promise<number> {
+  const [ipN, userN] = await Promise.all([
+    store.getCounter(ipKey(ip)),
+    store.getCounter(userKey(email)),
+  ]);
+  const worst = Math.max(ipN, userN);
   if (worst < 3) return 0;
-  // Exponential: 4. forsøg = 2s, 5. = 4s, 6. = 8s ... cappet ved 300s
   const ms = Math.min(300_000, Math.pow(2, worst - 3) * 1000);
   return ms;
 }
 
-export function requiresCaptcha(ip: string, email: string): boolean {
-  const ipB = ipBuckets.get(ip);
-  const userB = userBuckets.get(email.toLowerCase());
-  return Math.max(ipB?.attempts ?? 0, userB?.attempts ?? 0) >= 3;
+/** CAPTCHA-step-up fra 3+ fejl (matcher backoff-threshold). */
+export async function requiresCaptcha(
+  ip: string,
+  email: string,
+  store: SharedStore = getDefaultSharedStore(),
+): Promise<boolean> {
+  const [ipN, userN] = await Promise.all([
+    store.getCounter(ipKey(ip)),
+    store.getCounter(userKey(email)),
+  ]);
+  return Math.max(ipN, userN) >= 3;
 }
 
-export function getAttempts(ip: string, email: string): { ip: number; user: number } {
-  return {
-    ip: ipBuckets.get(ip)?.attempts ?? 0,
-    user: userBuckets.get(email.toLowerCase())?.attempts ?? 0,
-  };
+export async function getAttempts(
+  ip: string,
+  email: string,
+  store: SharedStore = getDefaultSharedStore(),
+): Promise<{ ip: number; user: number }> {
+  const [ipN, userN] = await Promise.all([
+    store.getCounter(ipKey(ip)),
+    store.getCounter(userKey(email)),
+  ]);
+  return { ip: ipN, user: userN };
 }
 
-// For audit-log dashboard
+// ---------------------------------------------------------------------------
+// Audit-log · uændret; renderes af dashboardet.
+// ---------------------------------------------------------------------------
+
 export type AttemptLog = {
   at: string;
   ip: string;

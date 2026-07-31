@@ -125,7 +125,32 @@ export type OrthoticArtifact = {
 };
 
 const ENGINE_URL = process.env.FOOT_SCANNER_URL ?? "http://localhost:8787";
-const ENGINE_TOKEN = process.env.FOOT_SCANNER_TOKEN ?? "dev-token-change-me";
+
+// Sprint 6 · B5: FOOT_SCANNER_TOKEN må aldrig defaulte til en dev-token
+// i produktion — så eksponerer vi engine'en for enhver med URL'en. I dev
+// warner vi og bruger en tydeligt markeret dev-token. Auth-hærdning
+// dokumenteret i COMPLETE-AUDIT-REPORT.
+function resolveEngineToken(): string {
+  const token = process.env.FOOT_SCANNER_TOKEN;
+  const nodeEnv = process.env.NODE_ENV;
+  const isProd = nodeEnv === "production";
+  if (!token) {
+    if (isProd) {
+      throw new Error(
+        "FOOT_SCANNER_TOKEN missing in production. Refuse to talk to engine " +
+        "without shared-secret auth (COMPLETE-AUDIT-REPORT · foot-scanner).",
+      );
+    }
+    if (nodeEnv !== "test") {
+      console.warn(
+        "[foot-scanner] FOOT_SCANNER_TOKEN not set — using dev-token. " +
+        "This will THROW in production.",
+      );
+    }
+    return "dev-token-change-me";
+  }
+  return token;
+}
 
 async function call<T>(
   method: "GET" | "POST",
@@ -135,7 +160,7 @@ async function call<T>(
   const res = await fetch(`${ENGINE_URL}${path}`, {
     method,
     headers: {
-      "Authorization": `Bearer ${ENGINE_TOKEN}`,
+      "Authorization": `Bearer ${resolveEngineToken()}`,
       "Content-Type": "application/json",
     },
     body: body ? JSON.stringify(body) : undefined,
@@ -245,7 +270,7 @@ export async function uploadFrames(
     `${ENGINE_URL}/sessions/${sessionId}/frames`,
     {
       method: "POST",
-      headers: { Authorization: `Bearer ${ENGINE_TOKEN}` },
+      headers: { Authorization: `Bearer ${resolveEngineToken()}` },
       body: form,
     },
   );

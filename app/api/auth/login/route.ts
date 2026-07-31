@@ -12,17 +12,17 @@ export async function POST(req: Request) {
   if (!email || !password) return NextResponse.json({ error: "missing_credentials" }, { status: 400 });
 
   // Rate-limit check
-  const backoff = getBackoffMs(ip, email);
+  const backoff = await getBackoffMs(ip, email);
   if (backoff > 0) {
     return NextResponse.json({
       error: "rate_limited",
       retryAfterMs: backoff,
-      attempts: getAttempts(ip, email),
+      attempts: await getAttempts(ip, email),
     }, { status: 429, headers: { "Retry-After": Math.ceil(backoff / 1000).toString() } });
   }
 
   // CAPTCHA-step-up (efter 3 mislykkede forsøg)
-  if (requiresCaptcha(ip, email) && !captcha) {
+  if ((await requiresCaptcha(ip, email)) && !captcha) {
     return NextResponse.json({
       error: "captcha_required",
       hint: "Indtast verifikation for at fortsætte",
@@ -31,17 +31,17 @@ export async function POST(req: Request) {
 
   const acc = findAccount(email, password);
   if (!acc) {
-    recordAttempt(ip, email, false);
+    await recordAttempt(ip, email, false);
     return NextResponse.json({
       error: "invalid_credentials",
-      attempts: getAttempts(ip, email),
-      requiresCaptcha: requiresCaptcha(ip, email),
+      attempts: await getAttempts(ip, email),
+      requiresCaptcha: await requiresCaptcha(ip, email),
     }, { status: 401 });
   }
 
   // Hvis brugeren har flere tenants og ingen er valgt, returner liste (success-state)
   if (acc.tenants.length > 1 && !tenant) {
-    recordAttempt(ip, email, true);
+    await recordAttempt(ip, email, true);
     return NextResponse.json({
       needsTenantPick: true,
       account: { name: acc.name, initials: acc.initials, avatarColor: acc.avatarColor },
@@ -52,7 +52,7 @@ export async function POST(req: Request) {
   const picked = tenant ? acc.tenants.find((t) => t.slug === tenant) : acc.tenants[0];
   if (!picked) return NextResponse.json({ error: "no_tenant_access" }, { status: 403 });
 
-  recordAttempt(ip, email, true);
+  await recordAttempt(ip, email, true);
 
   const session = encodeSession({
     accountId: acc.id,
@@ -67,10 +67,13 @@ export async function POST(req: Request) {
     tenant: picked.slug,
     role: picked.role,
   });
+  // Sprint 6 Batch 2 · B3-c: strict cookie-flags. secure:false accepteres
+  // kun under test (NODE_ENV=test); i alle andre miljøer kræves TLS.
+  const isTest = process.env.NODE_ENV === "test";
   res.cookies.set(SESSION_COOKIE, session, {
     httpOnly: true,
-    sameSite: "lax",
-    secure: false,
+    sameSite: "strict",
+    secure: !isTest,
     maxAge: 60 * 60 * 8,
     path: "/",
   });

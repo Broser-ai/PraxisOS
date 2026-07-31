@@ -20,6 +20,7 @@ import {
 import type { Role } from "@/lib/agents";
 import { createDefaultLLMCaller } from "@/lib/llm-adapter";
 import { redactPII } from "@/lib/redact";
+import { decodeSession, SESSION_COOKIE, type Role as AuthRole, type Session } from "@/lib/auth";
 
 // Simpel in-memory run-registry for demo/async-sti. I prod erstattes med
 // Supabase agent_runs + agent_steps writer.
@@ -52,7 +53,11 @@ export async function POST(
     origin_ref?: string;
     input?: string;
     actor_user_id?: string;
-    actor_role?: Role;
+    // Sprint 6 Batch 2: actor_role læses IKKE længere fra body - kun fra
+    // server-verificeret session. Feltet er markeret deprecated for at
+    // undgå, at callers stoler på det.
+    /** @deprecated ignoreret; actor_role udledes af sessionen. */
+    actor_role?: never;
     messages?: OrchestratorMessage[];
   };
   try {
@@ -61,8 +66,18 @@ export async function POST(
     return NextResponse.json({ error: "INVALID_JSON" }, { status: 400 });
   }
 
+  // Verificér session-cookie og udled actor_role. Hvis der ikke findes en
+  // gyldig session, afvises kaldet (INV-7 - rolle-baseret dispatch).
+  const cookieHeader = req.cookies.get(SESSION_COOKIE)?.value;
+  const session = decodeSession(cookieHeader ?? "") as Session | null;
+  if (!session || session.tenant !== tenant) {
+    return NextResponse.json({ error: "UNAUTHORIZED" }, { status: 401 });
+  }
+  // Kun de fire kendte auth-roller matches mod agent-domænets Role. Bemærk
+  // at typen `Role` fra agents.ts er identisk med `AuthRole` fra lib/auth.ts.
+  const actorRole: Role = session.role as AuthRole as Role;
+
   const origin: Origin = body.origin ?? "api";
-  const actorRole: Role = body.actor_role ?? "practitioner";
   const messages: OrchestratorMessage[] =
     body.messages ?? [
       { role: "user", content: body.input ?? "" },

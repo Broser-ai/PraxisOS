@@ -31,7 +31,7 @@ describe("INV-CS-11 · ingen råt CPR i scanner pipeline", () => {
   });
 
   it("(b) fuld pipeline stripper CPR fra input og output", async () => {
-    resetGpuBudget();
+    await resetGpuBudget();
     const result = await runPipeline(
       { lifter: createStubLifter(), vlm: createStubVlmCaller() },
       {

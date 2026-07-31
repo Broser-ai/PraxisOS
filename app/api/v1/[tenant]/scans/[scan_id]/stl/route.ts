@@ -1,9 +1,11 @@
 // POST /api/v1/[tenant]/scans/[scan_id]/stl
 // Kontrakt: docs/harness/EPIC-2-Clinical-Scanner.md §5, §7
+// Sprint 6 Batch 2: audit-wiring · emit mill.submit ved STL-eksport (R§).
 
 import { NextRequest, NextResponse } from "next/server";
 import { exportStl } from "@/lib/scanner/stl-export";
 import type { MeshLike } from "@/lib/scanner/watertight";
+import { auditLog, auditError } from "@/lib/audit";
 
 export async function POST(
   req: NextRequest,
@@ -21,6 +23,7 @@ export async function POST(
     actor_role?: "owner" | "practitioner" | "reception" | "support" | "system";
     practitioner_triggered?: boolean;
     cad_dpa_accepted?: boolean;
+    actor_user_id?: string;
   };
   try {
     body = await req.json();
@@ -31,6 +34,8 @@ export async function POST(
   if (!body.mesh) {
     return NextResponse.json({ error: "MESH_REQUIRED" }, { status: 400 });
   }
+
+  const actorUserId = typeof body.actor_user_id === "string" ? body.actor_user_id : undefined;
 
   const result = exportStl({
     scanId: scan_id,
@@ -44,11 +49,37 @@ export async function POST(
   });
 
   if (!result.ok) {
+    // Sprint 6 B2: R§ audit — STL-eksport afvist (INV-CS-8 / kvalitet / DPA).
+    auditError(
+      "mill.submit.rejected",
+      new Error(`${result.code}: ${result.message}`),
+      {
+        tenant_id: tenant,
+        actor_user_id: actorUserId,
+        target_ref: `scan/${scan_id}`,
+        reason_code: result.code,
+        actor_role: body.actor_role ?? "practitioner",
+        practitioner_triggered: body.practitioner_triggered ?? false,
+      },
+    );
     return NextResponse.json(
       { error: result.code, message: result.message },
       { status: 409 },
     );
   }
+
+  // Sprint 6 B2: R§ audit — STL-eksport lykkedes (klinisk-aktiv mutation
+  // · udgør mill.submit-kandidatur · Sundhedsloven §42a-d + MDR Art. 83).
+  auditLog("mill.submit", {
+    tenant_id: tenant,
+    actor_user_id: actorUserId,
+    target_ref: `scan/${scan_id}`,
+    stl_bytes: result.bytesLength,
+    quality_score: body.quality_score ?? 0,
+    actor_role: body.actor_role ?? "practitioner",
+    practitioner_triggered: body.practitioner_triggered ?? false,
+    cad_dpa_accepted: body.cad_dpa_accepted ?? false,
+  });
 
   // INV-CS-2: kun release STL hvis post-verify passede (allerede indbygget i exportStl)
   return new NextResponse(new Uint8Array(result.stlBytes), {

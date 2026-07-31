@@ -15,6 +15,12 @@ export type PulsingDotProps = {
   ariaLabel?: string;
   /** Size in pixels · default 8 */
   size?: number;
+  /**
+   * Pause-word som praktikeren siger for at pause capture. Rendes som
+   * visuelt-skjult beskrivelse (sr-only) via aria-describedby, så screen-
+   * readers annoncerer instruktionen sammen med status. Default: "pause praxis".
+   */
+  pauseWord?: string;
 };
 
 const STATUS_COLOR: Record<VoiceSessionStatus, string> = {
@@ -46,12 +52,17 @@ export function PulsingDot(props: PulsingDotProps): React.ReactElement {
   const color = STATUS_COLOR[props.status];
   const isPulsing = PULSE_STATES.has(props.status);
   const label = props.ariaLabel ?? `Voice-status: ${STATUS_LABEL_DA[props.status]}`;
+  const pauseWord = props.pauseWord ?? "pause praxis";
+  const descId = React.useId();
+  const description = `Sig “${pauseWord}” for at pause capture.`;
 
   return (
     <span
       role="status"
       aria-live="polite"
+      aria-atomic="true"
       aria-label={label}
+      aria-describedby={descId}
       style={{
         display: "inline-block",
         position: "relative",
@@ -59,6 +70,23 @@ export function PulsingDot(props: PulsingDotProps): React.ReactElement {
         height: size,
       }}
     >
+      {/* sr-only pause-word instruktion · screen-reader annoncerer sammen med status */}
+      <span
+        id={descId}
+        style={{
+          position: "absolute",
+          width: 1,
+          height: 1,
+          padding: 0,
+          margin: -1,
+          overflow: "hidden",
+          clip: "rect(0,0,0,0)",
+          whiteSpace: "nowrap",
+          border: 0,
+        }}
+      >
+        {description}
+      </span>
       {isPulsing && (
         <span
           aria-hidden="true"

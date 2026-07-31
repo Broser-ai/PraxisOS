@@ -1,6 +1,7 @@
 // Embeddings adapter · lukker EPIC 4 pgvector-loopet.
 // Kontrakt: migration 0001 (learning_content.embedding + journal_entries.embedding)
 //           + migration 0006 (learning_content vector(1536)) + EPIC 4 §RAG
+// Sprint 6 Batch 2: audit-wiring · emit embedding.generate ved corpus-transformation (R§).
 //
 // STRATEGI (baseret på diskussion med Michael om ClinicalBERT-alternativer):
 //   PRIMARY:   voyage-ai/voyage-medical-2 · $0.05/1M tokens · dedikeret medical
@@ -13,6 +14,7 @@
 // kolonne-schema. DFM output paddet/truncerede til 1536 hvis nødvendigt.
 
 import { z } from "zod";
+import { auditLog } from "../audit";
 
 export const EMBEDDING_DIM = 1536;
 
@@ -23,16 +25,57 @@ export const embeddingResultSchema = z.object({
 });
 export type EmbeddingResult = z.infer<typeof embeddingResultSchema>;
 
+/**
+ * Sprint 6 B2: audit-metadata for corpus-embeddings.
+ * corpus='learning_content' | 'journal_entries' | 'ad_hoc' | fri-tekst-ref til target.
+ * target_id: fx læringsressource-id eller journal_entry-id (aldrig raw tekst).
+ */
+export type EmbeddingAuditContext = {
+  tenantId: string;
+  actorUserId?: string;
+  corpus: string;
+  targetId?: string;
+};
+
 export type EmbeddingInput = {
   text: string;
   /** Optional hint for input-type (query vs document). Some models use it. */
   input_type?: "query" | "document";
+  /** Optional audit-context. Når sat emitteres embedding.generate per input. */
+  audit?: EmbeddingAuditContext;
 };
 
 export interface EmbeddingsAdapter {
   provider: string;
   embed(input: EmbeddingInput): Promise<EmbeddingResult>;
   embedBatch(inputs: EmbeddingInput[]): Promise<EmbeddingResult[]>;
+}
+
+// ---------------------------------------------------------------------------
+// Sprint 6 B2 · audit helper · emit én record per input med audit-context
+// ---------------------------------------------------------------------------
+
+function emitEmbeddingAudit(
+  provider: string,
+  inputs: EmbeddingInput[],
+  results: EmbeddingResult[],
+): void {
+  for (let i = 0; i < inputs.length; i++) {
+    const ctx = inputs[i]?.audit;
+    if (!ctx) continue;
+    const res = results[i];
+    auditLog("embedding.generate", {
+      tenant_id: ctx.tenantId,
+      actor_user_id: ctx.actorUserId,
+      target_ref: ctx.targetId ? `${ctx.corpus}/${ctx.targetId}` : ctx.corpus,
+      provider,
+      model: res?.model ?? provider,
+      input_tokens: res?.input_tokens ?? 0,
+      dim: res?.vector.length ?? 0,
+      input_type: inputs[i]?.input_type ?? "document",
+      corpus: ctx.corpus,
+    });
+  }
 }
 
 // ---------------------------------------------------------------------------
@@ -47,12 +90,26 @@ export interface EmbeddingsAdapter {
 export function createStubEmbeddingsAdapter(): EmbeddingsAdapter {
   return {
     provider: "stub",
-    async embed({ text }) {
-      const vec = seededVector(text);
-      return { vector: vec, model: "stub-djb2-v1", input_tokens: Math.ceil(text.length / 4) };
+    async embed(input) {
+      const vec = seededVector(input.text);
+      const res: EmbeddingResult = {
+        vector: vec,
+        model: "stub-djb2-v1",
+        input_tokens: Math.ceil(input.text.length / 4),
+      };
+      emitEmbeddingAudit("stub", [input], [res]);
+      return res;
     },
     async embedBatch(inputs) {
-      return Promise.all(inputs.map((i) => this.embed(i)));
+      const results = await Promise.all(
+        inputs.map(async (i) => ({
+          vector: seededVector(i.text),
+          model: "stub-djb2-v1",
+          input_tokens: Math.ceil(i.text.length / 4),
+        })),
+      );
+      emitEmbeddingAudit("stub", inputs, results);
+      return results;
     },
   };
 }
@@ -86,6 +143,26 @@ function l2Normalize(v: number[]): number[] {
 }
 
 // ---------------------------------------------------------------------------
+// Prod-fallback guard · B5
+//
+// Silent fallback til stub-embeddings i prod = falsk positiv semantik i
+// pgvector-lookups (hash-djb2 er ikke meningsfuld). Vi kaster som default
+// og krver eksplicit opt-in via PRAXIS_EMBEDDINGS_ALLOW_STUB=1.
+// ---------------------------------------------------------------------------
+
+function assertStubFallbackAllowed(providerName: string, reason: string): void {
+  const isProd = process.env.NODE_ENV === "production";
+  const allowStub = process.env.PRAXIS_EMBEDDINGS_ALLOW_STUB === "1";
+  if (isProd && !allowStub) {
+    throw new Error(
+      `[embeddings/${providerName}] Refuser stub-fallback i produktion (${reason}). ` +
+      "St PRAXIS_EMBEDDINGS_ALLOW_STUB=1 hvis du bevidst accepterer meningsloese vektorer, " +
+      "eller wire en rigtig provider op.",
+    );
+  }
+}
+
+// ---------------------------------------------------------------------------
 // Voyage Medical adapter · primary
 // ---------------------------------------------------------------------------
 
@@ -103,6 +180,7 @@ export function createVoyageMedicalAdapter(): EmbeddingsAdapter {
       const apiKey = process.env.VOYAGE_API_KEY;
       if (!apiKey) {
         console.log("API Key Missing (VOYAGE_API_KEY) — falling back to stub embeddings");
+        assertStubFallbackAllowed("voyage-medical-2", "VOYAGE_API_KEY missing");
         return createStubEmbeddingsAdapter().embedBatch(inputs);
       }
       try {
@@ -126,15 +204,18 @@ export function createVoyageMedicalAdapter(): EmbeddingsAdapter {
         const items = data?.data as Array<{ embedding: number[]; index: number }>;
         const totalTokens = (data?.usage?.total_tokens as number) ?? 0;
         const perItemTokens = Math.floor(totalTokens / Math.max(1, items.length));
-        return items
+        const results = items
           .sort((a, b) => a.index - b.index)
           .map((it) => ({
             vector: ensureDim(it.embedding, EMBEDDING_DIM),
             model: VOYAGE_MODEL,
             input_tokens: perItemTokens,
           }));
+        emitEmbeddingAudit("voyage-medical-2", inputs, results);
+        return results;
       } catch (err) {
         console.log("Voyage embed error, falling back to stub:", (err as Error).message);
+        assertStubFallbackAllowed("voyage-medical-2", (err as Error).message);
         return createStubEmbeddingsAdapter().embedBatch(inputs);
       }
     },
@@ -159,6 +240,7 @@ export function createDfmDanishAdapter(): EmbeddingsAdapter {
       const apiKey = process.env.HF_INFERENCE_API_KEY;
       if (!apiKey) {
         console.log("API Key Missing (HF_INFERENCE_API_KEY) — falling back to stub embeddings");
+        assertStubFallbackAllowed("dfm-danish", "HF_INFERENCE_API_KEY missing");
         return createStubEmbeddingsAdapter().embedBatch(inputs);
       }
       try {
@@ -178,13 +260,16 @@ export function createDfmDanishAdapter(): EmbeddingsAdapter {
           throw new Error(`HF DFM ${res.status}`);
         }
         const data = (await res.json()) as number[][];
-        return data.map((raw, i) => ({
+        const results = data.map((raw, i) => ({
           vector: ensureDim(raw, EMBEDDING_DIM),
           model: DFM_MODEL,
           input_tokens: Math.ceil(inputs[i]!.text.length / 4),
         }));
+        emitEmbeddingAudit("dfm-danish", inputs, results);
+        return results;
       } catch (err) {
         console.log("DFM embed error, falling back to stub:", (err as Error).message);
+        assertStubFallbackAllowed("dfm-danish", (err as Error).message);
         return createStubEmbeddingsAdapter().embedBatch(inputs);
       }
     },

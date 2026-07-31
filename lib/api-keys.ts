@@ -121,6 +121,69 @@ export function listApiKeys(tenant: string): ApiKey[] {
   return apiKeys.filter((k) => k.tenant === tenant);
 }
 
+// ---------------------------------------------------------------------------
+// Sprint 6 blocker-fix C2 · timing-safe bearer verification
+// ---------------------------------------------------------------------------
+//
+// Erstatter prefix-only auth (`auth?.startsWith("Bearer ")`) i alle route.ts
+// filer. Sammenligner rå token mod HVER apiKey med timingSafeEqual, checker
+// status/expiry, og returnerer den matchende ApiKey (eller null).
+//
+// TODO: seed-data'ens `hashedSecret` er faktisk plaintext — næste iteration
+// skal hashe med scrypt (Sprint 7). Timing-safe sammenligning her forhindrer
+// stadig side-channel-leak selv med den midlertidigt-svage seed.
+
+import { timingSafeEqual } from "node:crypto";
+
+export type VerifiedApiKey = {
+  key: ApiKey;
+  matchedScopes: ApiKeyScope[];
+};
+
+function safeEqual(a: string, b: string): boolean {
+  const ab = Buffer.from(a);
+  const bb = Buffer.from(b);
+  if (ab.length !== bb.length) return false;
+  return timingSafeEqual(ab, bb);
+}
+
+/**
+ * Slå bearer-token op i api-keys tabellen. O(n) mod hele seed-tabellen for
+ * at bevare konstant tid uafhængigt af hvor tokenet ligger i listen.
+ * Returnerer null hvis token ikke matcher, er revoked, eller udløbet.
+ */
+export function verifyBearerToken(
+  authorizationHeader: string | null,
+  opts?: { requiredTenant?: string; requiredScopes?: ApiKeyScope[] },
+): VerifiedApiKey | null {
+  if (!authorizationHeader?.startsWith("Bearer ")) return null;
+  const token = authorizationHeader.slice(7).trim();
+  if (!token) return null;
+
+  let matched: ApiKey | null = null;
+  // Loop over ALLE keys uden early-exit for timing-invariance
+  for (const k of apiKeys) {
+    if (safeEqual(token, k.hashedSecret)) {
+      matched = k;
+    }
+  }
+  if (!matched) return null;
+  if (matched.status !== "active") return null;
+  if (matched.expiresAt && new Date(matched.expiresAt) < new Date()) return null;
+
+  if (opts?.requiredTenant && matched.tenant !== opts.requiredTenant) return null;
+
+  const matchedScopes: ApiKeyScope[] = matched.scopes;
+  if (opts?.requiredScopes?.length) {
+    const hasAll = opts.requiredScopes.every(
+      (s) => matchedScopes.includes("*") || matchedScopes.includes(s),
+    );
+    if (!hasAll) return null;
+  }
+
+  return { key: matched, matchedScopes };
+}
+
 export const SCOPE_LABEL: Record<ApiKeyScope, string> = {
   "read:bookings": "Læs bookings",
   "write:bookings": "Skriv bookings",

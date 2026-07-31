@@ -27,15 +27,18 @@ import { StateGraph, END, START, Annotation } from "@langchain/langgraph";
 import {
   type AgentId,
   type Role,
+  type TenantMdrStatus,
   AGENT_MODEL_TIER,
   AGENT_COMPLIANCE_MODE,
   MODEL_BY_TIER,
   WORKER_IDS,
   canRoleInvokeAgent,
+  canDispatchAgent,
   isAllowedModelForAgent,
   getAgent,
 } from "./agents";
 import { redactPII, containsRawCpr } from "./redact";
+import { auditLog, auditError } from "./audit";
 
 // =============================================================================
 // Konstanter (INV-15, INV-16)
@@ -100,6 +103,15 @@ const OrchestratorState = Annotation.Root({
   actorRole: Annotation<Role>({
     reducer: (_, next) => next,
     default: () => "system" as Role,
+  }),
+  tenantMdrStatus: Annotation<TenantMdrStatus>({
+    // Sprint 6 · B2 · MDR Class-IIa gate propageres gennem hele run
+    reducer: (curr, next) => (next ?? curr),
+    default: () => "none" as TenantMdrStatus,
+  }),
+  tenantSlug: Annotation<string>({
+    reducer: (curr, next) => (next ?? curr),
+    default: () => "",
   }),
   origin: Annotation<Origin>({
     reducer: (_, next) => next,
@@ -213,10 +225,43 @@ function buildCompiledGraph(deps: {
       throw new Error("Supervisor returned malformed decision");
     }
 
-    if (parsed.next !== "FINISH" && !canRoleInvokeAgent(state.actorRole, parsed.next as AgentId)) {
-      throw new Error(
-        `INV-7 violation: role "${state.actorRole}" cannot invoke agent "${parsed.next}"`,
-      );
+    if (parsed.next !== "FINISH") {
+      const agentId = parsed.next as AgentId;
+
+      // INV-7 · rolle-adgangskontrol
+      if (!canRoleInvokeAgent(state.actorRole, agentId)) {
+        auditError("orchestrator.dispatch.denied", new Error(`INV-7`), {
+          tenant_id: state.tenantId,
+          agent: agentId,
+          role: state.actorRole,
+          reason: "INV-7 role-scope",
+        });
+        throw new Error(
+          `INV-7 violation: role "${state.actorRole}" cannot invoke agent "${agentId}"`,
+        );
+      }
+
+      // Sprint 6 B2 · MDR Class-IIa gate (INV-CS-7)
+      const dispatchCheck = canDispatchAgent(agentId, state.tenantMdrStatus, state.tenantSlug);
+      if (!dispatchCheck.allowed) {
+        auditError("orchestrator.dispatch.denied", new Error(`INV-CS-7`), {
+          tenant_id: state.tenantId,
+          agent: agentId,
+          mdr_status: state.tenantMdrStatus,
+          reason: dispatchCheck.reason,
+        });
+        throw new Error(
+          `INV-CS-7 violation: ${dispatchCheck.reason}`,
+        );
+      }
+
+      auditLog("orchestrator.dispatch", {
+        tenant_id: state.tenantId,
+        actor_user_id: undefined,
+        target_ref: `agent/${agentId}`,
+        role: state.actorRole,
+        mdr_status: state.tenantMdrStatus,
+      });
     }
 
     const trace: StepTrace = {
@@ -247,6 +292,14 @@ function buildCompiledGraph(deps: {
       const startedAt = Date.now();
       const agent = getAgent(agentId);
       if (!agent) throw new Error(`Unknown agent: ${agentId}`);
+
+      // Sprint 6 B2 · Defense in depth · MDR gate re-check inde i worker
+      const dispatchCheck = canDispatchAgent(agentId, state.tenantMdrStatus, state.tenantSlug);
+      if (!dispatchCheck.allowed) {
+        throw new Error(
+          `INV-CS-7 violation (worker-level defense): ${dispatchCheck.reason}`,
+        );
+      }
 
       const model = MODEL_BY_TIER[AGENT_MODEL_TIER[agentId]];
       if (!isAllowedModelForAgent(agentId, model)) {
@@ -338,6 +391,10 @@ export function buildOrchestrator(baseDeps: OrchestratorDeps) {
     async invoke(input: {
       tenantId: string;
       actorRole: Role;
+      /** Sprint 6 B2 · MDR class-IIa gate propageres til supervisor + workers */
+      tenantMdrStatus?: TenantMdrStatus;
+      /** Sprint 6 B2 · Enables clinical-dev-mode bypass for tenant='bypilar' */
+      tenantSlug?: string;
       origin: Origin;
       messages: OrchestratorMessage[];
       tokenLimit?: number;
@@ -366,6 +423,8 @@ export function buildOrchestrator(baseDeps: OrchestratorDeps) {
         const final = (await compiled.invoke({
           tenantId: input.tenantId,
           actorRole: input.actorRole,
+          tenantMdrStatus: input.tenantMdrStatus ?? "none",
+          tenantSlug: input.tenantSlug ?? "",
           origin: input.origin,
           messages: input.messages,
           next: null,

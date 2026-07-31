@@ -66,12 +66,23 @@ export default function ByPilarJourneyPage(): React.ReactElement {
 
   return (
     <div className="min-h-screen bg-neutral-950 text-neutral-100">
-      <div className="max-w-[1400px] mx-auto p-4 lg:p-6">
+      {/* a11y · skip-link · giver tastatur-brugere direkte adgang til hovedindhold */}
+      <a
+        href="#journey-main"
+        className="sr-only focus:not-sr-only focus:absolute focus:top-2 focus:left-2 focus:z-50 focus:px-3 focus:py-2 focus:bg-emerald-500 focus:text-neutral-950 focus:rounded-md focus:font-semibold"
+      >
+        Spring til hovedindhold
+      </a>
+      <main
+        id="journey-main"
+        className="max-w-[1400px] mx-auto p-4 lg:p-6"
+        aria-labelledby="journey-heading"
+      >
         <header className="mb-6">
           <p className="text-[11px] uppercase tracking-widest text-neutral-500">
             by Pilar · komplet test-objekt
           </p>
-          <h1 className="text-2xl font-semibold mt-1">End-to-End klinisk journey</h1>
+          <h1 id="journey-heading" className="text-2xl font-semibold mt-1">End-to-End klinisk journey</h1>
           <p className="text-sm text-neutral-400 mt-1 max-w-2xl">
             Denne demo bruger vores by Pilar seed-data (ingen live-API-keys nødvendige).
             Klik gennem alle 8 trin for at se hele det kliniske flow fra booking til udbetaling.
@@ -91,14 +102,16 @@ export default function ByPilarJourneyPage(): React.ReactElement {
 
         <div className="grid grid-cols-1 lg:grid-cols-[280px_minmax(0,1fr)] gap-5">
           {/* Sidebar · step-navigation */}
-          <aside className="space-y-1.5">
-            <p className="text-[11px] uppercase tracking-widest text-neutral-500 mb-2 px-1">
+          <aside className="space-y-1.5" aria-label="Journey-trin navigation" role="navigation">
+            <p id="journey-steps-label" className="text-[11px] uppercase tracking-widest text-neutral-500 mb-2 px-1">
               Journey-trin
             </p>
             {STEPS.map((step) => (
               <button
                 key={step.key}
                 onClick={() => setActiveStep(step.key)}
+                aria-current={activeStep === step.key ? "step" : undefined}
+                aria-label={`Gå til ${step.title}`}
                 className={
                   "w-full text-left px-3 py-2.5 rounded-lg border transition " +
                   (activeStep === step.key
@@ -107,7 +120,7 @@ export default function ByPilarJourneyPage(): React.ReactElement {
                 }
               >
                 <div className="flex items-center gap-2">
-                  <span className="text-lg">{step.icon}</span>
+                  <span className="text-lg" aria-hidden="true">{step.icon}</span>
                   <span className="font-medium text-sm">{step.title}</span>
                 </div>
               </button>
@@ -144,7 +157,7 @@ export default function ByPilarJourneyPage(): React.ReactElement {
             )}
           </section>
         </div>
-      </div>
+      </main>
     </div>
   );
 }

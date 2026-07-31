@@ -44,11 +44,28 @@ export interface AsrAdapter {
 // Live Deepgram adapter — kaldes kun hvis DEEPGRAM_API_KEY er sat
 // ---------------------------------------------------------------------------
 
+// Sprint 6 blocker B7 · fail-closed guard for clinical-tier ASR.
+// Silent stub-fallback i prod = patientstemmen kan blive erstattet med
+// scripted-transcript uden at journal-læser opdager det. Vi kaster i stedet
+// og tillader kun stub når PRAXIS_ASR_ALLOW_STUB=1 er sat bevidst.
+function assertAsrStubAllowed(reason: string): void {
+  const isProd = process.env.NODE_ENV === "production";
+  const allow = process.env.PRAXIS_ASR_ALLOW_STUB === "1";
+  if (isProd && !allow) {
+    throw new Error(
+      `[voice/asr] Refuser stub-fallback i produktion (${reason}). ` +
+      "Sæt PRAXIS_ASR_ALLOW_STUB=1 hvis du bevidst accepterer scripted transcripts, " +
+      "eller installer @deepgram/sdk + wire DEEPGRAM_API_KEY.",
+    );
+  }
+}
+
 export function createLiveDeepgramAdapter(): AsrAdapter {
   return {
     async startSession(sessionId, config, events) {
       if (!process.env.DEEPGRAM_API_KEY) {
         console.log("API Key Missing (DEEPGRAM_API_KEY) — falling back to stub ASR");
+        assertAsrStubAllowed("DEEPGRAM_API_KEY missing");
         return createStubAsrAdapter().startSession(sessionId, config, events);
       }
       // Real implementation lever bag @deepgram/sdk. Uden dependency
@@ -57,6 +74,7 @@ export function createLiveDeepgramAdapter(): AsrAdapter {
       console.log(
         `[voice] Deepgram live adapter not wired up in this scaffold — using stub for session ${sessionId}`,
       );
+      assertAsrStubAllowed("@deepgram/sdk not installed");
       return createStubAsrAdapter().startSession(sessionId, config, events);
     },
   };

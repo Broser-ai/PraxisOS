@@ -95,9 +95,23 @@ export function ColorCheckerOverlay(props: ColorCheckerOverlayProps): React.Reac
         )}
       </div>
 
-      <div className="grid grid-cols-6 gap-1">
+      <div
+        className="grid grid-cols-6 gap-1"
+        role="group"
+        aria-label="24-patch farvekalibrerings-grid"
+      >
         {(deltas ?? COLORCHECKER_24.map((p) => ({ ...p, deltaE: null }))).map((p) => (
-          <div key={p.id} className="relative aspect-square rounded" style={{ background: p.hex }}>
+          <div
+            key={p.id}
+            className="relative aspect-square rounded"
+            style={{ background: p.hex }}
+            role="img"
+            aria-label={
+              p.deltaE !== null
+                ? `${p.name} — ΔE ${p.deltaE.toFixed(1)}`
+                : `${p.name} — afventer måling`
+            }
+          >
             {p.deltaE !== null && (
               <span
                 className={
@@ -131,6 +145,14 @@ export function ColorCheckerOverlay(props: ColorCheckerOverlayProps): React.Reac
         className="mt-3 w-full rounded-md bg-emerald-500 hover:bg-emerald-400 disabled:opacity-40 text-neutral-950 font-semibold py-2 text-sm transition"
         disabled={worstDeltaE === null || worstDeltaE >= 3}
         onClick={() => props.onAcceptCalibration?.(worstDeltaE ?? 0)}
+        aria-label={
+          worstDeltaE === null
+            ? "Godkend farvekalibrering — afventer måling"
+            : worstDeltaE < 3
+              ? `Godkend farvekalibrering (værste ΔE ${worstDeltaE.toFixed(1)})`
+              : `Kan ikke godkende: ΔE ${worstDeltaE.toFixed(1)} er over grænsen 3`
+        }
+        aria-disabled={worstDeltaE === null || worstDeltaE >= 3}
       >
         {worstDeltaE === null
           ? "Afventer måling"

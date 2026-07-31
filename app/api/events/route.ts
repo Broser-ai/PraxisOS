@@ -14,7 +14,7 @@
 // Persistens: hver event har sequence-id og kan replay'es (event-sourcing).
 
 import { NextResponse } from "next/server";
-import { createHmac } from "node:crypto";
+import { createHmac, timingSafeEqual } from "node:crypto";
 
 type PraxisEvent = {
   id: string;
@@ -33,9 +33,12 @@ export async function POST(req: Request) {
   if (!sig) return NextResponse.json({ error: "missing_signature" }, { status: 401 });
 
   const raw = await req.text();
-  // HMAC-verifikation (skeleton — bruger statisk demo-secret)
-  const expected = createHmac("sha256", "demo-secret-key").update(raw).digest("hex");
-  if (sig !== expected && process.env.NODE_ENV === "production") {
+  // Sprint 6 Batch 2: HMAC verificeres i ALLE miljøer (ikke kun production).
+  // Secret hentes fra `PRAXIS_EVENTS_SECRET`; falder tilbage til demo-key
+  // udenfor production, men throw'er hvis env-varen mangler i prod.
+  const secret = getEventsSecret();
+  const expected = createHmac("sha256", secret).update(raw).digest("hex");
+  if (!signaturesEqual(sig, expected)) {
     return NextResponse.json({ error: "invalid_signature" }, { status: 401 });
   }
 
@@ -76,4 +79,28 @@ export async function GET(req: Request) {
   }).slice(0, limit);
 
   return NextResponse.json({ count: filtered.length, events: filtered });
+}
+
+// --- Sprint 6 Batch 2 helpers -----------------------------------------------
+
+function getEventsSecret(): string {
+  const s = process.env.PRAXIS_EVENTS_SECRET;
+  if (s && s.length >= 16) return s;
+  if (process.env.NODE_ENV === "production") {
+    throw new Error("PRAXIS_EVENTS_SECRET er påkrævet i production");
+  }
+  return "demo-secret-key";
+}
+
+/** Konstant-tid sammenligning af hex-strings; falder tilbage til false ved format-fejl. */
+function signaturesEqual(actual: string, expected: string): boolean {
+  if (actual.length !== expected.length) return false;
+  try {
+    const a = Buffer.from(actual, "hex");
+    const b = Buffer.from(expected, "hex");
+    if (a.length === 0 || a.length !== b.length) return false;
+    return timingSafeEqual(a, b);
+  } catch {
+    return false;
+  }
 }
