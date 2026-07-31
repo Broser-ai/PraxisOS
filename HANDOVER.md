@@ -648,7 +648,7 @@ Trial-mekanismen er central. By Pilar betaler **0 kr** indtil PraxisOS er commer
 | Build time | ~23 sek |
 | Routes | ~75 (60 pages + 15 API; ~53 static-prerendered) |
 
-**Bemærk**: GitHub-autodeploys er BLOCKED fordi commit-author `ReNew-DK` mangler GitHub-Vercel-link. Vi deployer via CLI indtil løst (`vercel deploy --prod --yes`).
+**Bemærk**: GitHub er forbundet til Vercel-projektet [`praxis-os`](https://vercel.com/michaels-projects-78cbfa56/praxis-os) — push til `main` trigger autodeploy. Manuel CLI (`vercel deploy --prod --yes`) er kun fallback.
 
 ### 15.3 · GitHub
 | Item | Value |
@@ -802,28 +802,27 @@ Manipulation kan opdages ved at re-køre kæden.
 
 | # | Issue | Severity | Fix |
 |---|-------|----------|-----|
-| 1 | GitHub-autodeploy BLOCKED · GitHub-account ikke linket til Vercel | medium | User klikker `Connect` på https://vercel.com/account/login-connections |
-| 2 | Env-vars tomme i Vercel · `vercel env add --value` CLI hænger | medium | Manuel via UI · 90 sek |
-| 3 | Produktion kører i mock-mode (PRAXIS_DB=mock-fallback fordi env-var tom) | medium | Fixes med #2 |
-| 4 | `/api/signup` opretter mock-tenant · mangler ægte Supabase-insert | medium | Sprint 1 (service_role) |
-| 5 | Stripe Connect ikke koblet · ingen rigtig billing | high | Sprint 2 |
-| 6 | MitID-flow er mock · Idura broker ikke aktiveret | high | Sprint efter Idura-onboarding |
-| 7 | Email-pipeline mangler · ingen booking-bekræftelser sendes | high | Sprint 2 + Bird.com |
-| 8 | Atlas (kode-gen agent) er kun stub | low | Sprint 4 |
-| 9 | Backup-strategi ikke konfigureret | medium | Aktivér PITR i Supabase Pro |
-| 10 | CI/CD pipeline mangler | low | GitHub Actions setup |
+| 1 | Env-vars tomme i Vercel · prod falder tilbage til mock | medium | Manuel via UI · 90 sek |
+| 2 | Produktion kører i mock-mode (`PRAXIS_DB` ikke sat) | medium | Fixes med #1 |
+| 3 | `/api/signup` opretter mock-tenant · mangler ægte Supabase-insert | medium | Sprint 1 (service_role) |
+| 4 | Stripe Connect ikke koblet · ingen rigtig billing | high | Sprint 2 |
+| 5 | MitID-flow er mock · Idura broker ikke aktiveret | high | Sprint efter Idura-onboarding |
+| 6 | Email-pipeline mangler · ingen booking-bekræftelser sendes | high | Sprint 2 + Bird.com |
+| 7 | Atlas (kode-gen agent) er kun stub | low | Sprint 4 |
+| 8 | Backup-strategi ikke konfigureret | medium | Aktivér PITR i Supabase Pro |
+| 9 | CI/CD pipeline mangler (ud over Vercel Git-integration) | low | GitHub Actions setup |
 
 ---
 
 ## 20 · Next Steps · Roadmap
 
 ### Sprint 1 · Nuværende
-- [ ] **Brugeren**: sæt env-vars i Vercel · redeploy
-- [ ] **Brugeren**: link GitHub-account til Vercel-konto
+- [ ] **Brugeren**: sæt env-vars i Vercel · merge/redeploy
+- [x] GitHub ↔ Vercel forbundet ([`praxis-os`](https://vercel.com/michaels-projects-78cbfa56/praxis-os))
 - [x] `/api/signup` POST-handler (mock in-memory · wired fra `/signup`)
 - [ ] `/api/signup` → ægte Supabase-insert via service_role
 - [ ] `lib/supabase.ts` server-client (real fetch · ikke mock)
-- [ ] First fresh deploy fra GitHub auto-trigger
+- [ ] Merge til `main` → autodeploy via Vercel Git-integration
 
 ### Sprint 2 · Faktura + billing (3-4 dage)
 - [ ] Stripe Connect Custom setup
