@@ -11,6 +11,12 @@ import {
   savageRun,
   type SwarmTaskType,
 } from "@/lib/swarm";
+import {
+  getAutonomousSnapshot,
+  getDaemonState,
+  startDaemon,
+  stopDaemon,
+} from "@/lib/swarm/daemon";
 import { listJournals } from "@/lib/swarm/journal";
 
 export async function GET(
@@ -36,7 +42,14 @@ export async function GET(
   if (view === "journals") {
     return NextResponse.json({ data: listJournals({ limit: 40 }) });
   }
-  return NextResponse.json({ ...getSwarmStatus(), tenant });
+  if (view === "daemon") {
+    return NextResponse.json(getAutonomousSnapshot());
+  }
+  return NextResponse.json({
+    ...getSwarmStatus(),
+    tenant,
+    daemon: getDaemonState(),
+  });
 }
 
 export async function POST(
@@ -61,7 +74,13 @@ export async function POST(
   }
 
   let body: {
-    action?: "enqueue" | "execute" | "savage" | "approve";
+    action?:
+      | "enqueue"
+      | "execute"
+      | "savage"
+      | "approve"
+      | "daemon_start"
+      | "daemon_stop";
     type?: SwarmTaskType;
     title?: string;
     brief?: string;
@@ -69,6 +88,7 @@ export async function POST(
     taskId?: string;
     approveToken?: string;
     targetBranch?: string;
+    intervalMs?: number;
   };
   try {
     body = await req.json();
@@ -77,6 +97,22 @@ export async function POST(
   }
 
   const action = body.action ?? "savage";
+
+  if (action === "daemon_start") {
+    const state = startDaemon({
+      tenantSlug: tenant,
+      intervalMs: body.intervalMs,
+    });
+    return NextResponse.json({
+      ok: true,
+      daemon: state,
+      note: "24/7 recurring cycles · merge/deploy still human-gated",
+    });
+  }
+
+  if (action === "daemon_stop") {
+    return NextResponse.json({ ok: true, daemon: stopDaemon() });
+  }
 
   if (action === "approve") {
     if (!body.taskId || !body.approveToken) {
@@ -117,7 +153,6 @@ export async function POST(
     return NextResponse.json({ task }, { status: 201 });
   }
 
-  // savage = enqueue + execute immediately
   const task = await savageRun({
     type: body.type,
     title: body.title,

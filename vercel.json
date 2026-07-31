@@ -8,5 +8,11 @@
   "github": {
     "silent": false,
     "autoAlias": true
-  }
+  },
+  "crons": [
+    {
+      "path": "/api/cron/swarm-tick",
+      "schedule": "*/15 * * * *"
+    }
+  ]
 }

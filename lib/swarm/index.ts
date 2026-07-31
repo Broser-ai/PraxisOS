@@ -5,3 +5,5 @@ export * from "@/lib/swarm/worktree-manager";
 export * from "@/lib/swarm/s-agents";
 export * from "@/lib/swarm/h-bridge";
 export * from "@/lib/swarm/meta-harness";
+export * from "@/lib/swarm/events";
+export * from "@/lib/swarm/daemon";

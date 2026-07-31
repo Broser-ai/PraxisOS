@@ -10,7 +10,8 @@
     "smoke": "node scripts/smoke-core.mjs",
     "test": "vitest run",
     "test:watch": "vitest",
-    "swarm:status": "node -e \"console.log('Use POST /api/v1/{tenant}/swarm or /admin/swarm')\""
+    "awaken": "tsx scripts/awaken.ts",
+    "swarm:status": "node -e \"console.log('Use /admin/swarm or npm run awaken')\""
   },
   "dependencies": {
     "@langchain/anthropic": "^1.5.2",
@@ -30,6 +31,7 @@
     "fast-check": "^4.9.0",
     "postcss": "8.5.1",
     "tailwindcss": "^4.3.0",
+    "tsx": "^4.23.1",
     "typescript": "5.7.3",
     "vitest": "^3.2.7"
   }

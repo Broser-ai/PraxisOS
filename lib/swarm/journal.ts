@@ -1,3 +1,4 @@
+import { publishSwarmEvent } from "@/lib/swarm/events";
 import { getSwarmMemory } from "@/lib/swarm/memory";
 import type { JournalEntry, SAgentId } from "@/lib/swarm/types";
 
@@ -13,8 +14,8 @@ export function writeJournal(entry: Omit<JournalEntry, "id" | "at"> & { at?: str
     meta: entry.meta,
   };
   mem.journals.unshift(full);
-  // keep last 500
   if (mem.journals.length > 500) mem.journals.length = 500;
+  publishSwarmEvent({ type: "journal", entry: full });
   return full;
 }
 

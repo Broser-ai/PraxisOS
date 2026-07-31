@@ -8,7 +8,19 @@
 | S-agents | **ATLAS_CODE**, **LUNA_RESEARCH**, **FELIX_IMPROVE**, **FREJ_GATE** | Software/research/improve/compliance |
 | H-agents | Aria, Niels, Sigrid, … (9) | Humanized clinical personas via LangGraph (`lib/orchestrator.ts`) |
 
-## Savage mode
+## 24/7 Autonom mode
+
+Recurring agenda (LUNA → FELIX → H-bridge → FREJ → ATLAS) runs continuously:
+
+| Entry | How |
+|---|---|
+| Local long-running | `npm run awaken` (`SWARM_INTERVAL_MS=60000`) |
+| In-app | `/admin/swarm` → **Awaken daemon** |
+| Vercel | Cron `*/15 * * * *` → `/api/cron/swarm-tick` |
+| Manual tick | `POST /api/v1/{tenant}/swarm/tick` |
+| Real-time UI | SSE `GET /api/v1/{tenant}/swarm/stream` |
+
+## Savage mode (single shot)
 
 `POST /api/v1/{tenant}/swarm` with `{ action: "savage", type, title, brief }`
 

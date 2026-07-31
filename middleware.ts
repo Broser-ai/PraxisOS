@@ -26,11 +26,14 @@ const PROTECTED_PATH_PATTERNS: RegExp[] = [
   /^\/api\/v1\/[^/]+\/orchestrator(?:\/|$)/,
 ];
 
+// Cron is authenticated inside the route (CRON_SECRET / x-vercel-cron).
+
 const PUBLIC_PATH_PATTERNS: RegExp[] = [
   /^\/api\/auth\/(login|logout)$/,
   /^\/api\/signup$/,
   /^\/api\/dawa\//,
   /^\/api\/cvr\//,
+  /^\/api\/cron\//,
   /^\/api\/v1\/[^/]+\/bookings$/,
   /^\/api\/v1\/[^/]+\/availability/,
   /^\/api\/v1\/[^/]+\/services/,
