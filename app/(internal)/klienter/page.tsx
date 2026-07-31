@@ -3,8 +3,7 @@
 import Link from "next/link";
 import { useEffect, useMemo, useState } from "react";
 import type { ClientProfile } from "@/lib/clients";
-
-const TENANT = "bypilar";
+import { fetchStaffSession } from "@/lib/staff-session";
 
 function Trend({ t }: { t: "up" | "down" | "flat" }) {
   const map = {
@@ -30,6 +29,7 @@ function Trend({ t }: { t: "up" | "down" | "flat" }) {
 }
 
 export default function Klienter() {
+  const [tenant, setTenant] = useState<string | null>(null);
   const [all, setAll] = useState<ClientProfile[]>([]);
   const [loading, setLoading] = useState(true);
   const [search, setSearch] = useState("");
@@ -41,9 +41,14 @@ export default function Klienter() {
     (async () => {
       setLoading(true);
       try {
-        const res = await fetch(`/api/v1/${TENANT}/clients`, {
+        const me = await fetchStaffSession();
+        if (!me || cancelled) {
+          if (!cancelled) setAll([]);
+          return;
+        }
+        setTenant(me.tenant);
+        const res = await fetch(`/api/v1/${me.tenant}/clients`, {
           credentials: "include",
-          headers: { authorization: "Bearer sk_test_ui" },
         });
         const json = await res.json();
         if (cancelled) return;
@@ -111,7 +116,7 @@ export default function Klienter() {
       <div className="rise flex items-end justify-between">
         <div>
           <div className="kicker">
-            {all.length} aktive · EU-resident
+            {tenant ?? "…"} · {all.length} aktive · EU-resident
             {backend ? ` · ${backend}` : ""}
             {loading ? " · henter…" : ""}
           </div>

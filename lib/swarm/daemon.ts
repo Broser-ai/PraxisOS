@@ -5,7 +5,11 @@
 
 import { publishSwarmEvent } from "@/lib/swarm/events";
 import { writeJournal } from "@/lib/swarm/journal";
-import { flushSwarmMemory, getSwarmMemory } from "@/lib/swarm/memory";
+import {
+  ensureSwarmRemoteHydrated,
+  flushSwarmMemory,
+  getSwarmMemory,
+} from "@/lib/swarm/memory";
 import { listSwarmTasks, savageRun } from "@/lib/swarm/meta-harness";
 import { SWARM_INVARIANTS, type SwarmTaskType } from "@/lib/swarm/types";
 
@@ -133,6 +137,15 @@ export async function tickDaemon(opts?: { tenantSlug?: string }): Promise<{
   state.tickInFlight = true;
 
   try {
+    await ensureSwarmRemoteHydrated({ force: true });
+    // Re-sync cycle/agenda from memory after remote hydrate
+    const slice = getSwarmMemory().daemonSlice;
+    if (slice.cycle > state.cycle) {
+      state.cycle = slice.cycle;
+      state.agendaIndex = slice.agendaIndex;
+    }
+    if (!opts?.tenantSlug) state.tenantSlug = slice.tenantSlug;
+
     if (opts?.tenantSlug) state.tenantSlug = opts.tenantSlug;
 
     const item = AGENDA[state.agendaIndex % AGENDA.length]!;

@@ -13,6 +13,7 @@
 //   - ping
 import { NextResponse } from "next/server";
 import { AGENTS } from "@/lib/agents";
+import { verifyApiKey } from "@/lib/api-keys";
 import {
   createBookingForTenant,
   createClientForTenant,
@@ -59,11 +60,33 @@ export async function POST(req: Request) {
   if (body.jsonrpc !== "2.0") return rpcErr(body.id, -32600, "Invalid JSON-RPC version");
   if (!body.method) return rpcErr(body.id, -32600, "Missing method");
 
-  // Auth-tjek (lempelig for prototype — i prod: validér Bearer mod api-keys)
-  const auth = req.headers.get("authorization");
-  const isAuthed = auth?.startsWith("Bearer ");
-  if (!isAuthed && body.method !== "initialize" && body.method !== "ping") {
-    return rpcErr(body.id, -32001, "Unauthorized · add Authorization: Bearer sk_live_...");
+  // Auth: initialize/ping are open; tools/resources require a verified API key.
+  // Tenant is taken from tool args (default bypilar) and checked against the key.
+  const authHeader = req.headers.get("authorization");
+  const bearer = authHeader?.startsWith("Bearer ")
+    ? authHeader.slice("Bearer ".length).trim()
+    : "";
+  const needsAuth =
+    body.method !== "initialize" && body.method !== "ping";
+  if (needsAuth) {
+    if (!bearer) {
+      return rpcErr(body.id, -32001, "Unauthorized · add Authorization: Bearer sk_live_...");
+    }
+    // Resolve tenant hint from params when present; else accept any active key match
+    const argsTenant =
+      typeof body.params?.arguments?.tenant === "string"
+        ? body.params.arguments.tenant
+        : typeof body.params?.arguments?.tenantSlug === "string"
+          ? body.params.arguments.tenantSlug
+          : "bypilar";
+    const verified = verifyApiKey(bearer, argsTenant);
+    if (!verified.ok) {
+      // Also try nordlys if default tenant failed (MCP clients often omit tenant)
+      const alt = argsTenant === "bypilar" ? verifyApiKey(bearer, "nordlys") : verified;
+      if (!alt.ok) {
+        return rpcErr(body.id, -32001, `Unauthorized · ${verified.error}`);
+      }
+    }
   }
 
   switch (body.method) {

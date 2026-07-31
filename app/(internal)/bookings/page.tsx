@@ -3,9 +3,9 @@
 import Link from "next/link";
 import { useEffect, useMemo, useState } from "react";
 import { statusLabel, sourceLabel, type Booking, type BookingStatus } from "@/lib/bookings";
+import { fetchStaffSession } from "@/lib/staff-session";
 
 const STATUSES: BookingStatus[] = ["confirmed", "completed", "pending", "noshow", "cancelled"];
-const TENANT = "bypilar";
 
 function fmtDateTime(iso: string) {
   const d = new Date(iso);
@@ -28,14 +28,14 @@ type ApiBooking = {
   paid: boolean;
 };
 
-function toBooking(b: ApiBooking): Booking {
+function toBooking(b: ApiBooking, tenant: string): Booking {
   const name = b.client?.name ?? "Klient";
   const parts = name.trim().split(/\s+/);
   const initials =
     ((parts[0]?.[0] ?? "") + (parts[parts.length - 1]?.[0] ?? "")).toUpperCase() || "XX";
   return {
     id: b.id,
-    tenant: TENANT,
+    tenant,
     clientId: b.client?.id ?? "",
     clientName: name,
     clientInitials: initials,
@@ -54,6 +54,7 @@ function toBooking(b: ApiBooking): Booking {
 }
 
 export default function BookingsAdmin() {
+  const [tenant, setTenant] = useState<string | null>(null);
   const [rows, setRows] = useState<Booking[]>([]);
   const [loading, setLoading] = useState(true);
   const [filter, setFilter] = useState<BookingStatus | "all">("all");
@@ -65,14 +66,19 @@ export default function BookingsAdmin() {
     (async () => {
       setLoading(true);
       try {
-        const res = await fetch(`/api/v1/${TENANT}/bookings/list?limit=100`, {
+        const me = await fetchStaffSession();
+        if (!me || cancelled) {
+          if (!cancelled) setRows([]);
+          return;
+        }
+        setTenant(me.tenant);
+        const res = await fetch(`/api/v1/${me.tenant}/bookings/list?limit=100`, {
           credentials: "include",
-          headers: { authorization: "Bearer sk_test_ui" },
         });
         const json = await res.json();
         if (cancelled) return;
         setBackend(json.meta?.backend ?? "");
-        setRows((json.data ?? []).map(toBooking));
+        setRows((json.data ?? []).map((b: ApiBooking) => toBooking(b, me.tenant)));
       } catch {
         if (!cancelled) setRows([]);
       } finally {
@@ -115,7 +121,7 @@ export default function BookingsAdmin() {
       <div className="rise flex flex-wrap items-end justify-between gap-3">
         <div>
           <div className="kicker">
-            Booking-administration · {rows.length} bookings
+            Booking-administration · {tenant ?? "…"} · {rows.length} bookings
             {backend ? ` · ${backend}` : ""}
             {loading ? " · henter…" : ""}
           </div>

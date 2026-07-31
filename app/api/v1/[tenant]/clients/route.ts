@@ -8,35 +8,8 @@ import {
   dataBackend,
   listClientsForTenant,
 } from "@/lib/data/repo";
+import { authorizeTenantRequest } from "@/lib/request-auth";
 import { getTenant } from "@/lib/tenants";
-
-function checkAuth(
-  req: Request,
-): { ok: true } | { ok: false; status: number; body: object } {
-  const sessionTenant = req.headers.get("x-praxis-tenant");
-  if (sessionTenant) return { ok: true };
-
-  const auth = req.headers.get("authorization");
-  if (!auth || !auth.startsWith("Bearer ")) {
-    return {
-      ok: false,
-      status: 401,
-      body: {
-        error: "unauthorized",
-        hint: "Session cookie or Authorization: Bearer sk_live_...",
-      },
-    };
-  }
-  const token = auth.slice(7);
-  if (
-    !token.startsWith("sk_live_") &&
-    !token.startsWith("sk_test_") &&
-    !token.startsWith("pk_test_dead")
-  ) {
-    return { ok: false, status: 401, body: { error: "invalid_token" } };
-  }
-  return { ok: true };
-}
 
 export async function GET(
   req: Request,
@@ -47,7 +20,7 @@ export async function GET(
     return NextResponse.json({ error: "tenant_not_found" }, { status: 404 });
   }
 
-  const auth = checkAuth(req);
+  const auth = authorizeTenantRequest(req, tenant, "read:clients");
   if (!auth.ok) return NextResponse.json(auth.body, { status: auth.status });
 
   const clients = await listClientsForTenant(tenant);
@@ -64,7 +37,12 @@ export async function GET(
         lastVisit: c.lastVisit,
         consentLevel: c.consentLevel,
       })),
-      meta: { count: clients.length, tenant, backend: dataBackend() },
+      meta: {
+        count: clients.length,
+        tenant,
+        backend: dataBackend(),
+        auth: auth.mode,
+      },
     },
     { headers: { "access-control-allow-origin": "*" } },
   );
@@ -78,7 +56,8 @@ export async function POST(
   if (!getTenant(tenant)) {
     return NextResponse.json({ error: "tenant_not_found" }, { status: 404 });
   }
-  const auth = checkAuth(req);
+
+  const auth = authorizeTenantRequest(req, tenant, "write:clients");
   if (!auth.ok) return NextResponse.json(auth.body, { status: auth.status });
 
   let body: {
@@ -117,6 +96,7 @@ export async function POST(
       consentLevel: created.consentLevel,
       createdAt: new Date().toISOString(),
       backend: dataBackend(),
+      auth: auth.mode,
     },
     { status: 201, headers: { "access-control-allow-origin": "*" } },
   );

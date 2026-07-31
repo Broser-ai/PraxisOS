@@ -18,6 +18,7 @@ import {
   stopDaemon,
 } from "@/lib/swarm/daemon";
 import { listJournals } from "@/lib/swarm/journal";
+import { ensureSwarmRemoteHydrated } from "@/lib/swarm/memory";
 
 export async function GET(
   req: NextRequest,
@@ -29,9 +30,11 @@ export async function GET(
   }
 
   const session = decodeSession(req.cookies.get(SESSION_COOKIE)?.value ?? "");
-  if (!session || session.tenant !== tenant) {
+  if (!session || (session.tenant !== tenant && session.role !== "support")) {
     return NextResponse.json({ error: "unauthorized" }, { status: 401 });
   }
+
+  await ensureSwarmRemoteHydrated();
 
   const url = new URL(req.url);
   const view = url.searchParams.get("view") ?? "status";
@@ -66,12 +69,14 @@ export async function POST(
   }
 
   const session = decodeSession(req.cookies.get(SESSION_COOKIE)?.value ?? "");
-  if (!session || session.tenant !== tenant) {
+  if (!session || (session.tenant !== tenant && session.role !== "support")) {
     return NextResponse.json({ error: "unauthorized" }, { status: 401 });
   }
   if (session.role !== "owner" && session.role !== "support") {
     return NextResponse.json({ error: "forbidden" }, { status: 403 });
   }
+
+  await ensureSwarmRemoteHydrated();
 
   let body: {
     action?:

@@ -2,6 +2,7 @@
 
 import Link from "next/link";
 import { useCallback, useEffect, useState } from "react";
+import { fetchStaffSession } from "@/lib/staff-session";
 
 type DaemonState = {
   running: boolean;
@@ -39,9 +40,8 @@ type Journal = {
   content: string;
 };
 
-const TENANT = "bypilar";
-
 export default function SwarmAdminPage() {
+  const [tenant, setTenant] = useState<string | null>(null);
   const [status, setStatus] = useState<SwarmStatus | null>(null);
   const [tasks, setTasks] = useState<SwarmTask[]>([]);
   const [journals, setJournals] = useState<Journal[]>([]);
@@ -51,16 +51,23 @@ export default function SwarmAdminPage() {
   const [title, setTitle] = useState("Savage improve · booking persistence");
   const [type, setType] = useState("improve");
 
+  useEffect(() => {
+    void fetchStaffSession().then((me) => {
+      if (me) setTenant(me.tenant);
+    });
+  }, []);
+
   const refresh = useCallback(async () => {
+    if (!tenant) return;
     const [s, t, j] = await Promise.all([
-      fetch(`/api/v1/${TENANT}/swarm`).then((r) => r.json()),
-      fetch(`/api/v1/${TENANT}/swarm?view=tasks`).then((r) => r.json()),
-      fetch(`/api/v1/${TENANT}/swarm?view=journals`).then((r) => r.json()),
+      fetch(`/api/v1/${tenant}/swarm`).then((r) => r.json()),
+      fetch(`/api/v1/${tenant}/swarm?view=tasks`).then((r) => r.json()),
+      fetch(`/api/v1/${tenant}/swarm?view=journals`).then((r) => r.json()),
     ]);
     setStatus(s);
     setTasks(t.data ?? []);
     setJournals(j.data ?? []);
-  }, []);
+  }, [tenant]);
 
   useEffect(() => {
     void refresh();
@@ -68,7 +75,8 @@ export default function SwarmAdminPage() {
 
   // Real-time SSE feed
   useEffect(() => {
-    const es = new EventSource(`/api/v1/${TENANT}/swarm/stream`);
+    if (!tenant) return;
+    const es = new EventSource(`/api/v1/${tenant}/swarm/stream`);
     es.onmessage = (ev) => {
       try {
         const data = JSON.parse(ev.data) as {
@@ -103,13 +111,14 @@ export default function SwarmAdminPage() {
       // browser will retry
     };
     return () => es.close();
-  }, [refresh]);
+  }, [refresh, tenant]);
 
   const post = async (body: Record<string, unknown>) => {
+    if (!tenant) return;
     setBusy(true);
     setMsg(null);
     try {
-      const res = await fetch(`/api/v1/${TENANT}/swarm`, {
+      const res = await fetch(`/api/v1/${tenant}/swarm`, {
         method: "POST",
         headers: { "content-type": "application/json" },
         body: JSON.stringify(body),
@@ -132,9 +141,10 @@ export default function SwarmAdminPage() {
   const sleep = () => void post({ action: "daemon_stop" });
 
   const tickOnce = async () => {
+    if (!tenant) return;
     setBusy(true);
     try {
-      const res = await fetch(`/api/v1/${TENANT}/swarm/tick`, { method: "POST" });
+      const res = await fetch(`/api/v1/${tenant}/swarm/tick`, { method: "POST" });
       const json = await res.json();
       setMsg(JSON.stringify(json).slice(0, 200));
       await refresh();
@@ -166,8 +176,8 @@ export default function SwarmAdminPage() {
             S-H Swarm · 24/7 Autonom
           </h1>
           <p className="mt-2 max-w-[560px] text-[13.5px] text-muted">
-            Meta-harness kører recurring cycles over alle S- og H-agenter i worktree-swarm.
-            Real-time journal via SSE. Merge/deploy kræver stadig human approve.
+            Tenant {tenant ?? "…"} · Meta-harness kører recurring cycles over S- og H-agenter.
+            Real-time journal via SSE + remote hydrate. Merge/deploy kræver human approve.
           </p>
         </div>
         <span className={`chip mono !text-[11px] ${daemon?.running ? "!border-signal/40 text-signal" : ""}`}>

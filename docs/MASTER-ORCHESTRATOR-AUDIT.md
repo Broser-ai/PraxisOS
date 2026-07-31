@@ -1,29 +1,35 @@
 # Master Orchestrator · Analyse & forbedringer (2026-07-31)
 
-## Diagnose
+## Diagnose · iteration 2
 
-| Område | Før | Efter denne iteration |
+| Område | Før | Efter |
 |---|---|---|
-| Clinic loop UI | Seed-mock, så API-bookings usynlige | `/bookings` + `/klienter` henter via repo-API |
-| H-bridge | Kun stub-orchestrator | Opretter **rigtig booking** + kører LangGraph |
-| MCP tools | `simulateToolResult` | `list/create bookings/clients` → `lib/data/repo` |
-| Daemon 24/7 | Fake setInterval på Vercel | Cron-flag på Vercel; interval kun lokalt; **tick mutex** |
-| Swarm state | Kun `globalThis` | File persist `.swarm-data/` (awaken workers) |
-| ATLAS | Påstod “committed” uden git | `git add` + `git commit` i worktree |
-| Merge | `git merge` i web cwd | Kun approve-intent → human/CI PR |
-| Admin | Ingen approve | Approve-knap + Sidebar-link |
+| Staff UI tenant | Hardcoded `bypilar` + fake `sk_test_ui` | `/api/auth/me` → session-tenant på bookings/klienter/swarm |
+| API Bearer | Prefix-check (`sk_test_*`) | `verifyApiKey` · tenant + scope + revoke/mask |
+| Tenant isolation | Session header ignored for mismatch | `authorizeTenantRequest` · mismatch → 403 (support undtaget) |
+| Swarm durability | Kun `.swarm-data/` fil / process | + Supabase `swarm_snapshots` (migration 0004) |
+| SSE cross-instance | Kun process EventEmitter | Remote hydrate poll hvert 20s i stream |
+| Frej MDR | `class_iia` + `active` (inkonsistent) | `class_0` + `active`; MDR-tier er authoritative i gate |
+| MCP auth | Enhver Bearer | Verificeret API-key mod tenant |
 
 ## Stadig næste lag
 
-1. Persist swarm til Supabase `agent_runs` (delt på tværs af Vercel-instanser)
-2. SSE via Supabase Realtime (ikke kun process EventEmitter)
-3. Verificerede API-keys (ikke bare `sk_test_*` prefix)
-4. Class IIa frej deployment-status vs MDR-tier konsistens
+1. Anvend migration 0004 i prod Supabase (`swarm_snapshots`)
+2. Seed password hashes i Supabase `users` så DB-login virker (ikke kun memory)
+3. Supabase Realtime channel i stedet for 20s poll (når snapshot-tabellen er live)
+4. API-keys i DB (`api_keys.hashed_secret`) i stedet for seed-memory
+5. MitID / Stripe / NemSMS / MedCom
 
 ## Kør
 
 ```bash
 npm test
 npm run awaken          # lokal 24/7
-# UI: /admin/swarm
+# UI: /admin/swarm  ·  /bookings  ·  /klienter
 ```
+
+## Sikkerhedslås
+
+- `NO_AUTO_MERGE` / `NO_AUTO_DEPLOY` uændret
+- Approve kræver `SWARM_APPROVE_TOKEN` / `I-APPROVE-MERGE`
+- `listApiKeys()` maskerer secrets før UI

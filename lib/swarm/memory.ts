@@ -1,6 +1,7 @@
 import {
   defaultPersisted,
   loadPersistedSwarm,
+  loadPersistedSwarmPreferRemote,
   savePersistedSwarm,
   type PersistedDaemonSlice,
 } from "@/lib/swarm/persist";
@@ -12,6 +13,7 @@ type SwarmMemoryRoot = {
   worktrees: WorktreeJob[];
   daemonSlice: PersistedDaemonSlice;
   hydrated: boolean;
+  remoteHydrated: boolean;
 };
 
 const KEY = "__praxisos_swarm_memory_v1__";
@@ -24,7 +26,15 @@ function empty(): SwarmMemoryRoot {
     worktrees: d.worktrees,
     daemonSlice: d.daemon,
     hydrated: false,
+    remoteHydrated: false,
   };
+}
+
+function applyDisk(root: SwarmMemoryRoot, disk: ReturnType<typeof defaultPersisted>): void {
+  root.tasks = disk.tasks;
+  root.journals = disk.journals;
+  root.worktrees = disk.worktrees;
+  root.daemonSlice = disk.daemon;
 }
 
 export function getSwarmMemory(): SwarmMemoryRoot {
@@ -32,15 +42,32 @@ export function getSwarmMemory(): SwarmMemoryRoot {
   if (!g[KEY]) g[KEY] = empty();
   if (!g[KEY].hydrated) {
     const disk = loadPersistedSwarm();
-    if (disk) {
-      g[KEY].tasks = disk.tasks;
-      g[KEY].journals = disk.journals;
-      g[KEY].worktrees = disk.worktrees;
-      g[KEY].daemonSlice = disk.daemon;
-    }
+    if (disk) applyDisk(g[KEY], disk);
     g[KEY].hydrated = true;
   }
   return g[KEY];
+}
+
+/** Pull shared Supabase snapshot when available (Vercel multi-instance). */
+export async function ensureSwarmRemoteHydrated(opts?: {
+  force?: boolean;
+}): Promise<void> {
+  const mem = getSwarmMemory();
+  if (mem.remoteHydrated && !opts?.force) return;
+  const remote = await loadPersistedSwarmPreferRemote();
+  if (remote) {
+    // Prefer remote if it has more progress (higher cycle or more journals)
+    const localCycle = mem.daemonSlice.cycle;
+    const remoteCycle = remote.daemon.cycle;
+    if (
+      remoteCycle > localCycle ||
+      remote.journals.length > mem.journals.length ||
+      (mem.tasks.length === 0 && remote.tasks.length > 0)
+    ) {
+      applyDisk(mem, remote);
+    }
+  }
+  mem.remoteHydrated = true;
 }
 
 export function flushSwarmMemory(): void {
@@ -53,8 +80,13 @@ export function flushSwarmMemory(): void {
   });
 }
 
+export async function flushSwarmMemoryAsync(): Promise<void> {
+  flushSwarmMemory();
+}
+
 export function resetSwarmMemoryForTests(): void {
   const g = globalThis as typeof globalThis & { [KEY]?: SwarmMemoryRoot };
   g[KEY] = empty();
   g[KEY].hydrated = true; // skip disk in tests
+  g[KEY].remoteHydrated = true;
 }

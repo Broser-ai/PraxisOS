@@ -1,4 +1,4 @@
-// GET /api/v1/{tenant}/bookings/list · liste over bookings (session eller Bearer)
+// GET /api/v1/{tenant}/bookings/list · liste over bookings (session eller verified Bearer)
 
 import { NextResponse } from "next/server";
 import {
@@ -6,6 +6,7 @@ import {
   listBookingsForTenant,
 } from "@/lib/data/repo";
 import type { BookingStatus } from "@/lib/bookings";
+import { authorizeTenantRequest } from "@/lib/request-auth";
 import { getTenant } from "@/lib/tenants";
 
 export async function GET(
@@ -17,10 +18,9 @@ export async function GET(
     return NextResponse.json({ error: "tenant_not_found" }, { status: 404 });
   }
 
-  const sessionTenant = req.headers.get("x-praxis-tenant");
-  const auth = req.headers.get("authorization");
-  if (!sessionTenant && !auth?.startsWith("Bearer ")) {
-    return NextResponse.json({ error: "unauthorized" }, { status: 401 });
+  const auth = authorizeTenantRequest(req, tenant, "read:bookings");
+  if (!auth.ok) {
+    return NextResponse.json(auth.body, { status: auth.status });
   }
 
   const url = new URL(req.url);
@@ -46,7 +46,13 @@ export async function GET(
         priceKr: b.priceKr,
         paid: b.paid,
       })),
-      meta: { count: bookings.length, limit, tenant, backend: dataBackend() },
+      meta: {
+        count: bookings.length,
+        limit,
+        tenant,
+        backend: dataBackend(),
+        auth: auth.mode,
+      },
     },
     { headers: { "access-control-allow-origin": "*" } },
   );

@@ -3,6 +3,11 @@
 // Hver tenant kan oprette flere API-keys med forskellige scopes og rate-limits.
 // Format: pk_live_xxx (public/visible) eller sk_live_xxx (secret/server)
 // Bearer-token auth: Authorization: Bearer sk_live_xxx
+//
+// Secrets marked with **** are display-masked and cannot authenticate.
+// verifyApiKey() requires an exact match against a full active secret.
+
+import { createHash, timingSafeEqual } from "node:crypto";
 
 export type ApiKeyScope =
   | "read:bookings" | "write:bookings"
@@ -65,6 +70,7 @@ export const apiKeys: ApiKey[] = [
     tenant: "bypilar",
     name: "Webflow embed widget",
     prefix: "pk_live_3e1b8a2c9f47",
+    // Masked in UI listings — cannot authenticate until rotated to a full secret
     hashedSecret: "sk_live_3e1b8a2c9f47****",
     scopes: ["read:services"],
     rateLimit: 120,
@@ -106,7 +112,7 @@ export const apiKeys: ApiKey[] = [
     tenant: "nordlys",
     name: "nordlys.dk · production",
     prefix: "pk_live_9d3e5b8a4c12",
-    hashedSecret: "sk_live_9d3e5b8a4c12****",
+    hashedSecret: "sk_live_9d3e5b8a4c12f0e1d2c3b4a5968778",
     scopes: ["*"],
     rateLimit: 1000,
     createdBy: "Nadia Berg",
@@ -117,8 +123,87 @@ export const apiKeys: ApiKey[] = [
   },
 ];
 
+function isMaskedSecret(secret: string): boolean {
+  return secret.includes("*");
+}
+
+function safeEqualStr(a: string, b: string): boolean {
+  const ha = createHash("sha256").update(a).digest();
+  const hb = createHash("sha256").update(b).digest();
+  return timingSafeEqual(ha, hb);
+}
+
+function scopeAllows(key: ApiKey, required?: ApiKeyScope): boolean {
+  if (!required) return true;
+  if (key.scopes.includes("*")) return true;
+  return key.scopes.includes(required);
+}
+
+/**
+ * Verify a raw Bearer secret against in-memory (and later DB) API keys.
+ * Rejects revoked keys, masked display secrets, wrong tenant, and missing scopes.
+ */
+export function verifyApiKey(
+  token: string,
+  tenant: string,
+  requiredScope?: ApiKeyScope,
+): { ok: true; key: ApiKey } | { ok: false; error: string } {
+  if (!token || token.length < 16) {
+    return { ok: false, error: "invalid_token" };
+  }
+  if (
+    !token.startsWith("sk_live_") &&
+    !token.startsWith("sk_test_") &&
+    !token.startsWith("pk_live_") &&
+    !token.startsWith("pk_test_")
+  ) {
+    return { ok: false, error: "invalid_token" };
+  }
+
+  const candidates = apiKeys.filter(
+    (k) =>
+      k.tenant === tenant &&
+      k.status === "active" &&
+      !isMaskedSecret(k.hashedSecret),
+  );
+
+  const match = candidates.find((k) => safeEqualStr(k.hashedSecret, token));
+  if (!match) {
+    // Distinguish revoked exact match for clearer ops debugging
+    const revoked = apiKeys.find(
+      (k) =>
+        k.tenant === tenant &&
+        k.status === "revoked" &&
+        !isMaskedSecret(k.hashedSecret) &&
+        safeEqualStr(k.hashedSecret, token),
+    );
+    if (revoked) return { ok: false, error: "key_revoked" };
+    return { ok: false, error: "invalid_token" };
+  }
+
+  if (!scopeAllows(match, requiredScope)) {
+    return { ok: false, error: "insufficient_scope" };
+  }
+
+  match.lastUsedAt = new Date().toISOString();
+  return { ok: true, key: match };
+}
+
+/** Mask secret for UI — never echo full sk_ back to clients. */
+export function maskApiKeySecret(secret: string): string {
+  if (secret.length < 12) return "****";
+  return `${secret.slice(0, 12)}****`;
+}
+
 export function listApiKeys(tenant: string): ApiKey[] {
-  return apiKeys.filter((k) => k.tenant === tenant);
+  return apiKeys
+    .filter((k) => k.tenant === tenant)
+    .map((k) => ({
+      ...k,
+      hashedSecret: isMaskedSecret(k.hashedSecret)
+        ? k.hashedSecret
+        : maskApiKeySecret(k.hashedSecret),
+    }));
 }
 
 export const SCOPE_LABEL: Record<ApiKeyScope, string> = {

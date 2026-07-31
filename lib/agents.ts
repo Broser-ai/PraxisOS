@@ -400,10 +400,10 @@ export const AGENT_MDR_TIER: Record<AgentId, MdrTier> = {
   magnus: "class_0",   // Marketing/recall · non-medical
   vega:   "class_0",   // Fakturering · administrativ
   bjorn:  "class_0",   // Rute-optimering · logistik
+  frej:   "class_0",   // Compliance/gate · administrativ, ingen klinisk claim
   // Class IIa · medical device (frozen behind CE-mark feature flag)
   niels:  "class_iia", // SOAP-udkast + ICD-10 kandidater = MDCG 2019-11 Rule 11
   liv:    "class_iia", // Patient-coach · risiko for medicinsk rådgivning
-  frej:   "class_iia", // Compliance-agent der beslutter escalation
   atlas:  "class_iia", // Kode-gen kan påvirke patient-safety code paths
 };
 
@@ -450,19 +450,27 @@ export function canDispatchAgent(
   tenantSlug?: string,
 ): { allowed: boolean; reason: string } {
   const status = AGENT_DEPLOYMENT_STATUS[agentId];
-  if (status === "active") return { allowed: true, reason: "active class_0 agent" };
+  const tier = AGENT_MDR_TIER[agentId];
+
   if (status === "deprecated") {
     return {
       allowed: false,
       reason: `agent ${agentId} deprecated · folded into back-office`,
     };
   }
-  // status === 'frozen' (Class IIa)
+
+  // MDR tier is authoritative — deployment "active" must not bypass Class IIa.
+  if (tier === "class_0") {
+    return { allowed: true, reason: "class_0 agent" };
+  }
+
+  // Class IIa · require CE-mark (or explicit clinical-dev bypass)
   if (tenantMdrStatus !== "ce_marked") {
-    // Sprint 5: by Pilar dev-mode bypass · KUN når PRAXIS_CLINICAL_DEV=1
-    // og tenant er 'bypilar' og vi ikke er i produktion.
-    if (tenantSlug === "bypilar" && process.env.PRAXIS_CLINICAL_DEV === "1"
-        && process.env.NODE_ENV !== "production") {
+    if (
+      tenantSlug === "bypilar" &&
+      process.env.PRAXIS_CLINICAL_DEV === "1" &&
+      process.env.NODE_ENV !== "production"
+    ) {
       return {
         allowed: true,
         reason: `class_iia agent · by Pilar clinical-dev-mode bypass (PRAXIS_CLINICAL_DEV=1)`,

@@ -20,6 +20,7 @@ const PROTECTED_PATH_PATTERNS: RegExp[] = [
   /^\/felt(?:\/|$)/,
   /^\/review(?:\/|$)/,
   /^\/indstillinger(?:\/|$)/,
+  /^\/api\/auth\/me$/,
   /^\/api\/v1\/[^/]+\/clients(?:\/|$)/,
   /^\/api\/v1\/[^/]+\/bookings\/list(?:\/|$)/,
   /^\/api\/v1\/[^/]+\/swarm(?:\/|$)/,
@@ -31,6 +32,8 @@ const PROTECTED_PATH_PATTERNS: RegExp[] = [
 const PUBLIC_PATH_PATTERNS: RegExp[] = [
   /^\/api\/auth\/(login|logout)$/,
   /^\/api\/signup$/,
+  // /api/auth/me requires session — handled via PROTECTED below
+
   /^\/api\/dawa\//,
   /^\/api\/cvr\//,
   /^\/api\/cron\//,
@@ -171,6 +174,7 @@ export const config = {
     "/felt/:path*",
     "/review/:path*",
     "/indstillinger/:path*",
+    "/api/auth/me",
     "/api/v1/:tenant/clients",
     "/api/v1/:tenant/clients/:path*",
     "/api/v1/:tenant/bookings/list",

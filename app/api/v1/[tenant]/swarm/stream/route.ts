@@ -1,11 +1,13 @@
-import { decodeSession, SESSION_COOKIE } from "@/lib/auth";
+import { decodeSession } from "@/lib/auth";
 import { getTenant } from "@/lib/tenants";
 import { getDaemonState } from "@/lib/swarm/daemon";
 import { getSwarmBus } from "@/lib/swarm/events";
 import { listJournals } from "@/lib/swarm/journal";
+import { ensureSwarmRemoteHydrated, getSwarmMemory } from "@/lib/swarm/memory";
 
 /**
  * GET /api/v1/{tenant}/swarm/stream — Server-Sent Events (real-time swarm feed)
+ * Process-local bus + periodic remote hydrate for cross-instance journals.
  */
 export async function GET(
   req: Request,
@@ -24,13 +26,14 @@ export async function GET(
   const match = cookieHeader.match(/(?:^|;\s*)praxis_session=([^;]+)/);
   const token = match?.[1] ? decodeURIComponent(match[1]) : "";
   const session = decodeSession(token);
-  if (!session || session.tenant !== tenant) {
-    // Also allow query access_token for tooling (signed session cookie value)
+  if (!session || (session.tenant !== tenant && session.role !== "support")) {
     return new Response(JSON.stringify({ error: "unauthorized" }), {
       status: 401,
       headers: { "content-type": "application/json" },
     });
   }
+
+  await ensureSwarmRemoteHydrated();
 
   const encoder = new TextEncoder();
   const bus = getSwarmBus();
@@ -40,6 +43,8 @@ export async function GET(
       const send = (data: unknown) => {
         controller.enqueue(encoder.encode(`data: ${JSON.stringify(data)}\n\n`));
       };
+
+      let lastJournalCount = getSwarmMemory().journals.length;
 
       send({
         type: "hello",
@@ -59,8 +64,26 @@ export async function GET(
         });
       }, 15_000);
 
+      // Cross-instance: re-hydrate and push journal delta when remote advanced
+      const remotePoll = setInterval(() => {
+        void (async () => {
+          const mem = getSwarmMemory();
+          mem.remoteHydrated = false;
+          await ensureSwarmRemoteHydrated();
+          const count = mem.journals.length;
+          if (count > lastJournalCount) {
+            const fresh = listJournals({ limit: count - lastJournalCount });
+            for (const entry of fresh.reverse()) {
+              send({ type: "journal", entry, source: "remote" });
+            }
+            lastJournalCount = count;
+          }
+        })();
+      }, 20_000);
+
       const close = () => {
         clearInterval(heartbeat);
+        clearInterval(remotePoll);
         bus.off("swarm", onEvent);
         try {
           controller.close();
