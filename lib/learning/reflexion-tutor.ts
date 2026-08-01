@@ -19,6 +19,15 @@ export type TutorOutput = {
   citations: string[];          // list of source_urls
 };
 
+/**
+ * INV-CS-6: output der forlader reflexion-loopet SKAL være markeret som
+ * AI-genereret. Håndhæves i runReflexionLoop() uanset hvad den injicerede
+ * TutorFn selv sætter.
+ */
+export type VerifiedTutorOutput = TutorOutput & {
+  ai_generated: true;
+};
+
 export type TutorFn = (
   ctx: TutorContext,
   feedback?: string,
@@ -30,7 +39,7 @@ export type ReflexionFn = (
 ) => Promise<ReflexionScore & { feedback: string }>;
 
 export type ReflexionRunResult = {
-  final: TutorOutput;
+  final: VerifiedTutorOutput;
   iterations: number;
   scores: ReflexionScore[];
   acceptedAt: number | null;    // iteration hvor accept skete (null hvis vi ramte max)
@@ -69,7 +78,8 @@ export async function runReflexionLoop(
   }
 
   return {
-    final: output,
+    // INV-CS-6: obligatorisk ai_generated=true marker på tutor-output.
+    final: { ...output, ai_generated: true },
     iterations: scores.length,
     scores,
     acceptedAt,

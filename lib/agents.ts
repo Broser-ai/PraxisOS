@@ -7,6 +7,8 @@
 // Filosofi: agenterne taler dansk, lytter aktivt, har faglig respekt — de
 // erstatter ikke behandleren, men giver tid tilbage til det vigtige arbejde.
 
+import { shouldBypassMdrGate } from "./dev-mode";
+
 export type AgentId =
   | "aria"      // Reception & booking
   | "niels"     // Klinisk dokumentation
@@ -469,9 +471,11 @@ export function canDispatchAgent(
   // status === 'frozen' (Class IIa)
   if (tenantMdrStatus !== "ce_marked") {
     // Sprint 5: by Pilar dev-mode bypass · KUN når PRAXIS_CLINICAL_DEV=1
-    // og tenant er 'bypilar' og vi ikke er i produktion.
-    if (tenantSlug === "bypilar" && process.env.PRAXIS_CLINICAL_DEV === "1"
-        && process.env.NODE_ENV !== "production") {
+    // og tenant er 'bypilar'. Delegerer til dev-mode.ts's kanoniske helper
+    // (shouldBypassMdrGate) i stedet for et inline NODE_ENV-check, så denne
+    // gate og lib/dev-mode.ts's isClinicalDevModeEnabled() aldrig kan drifte
+    // fra hinanden (C18 · asymmetri-fix).
+    if (shouldBypassMdrGate(tenantSlug ?? "")) {
       return {
         allowed: true,
         reason: `class_iia agent · by Pilar clinical-dev-mode bypass (PRAXIS_CLINICAL_DEV=1)`,

@@ -37,6 +37,9 @@ export type GaitSessionMetrics = {
     frames_dropped_low_confidence: number;
     reliable_estimate: boolean;
   };
+  // INV-CS-6: gait-metrics er algoritme/AI-udledt fra pose-frames og SKAL
+  // markeres som sådan (obligatorisk, ikke optional).
+  ai_generated: true;
 };
 
 // ---------------------------------------------------------------------------
@@ -262,6 +265,7 @@ export function computeGaitMetrics(
       frames_dropped_low_confidence: droppedFrameCount,
       reliable_estimate: reliable,
     },
+    ai_generated: true,
   };
 }
 

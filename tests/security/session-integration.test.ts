@@ -28,14 +28,20 @@ const invokeSpy = vi.fn(async () => ({
   tokenUsage: { prompt: 0, completion: 0 },
 }));
 
-vi.mock("@/lib/orchestrator", async (importOriginal) => {
-  const actual = await importOriginal<typeof import("@/lib/orchestrator")>();
-  return {
-    ...actual,
-    isOrchestrationEnabled: () => true,
-    buildOrchestrator: () => ({ invoke: invokeSpy }),
-  };
-});
+// Undgå importOriginal() her: route.ts's eneste runtime-afhængighed af
+// "@/lib/orchestrator" er de 5 eksports nedenfor (resten er `import type`,
+// slettet ved compile). importOriginal() ville ellers cold-loade den ægte
+// modul-graf inkl. @langchain/langgraph (~8-18s), hvilket presser test (a)
+// over vitest.config.ts's testTimeout: 20_000 under fuld sweep-belastning —
+// og en killed/timed-out test (a) lader dens orphaned POST-promise resolve
+// asynkront ind i test (b), som så ser invokeSpy kaldt uventet.
+vi.mock("@/lib/orchestrator", () => ({
+  isOrchestrationEnabled: () => true,
+  buildOrchestrator: () => ({ invoke: invokeSpy }),
+  SYNC_DEADLINE_MS: 8_000,
+  DEFAULT_TIMEOUT_MS: 30_000,
+  SCRIBE_TIMEOUT_MS: 120_000,
+}));
 
 vi.mock("@/lib/llm-adapter", () => ({
   createDefaultLLMCaller: () => async () => ({
