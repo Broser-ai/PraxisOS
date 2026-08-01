@@ -36,6 +36,12 @@ export default function ResearchAdminPage() {
   const [trackId, setTrackId] = useState("rl_elearning");
   const [query, setQuery] = useState("");
   const [finding, setFinding] = useState<Finding | null>(null);
+  const [askAnswer, setAskAnswer] = useState<{
+    topics: string[];
+    overview?: string | null;
+    assistant?: { ok: boolean; text: string; live: boolean; error?: string };
+    safety: string;
+  } | null>(null);
   const [busy, setBusy] = useState(false);
   const [msg, setMsg] = useState<string | null>(null);
 
@@ -99,6 +105,46 @@ export default function ResearchAdminPage() {
     }
   };
 
+  const deepAsk = async () => {
+    if (!tenant) return;
+    const question = query.trim() || tracks.find((t) => t.id === trackId)?.query;
+    if (!question) return;
+    setBusy(true);
+    setMsg(null);
+    try {
+      const res = await fetch(`/api/v1/${tenant}/research/ask`, {
+        method: "POST",
+        credentials: "include",
+        headers: { "content-type": "application/json" },
+        body: JSON.stringify({
+          question,
+          trackId,
+          useAssistant: true,
+          journal: true,
+        }),
+      });
+      const json = await res.json();
+      if (!res.ok) {
+        setMsg(json.error ?? "fejl");
+        return;
+      }
+      setFinding(json.data.finding);
+      setAskAnswer({
+        topics: json.data.topics ?? [],
+        overview: json.data.overview,
+        assistant: json.data.assistant,
+        safety: json.data.safety,
+      });
+      setMsg(
+        json.data.assistant?.ok
+          ? "DeepAsk · Alphaxiv Assistant live"
+          : "DeepAsk · harvest/similar (assistant optional key)",
+      );
+    } finally {
+      setBusy(false);
+    }
+  };
+
   return (
     <div className="mx-auto max-w-[1100px]">
       <div className="rise">
@@ -109,8 +155,9 @@ export default function ResearchAdminPage() {
           Alphaxiv Research
         </h1>
         <p className="mt-2 max-w-[640px] text-[13.5px] text-muted">
-          Deep-research connector for tracks distilled from the Alphaxiv chat.
-          Papers are citations for LUNA/swarm — never auto-merged to production.
+          Interaktiv Alphaxiv-connector til research der endnu ikke er shipped.
+          LUNA/swarm journaler citations — aldrig auto-merge. Sæt{" "}
+          <span className="mono">ALPHAXIV_API_KEY</span> for Assistant.
           Tenant: {tenant ?? "…"}
         </p>
       </div>
@@ -168,8 +215,48 @@ export default function ResearchAdminPage() {
         >
           Harvest → LUNA journal
         </button>
+        <button
+          type="button"
+          disabled={busy || !tenant}
+          onClick={() => void deepAsk()}
+          className="rounded-[10px] border border-ink/30 bg-paper px-4 py-2 text-[13px] font-medium disabled:opacity-50"
+        >
+          Deep Ask (similar + Assistant)
+        </button>
       </div>
       {msg && <p className="mt-2 mono text-[11px] text-faint">{msg}</p>}
+
+      {askAnswer && (
+        <section className="card rise mt-5 p-5">
+          <h2 className="display text-[17px] font-semibold">Deep Ask result</h2>
+          <p className="mt-1 mono text-[11px] text-faint">{askAnswer.safety}</p>
+          {askAnswer.topics.length > 0 && (
+            <p className="mt-3 text-[12.5px] text-muted">
+              Topics: {askAnswer.topics.join(" · ")}
+            </p>
+          )}
+          {askAnswer.overview && (
+            <div className="mt-3 max-h-48 overflow-auto rounded-[10px] border border-line bg-paper p-3 text-[12.5px] text-muted whitespace-pre-wrap">
+              {askAnswer.overview.slice(0, 4000)}
+            </div>
+          )}
+          {askAnswer.assistant && (
+            <div className="mt-3">
+              <div className="chip mono !text-[10px]">
+                Assistant ·{" "}
+                {askAnswer.assistant.ok
+                  ? "ok"
+                  : askAnswer.assistant.error ?? "unavailable"}
+              </div>
+              {askAnswer.assistant.text && (
+                <div className="mt-2 max-h-64 overflow-auto rounded-[10px] border border-line bg-paper p-3 text-[12.5px] whitespace-pre-wrap">
+                  {askAnswer.assistant.text.slice(0, 8000)}
+                </div>
+              )}
+            </div>
+          )}
+        </section>
+      )}
 
       {finding && (
         <section className="card rise mt-5 p-5">

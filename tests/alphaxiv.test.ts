@@ -1,9 +1,12 @@
 import { beforeEach, describe, expect, it, vi } from "vitest";
 import {
+  CHAT_CLAIMS,
+  FANTASY_PATHS,
   alphaxivAbsUrl,
   formatFindingForJournal,
   getResearchTrack,
   listResearchTracks,
+  runDeepResearchAsk,
   runResearchHarvest,
 } from "@/lib/alphaxiv";
 
@@ -52,5 +55,33 @@ describe("alphaxiv harvest (stub mode)", () => {
     const blob = finding.extractedActions.join(" ");
     expect(blob).toMatch(/NO_AUTO_MERGE/);
     expect(blob.toLowerCase()).not.toMatch(/auto-merge to main/);
+  });
+});
+
+describe("alphaxiv chat-claims registry", () => {
+  it("flags fantasy paths from PraxisOS (2).md dumps", () => {
+    expect(FANTASY_PATHS).toContain("lib/swarm/singularity-orchestrator.ts");
+    expect(FANTASY_PATHS).toContain("DR-NINA.ts");
+    expect(CHAT_CLAIMS.some((c) => c.id === "c07" && c.status === "fantasy_dump")).toBe(
+      true,
+    );
+    expect(CHAT_CLAIMS.some((c) => c.status === "human_blocker")).toBe(true);
+  });
+});
+
+describe("alphaxiv deep ask (stub mode)", () => {
+  beforeEach(() => {
+    vi.stubEnv("ALPHAXIV_ENABLED", "0");
+  });
+
+  it("returns safety banner and harvest without requiring API key", async () => {
+    const r = await runDeepResearchAsk({
+      question: "verifiable rewards for foot e-learning quizzes",
+      trackId: "rl_elearning",
+      useAssistant: true,
+    });
+    expect(r.safety).toMatch(/NO_AUTO_MERGE/);
+    expect(r.finding.papers.length).toBeGreaterThan(0);
+    expect(r.assistant?.ok).toBe(false);
   });
 });

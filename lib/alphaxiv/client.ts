@@ -186,20 +186,29 @@ export async function getAlphaxivPaper(
   return null;
 }
 
+function versionIdFromMeta(meta: unknown): string | null {
+  if (!meta || typeof meta !== "object") return null;
+  const obj = meta as Record<string, unknown>;
+  const nested = obj.paper as Record<string, unknown> | undefined;
+  return (
+    asString(obj.paperVersionId) ||
+    asString(obj.versionId) ||
+    asString(obj.universalPaperId) ||
+    asString(nested?.paperVersionId) ||
+    asString(nested?.versionId) ||
+    asString(nested?.id) ||
+    null
+  );
+}
+
 export async function getAlphaxivOverview(
   arxivId: string,
   lang = "en",
 ): Promise<string | null> {
   if (!isAlphaxivLiveEnabled()) return null;
   const bare = arxivId.replace(/v\d+$/i, "");
-  // Need paper-version UUID ideally; try legacy then overview via version id fields
   const meta = await getJson(`/papers/v3/legacy/${bare}`);
-  if (!meta || typeof meta !== "object") return null;
-  const obj = meta as Record<string, unknown>;
-  const versionId =
-    asString(obj.paperVersionId) ||
-    asString(obj.versionId) ||
-    asString((obj.paper as Record<string, unknown> | undefined)?.paperVersionId);
+  const versionId = versionIdFromMeta(meta);
   if (!versionId) return null;
   const overview = await getJson(`/papers/v3/${versionId}/overview/${lang}`);
   if (!overview || typeof overview !== "object") return null;
@@ -211,4 +220,168 @@ export async function getAlphaxivOverview(
     asString(o.text) ||
     null
   );
+}
+
+/** Rich search with summaries/metrics when available. */
+export async function searchAlphaxivPapersRich(
+  query: string,
+  limit = 8,
+): Promise<{ papers: AlphaxivPaper[]; live: boolean }> {
+  if (!isAlphaxivLiveEnabled()) return { papers: [], live: false };
+  const q = encodeURIComponent(query.slice(0, 200));
+  const json = await getJson(`/v1/search/paper?q=${q}`);
+  const list = extractPaperList(json)
+    .map(normalizePaper)
+    .filter((p) => p.arxivId !== "unknown")
+    .slice(0, limit);
+  if (list.length > 0) return { papers: list, live: true };
+  return searchAlphaxivPapers(query, limit);
+}
+
+/** Similar papers for a seed abs id — expands “not yet developed” research. */
+export async function getSimilarAlphaxivPapers(
+  arxivId: string,
+  limit = 8,
+): Promise<AlphaxivPaper[]> {
+  if (!isAlphaxivLiveEnabled()) return [];
+  const bare = arxivId.replace(/v\d+$/i, "");
+  const meta = await getJson(`/papers/v3/legacy/${bare}`);
+  const paperId =
+    versionIdFromMeta(meta) ||
+    asString((meta as Record<string, unknown> | null)?.universalPaperId) ||
+    bare;
+  const routes = [
+    `/papers/v3/${encodeURIComponent(paperId)}/similar-papers`,
+    `/papers/v3/${encodeURIComponent(bare)}/similar-papers`,
+  ];
+  for (const route of routes) {
+    const json = await getJson(route);
+    const list = extractPaperList(json)
+      .map(normalizePaper)
+      .filter((p) => p.arxivId !== "unknown" && p.arxivId !== bare)
+      .slice(0, limit);
+    if (list.length) return list;
+  }
+  return [];
+}
+
+export async function getClosestAlphaxivTopics(
+  input: string,
+): Promise<string[]> {
+  if (!isAlphaxivLiveEnabled()) return [];
+  const q = encodeURIComponent(input.slice(0, 200));
+  const json = await getJson(`/v1/search/closest-topic?input=${q}`);
+  if (!json) return [];
+  if (Array.isArray(json)) {
+    return json
+      .map((x) =>
+        typeof x === "string"
+          ? x
+          : asString((x as Record<string, unknown>).name) ||
+            asString((x as Record<string, unknown>).topic) ||
+            "",
+      )
+      .filter(Boolean)
+      .slice(0, 12);
+  }
+  if (typeof json === "object") {
+    const obj = json as Record<string, unknown>;
+    const arr = obj.topics ?? obj.results ?? obj.data;
+    if (Array.isArray(arr)) {
+      return arr
+        .map((x) =>
+          typeof x === "string"
+            ? x
+            : asString((x as Record<string, unknown>).name) || "",
+        )
+        .filter(Boolean)
+        .slice(0, 12);
+    }
+  }
+  return [];
+}
+
+/**
+ * Optional authenticated Alphaxiv Assistant (SSE).
+ * Requires ALPHAXIV_API_KEY. Never auto-implements code — research Q&A only.
+ */
+export async function askAlphaxivAssistant(input: {
+  message: string;
+  sessionId?: string;
+}): Promise<{
+  ok: boolean;
+  text: string;
+  live: boolean;
+  error?: string;
+}> {
+  const key = process.env.ALPHAXIV_API_KEY?.trim();
+  if (!key || key === "[SENSITIVE]" || key.includes("SENSITIVE")) {
+    return {
+      ok: false,
+      text: "",
+      live: false,
+      error: "ALPHAXIV_API_KEY missing — use harvest/search without assistant",
+    };
+  }
+  if (!isAlphaxivLiveEnabled()) {
+    return { ok: false, text: "", live: false, error: "ALPHAXIV_ENABLED=0" };
+  }
+
+  const ctrl = new AbortController();
+  const t = setTimeout(() => ctrl.abort(), 45_000);
+  try {
+    const res = await fetch(`${API_BASE}/assistant/v2/chat`, {
+      method: "POST",
+      headers: {
+        accept: "text/event-stream, application/json",
+        "content-type": "application/json",
+        authorization: `Bearer ${key}`,
+      },
+      body: JSON.stringify({
+        message: input.message.slice(0, 4000),
+        sessionId: input.sessionId,
+        variant: "homepage",
+      }),
+      signal: ctrl.signal,
+      cache: "no-store",
+    });
+    if (!res.ok) {
+      return {
+        ok: false,
+        text: "",
+        live: true,
+        error: `assistant_http_${res.status}`,
+      };
+    }
+    const raw = await res.text();
+    // SSE or plain JSON — extract text chunks best-effort
+    const pieces: string[] = [];
+    for (const line of raw.split("\n")) {
+      if (!line.startsWith("data:")) continue;
+      const payload = line.slice(5).trim();
+      if (!payload || payload === "[DONE]") continue;
+      try {
+        const obj = JSON.parse(payload) as Record<string, unknown>;
+        const chunk =
+          asString(obj.text) ||
+          asString(obj.content) ||
+          asString(obj.delta) ||
+          asString((obj.message as Record<string, unknown> | undefined)?.content);
+        if (chunk) pieces.push(chunk);
+      } catch {
+        pieces.push(payload);
+      }
+    }
+    const text = pieces.join("") || raw.slice(0, 8000);
+    return { ok: Boolean(text), text, live: true };
+  } catch (err) {
+    return {
+      ok: false,
+      text: "",
+      live: true,
+      error: err instanceof Error ? err.message : String(err),
+    };
+  } finally {
+    clearTimeout(t);
+  }
 }

@@ -6,8 +6,13 @@ import {
   RESEARCH_TRACKS,
 } from "@/lib/alphaxiv/catalog";
 import {
+  askAlphaxivAssistant,
+  getAlphaxivOverview,
   getAlphaxivPaper,
+  getClosestAlphaxivTopics,
+  getSimilarAlphaxivPapers,
   searchAlphaxivPapers,
+  searchAlphaxivPapersRich,
 } from "@/lib/alphaxiv/client";
 import type {
   AlphaxivPaper,
@@ -89,11 +94,27 @@ export async function runResearchHarvest(input: {
   const trackId = (track?.id ?? "rl_elearning") as ResearchTrackId;
   const limit = Math.min(12, Math.max(1, input.limit ?? 6));
 
-  const live = await searchAlphaxivPapers(query, limit);
+  const rich = await searchAlphaxivPapersRich(query, limit);
+  const live = rich.papers.length
+    ? rich
+    : await searchAlphaxivPapers(query, limit);
   let papers = live.papers;
 
   if (papers.length === 0 && track?.seedArxivIds.length) {
     papers = await resolveSeedPapers(track.seedArxivIds);
+  }
+
+  // Expand frontier: similar papers from first seed (not-yet-in-product ideas)
+  if (papers[0]?.arxivId) {
+    const similar = await getSimilarAlphaxivPapers(papers[0].arxivId, 4);
+    const seen = new Set(papers.map((p) => p.arxivId));
+    for (const s of similar) {
+      if (!seen.has(s.arxivId)) {
+        papers.push(s);
+        seen.add(s.arxivId);
+      }
+    }
+    papers = papers.slice(0, limit + 4);
   }
 
   return {
@@ -103,6 +124,67 @@ export async function runResearchHarvest(input: {
     extractedActions: actionsForTrack(trackId, papers),
     at: new Date().toISOString(),
     live: live.live && live.papers.length > 0,
+  };
+}
+
+/**
+ * Deep research interaction for not-yet-built ideas:
+ * topics + harvest + optional Alphaxiv Assistant (API key).
+ */
+export async function runDeepResearchAsk(input: {
+  question: string;
+  trackId?: ResearchTrackId | string;
+  useAssistant?: boolean;
+}): Promise<{
+  question: string;
+  topics: string[];
+  finding: ResearchFinding;
+  overview?: string | null;
+  assistant?: { ok: boolean; text: string; live: boolean; error?: string };
+  safety: string;
+}> {
+  const question = input.question.trim().slice(0, 2000);
+  const topics = await getClosestAlphaxivTopics(question);
+  const finding = await runResearchHarvest({
+    trackId: input.trackId,
+    query: question,
+    limit: 8,
+  });
+
+  let overview: string | null = null;
+  if (finding.papers[0]?.arxivId) {
+    overview = await getAlphaxivOverview(finding.papers[0].arxivId);
+  }
+
+  let assistant:
+    | { ok: boolean; text: string; live: boolean; error?: string }
+    | undefined;
+  if (input.useAssistant !== false) {
+    assistant = await askAlphaxivAssistant({
+      message: [
+        "You are advising PraxisOS (Danish clinic SaaS). Focus on research that is NOT yet shipped.",
+        "Never claim code is production-ready. Cite arXiv/Alphaxiv IDs.",
+        "Respect MDR: no auto-diagnosis; no unattended auto-merge.",
+        `Question: ${question}`,
+        topics.length ? `Closest topics: ${topics.join(", ")}` : "",
+        `Seed papers: ${finding.papers
+          .slice(0, 5)
+          .map((p) => p.arxivId)
+          .join(", ")}`,
+      ]
+        .filter(Boolean)
+        .join("\n"),
+    });
+  }
+
+  return {
+    question,
+    topics,
+    finding,
+    overview,
+    assistant,
+    safety:
+      "NO_AUTO_MERGE · research citations only · Class IIa features stay frozen without CE",
   };
 }
 
