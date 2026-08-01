@@ -1,5 +1,14 @@
 // S-agents · software specialists for savage worktree execution
 
+import { execFile } from "node:child_process";
+import { mkdirSync, writeFileSync } from "node:fs";
+import { join } from "node:path";
+import { promisify } from "node:util";
+import {
+  formatFindingForJournal,
+  runResearchHarvest,
+} from "@/lib/alphaxiv";
+import type { ResearchTrackId } from "@/lib/alphaxiv/types";
 import { writeJournal } from "@/lib/swarm/journal";
 import type { SAgentId, SwarmTask } from "@/lib/swarm/types";
 import {
@@ -7,39 +16,64 @@ import {
   markWorktreeReadyForReview,
 } from "@/lib/swarm/worktree-manager";
 
+const execFileAsync = promisify(execFile);
+
 export type SAgentResult = {
   summary: string;
   artifacts: string[];
   needsHuman: boolean;
 };
 
+function inferTrack(brief: string, title: string): ResearchTrackId {
+  const t = `${brief} ${title}`.toLowerCase();
+  if (/(nail|sss|manicure|atelier)/.test(t)) return "nail_materials";
+  if (/(scan|mesh|orthotic|foot|3d)/.test(t)) return "foot_scanner";
+  if (/(vlm|yolo|roboflow|lesion|sam)/.test(t)) return "vlm_detection";
+  if (/(mdr|ce-mark|shadow|drift|audit)/.test(t)) return "mdr_safety";
+  if (/(swarm|agent|worktree|harness)/.test(t)) return "agent_swarm";
+  if (/(learn|tutor|quiz|rl|reward)/.test(t)) return "rl_elearning";
+  return "rl_elearning";
+}
+
 async function lunaResearch(task: SwarmTask): Promise<SAgentResult> {
   writeJournal({
     agent: "LUNA_RESEARCH",
     kind: "thought",
     taskId: task.id,
-    content: `Scanning brief for research vectors: ${task.title}`,
+    content: `Alphaxiv harvest · ${task.title}`,
   });
 
-  // Deterministic research brief (no fake paper claims) — points at real next steps
-  const findings = [
-    `Topic: ${task.title}`,
-    "Prioritize verifiable-reward loops for e-learning (anatomi/farmakologi quizzes).",
-    "Clinical technique coaching needs multimodal capture — defer Class IIa claims until CE path.",
-    "Reuse existing LangGraph supervisor + MDR gates from EPIC-1.",
-    "Worktree savage execution: parallel code agents only behind FREJ_GATE.",
-  ];
+  const trackId = inferTrack(task.brief, task.title);
+  const finding = await runResearchHarvest({
+    trackId,
+    query: task.brief || task.title,
+    limit: 6,
+  });
 
   writeJournal({
     agent: "LUNA_RESEARCH",
     kind: "result",
     taskId: task.id,
-    content: findings.join(" · "),
+    content: formatFindingForJournal(finding),
+    meta: {
+      track: finding.track,
+      live: finding.live,
+      papers: finding.papers.map((p) => p.arxivId),
+    },
   });
 
   return {
-    summary: findings.join("\n"),
-    artifacts: [`research/${task.id}.md`],
+    summary: [
+      `Track: ${finding.track} · live=${finding.live}`,
+      ...finding.papers.slice(0, 5).map((p) => `- ${p.arxivId}: ${p.title}`),
+      "",
+      "Actions:",
+      ...finding.extractedActions.map((a) => `- ${a}`),
+    ].join("\n"),
+    artifacts: [
+      `research/${task.id}.md`,
+      ...finding.papers.slice(0, 3).map((p) => p.url),
+    ],
     needsHuman: false,
   };
 }
@@ -58,7 +92,6 @@ async function atlasCode(task: SwarmTask): Promise<SAgentResult> {
   });
 
   if ("error" in wt) {
-    // Soft-fail: still produce an implementation plan artifact without worktree
     writeJournal({
       agent: "ATLAS_CODE",
       kind: "result",
@@ -71,12 +104,6 @@ async function atlasCode(task: SwarmTask): Promise<SAgentResult> {
       needsHuman: true,
     };
   }
-
-  const { writeFileSync, mkdirSync } = await import("node:fs");
-  const { join } = await import("node:path");
-  const { execFile } = await import("node:child_process");
-  const { promisify } = await import("node:util");
-  const execFileAsync = promisify(execFile);
 
   const planDir = join(wt.path, "docs", "swarm-plans");
   mkdirSync(planDir, { recursive: true });
@@ -95,6 +122,7 @@ async function atlasCode(task: SwarmTask): Promise<SAgentResult> {
       "- NO_AUTO_MERGE / NO_AUTO_DEPLOY",
       "- MDR Class IIa agents remain frozen without ce_marked",
       "- Prefer additive changes + tests",
+      "- Alphaxiv findings are citations, not auto-implemented code",
       "",
       "## Proposed steps",
       "1. Extend working-core data path if needed",
@@ -151,8 +179,9 @@ async function felixImprove(task: SwarmTask): Promise<SAgentResult> {
   const proposals = [
     "Add smoke coverage for orchestrator FINISH path",
     "Wire /api/health backend field into admin health chip",
-    "Persist swarm journals to Supabase agent_runs when configured",
+    "Persist swarm journals to Supabase swarm_snapshots when configured",
     "Rate-limit swarm task creation per tenant",
+    "Expand Alphaxiv harvest tracks when ALPHAXIV_API_KEY is set",
   ];
 
   writeJournal({
@@ -174,7 +203,8 @@ async function frejGate(task: SwarmTask): Promise<SAgentResult> {
     agent: "FREJ_GATE",
     kind: "gate",
     taskId: task.id,
-    content: "Compliance gate: verify NO_AUTO_MERGE + tenant isolation + no Class IIa without CE",
+    content:
+      "Compliance gate: verify NO_AUTO_MERGE + tenant isolation + no Class IIa without CE + no auto-implement from Alphaxiv papers",
   });
   return {
     summary: "FREJ gate OK — human approval still required for merge/deploy",

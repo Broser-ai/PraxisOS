@@ -25,6 +25,7 @@ const PROTECTED_PATH_PATTERNS: RegExp[] = [
   /^\/api\/v1\/[^/]+\/bookings\/list(?:\/|$)/,
   /^\/api\/v1\/[^/]+\/swarm(?:\/|$)/,
   /^\/api\/v1\/[^/]+\/orchestrator(?:\/|$)/,
+  /^\/api\/v1\/[^/]+\/research(?:\/|$)/,
 ];
 
 // Cron is authenticated inside the route (CRON_SECRET / x-vercel-cron).
@@ -182,5 +183,7 @@ export const config = {
     "/api/v1/:tenant/swarm/:path*",
     "/api/v1/:tenant/orchestrator",
     "/api/v1/:tenant/orchestrator/:path*",
+    "/api/v1/:tenant/research",
+    "/api/v1/:tenant/research/:path*",
   ],
 };
