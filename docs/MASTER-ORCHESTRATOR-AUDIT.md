@@ -12,13 +12,18 @@
 | Frej MDR | `class_iia` + `active` (inkonsistent) | `class_0` + `active`; MDR-tier er authoritative i gate |
 | MCP auth | Enhver Bearer | Verificeret API-key mod tenant |
 
+## Fuld zip-gennemgang
+
+Se **[`docs/FULL-ZIP-AUDIT-2026-08-01.md`](./FULL-ZIP-AUDIT-2026-08-01.md)** — komplet REAL/STUB-kort, mangelliste, migration-rename, light-years port-plan.
+
 ## Stadig næste lag
 
 1. Anvend migration 0004 i prod Supabase (`swarm_snapshots`)
 2. Seed password hashes i Supabase `users` så DB-login virker (ikke kun memory)
 3. Supabase Realtime channel i stedet for 20s poll (når snapshot-tabellen er live)
 4. API-keys i DB (`api_keys.hashed_secret`) i stedet for seed-memory
-5. MitID / Stripe / NemSMS / MedCom
+5. Selective Lag B port fra zip/savage-sweep (scanner guardrails, FHIR mappers, learning claims)
+6. MitID / Stripe / NemSMS / MedCom
 
 ## Kør
 
