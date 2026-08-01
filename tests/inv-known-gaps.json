@@ -1,14 +1,7 @@
 {
   "$schema": "known INV-coder uden test-dækning per 2026-07-12. Ratchet: liste må aldrig VOKSE — kun krympe. Fjern en INV-code herfra samtidig med at du skriver dens test.",
   "known_gaps": [
-    "INV-12",
     "INV-13",
-    "INV-14",
-    "INV-16",
-    "INV-17",
-    "INV-18",
-    "INV-19",
-    "INV-CS-2",
     "INV-CS-8",
     "INV-CS-12",
     "INV-CS-13",
