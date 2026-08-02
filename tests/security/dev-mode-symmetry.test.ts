@@ -57,23 +57,20 @@ describe("C18 · PRAXIS_CLINICAL_DEV symmetri mellem dev-mode.ts og agents.ts", 
     ).toThrow(/must NEVER run in production/);
   });
 
-  it("(b) NODE_ENV=production alene (Vercel preview) -> ingen af lagene kaster, matcher dev-mode.ts", () => {
+  it("(b) NODE_ENV=production alene (Vercel preview) -> BEGGE lag kaster (post-security-review tightening)", () => {
+    // 2026-07-12 security-review · C18 tightening:
+    // Vercel preview arver NODE_ENV=production men får VERCEL_ENV=preview.
+    // Tidligere version kastede ikke her, så clinical-dev-bypass silent-virkede
+    // på previews. Post-fix skal BEGGE lag fejle så MDR-gate ikke omgås.
     // @ts-expect-error NODE_ENV er readonly i TS-typerne
     process.env.NODE_ENV = "production";
     process.env.VERCEL_ENV = "preview";
     process.env.PRAXIS_CLINICAL_DEV = "1";
 
-    expect(() => isClinicalDevModeEnabled()).not.toThrow();
-    expect(isClinicalDevModeEnabled()).toBe(true);
-
-    let result: ReturnType<typeof canDispatchAgent> | undefined;
-    expect(() => {
-      result = canDispatchAgent(FROZEN_CLASS_IIA_AGENT, "none", "bypilar");
-    }).not.toThrow();
-    expect(result).toEqual({
-      allowed: true,
-      reason: "class_iia agent · by Pilar clinical-dev-mode bypass (PRAXIS_CLINICAL_DEV=1)",
-    });
+    expect(() => isClinicalDevModeEnabled()).toThrow(/production\/preview|must NEVER/i);
+    expect(() =>
+      canDispatchAgent(FROZEN_CLASS_IIA_AGENT, "none", "bypilar"),
+    ).toThrow(/production\/preview|must NEVER/i);
   });
 
   it("(c) hverken NODE_ENV eller VERCEL_ENV er production -> begge lag tillader bypass", () => {

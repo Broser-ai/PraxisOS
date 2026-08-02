@@ -24,10 +24,18 @@ const DEV_TENANT_SLUG = "bypilar";
  */
 export function isClinicalDevModeEnabled(): boolean {
   if (process.env.PRAXIS_CLINICAL_DEV !== "1") return false;
-  if (process.env.NODE_ENV === "production" && process.env.VERCEL_ENV === "production") {
+  // C18-fix (2026-07-12 security-review): fail-fast på BÅDE Vercel prod OG
+  // Vercel preview. Preview-builds arver production NODE_ENV men får
+  // VERCEL_ENV=preview — hvis PRAXIS_CLINICAL_DEV=1 slipper igennem der,
+  // silent-bypass'er previews Class IIa MDR-gate uden fejl. Tightes til ||.
+  const nodeIsProd = process.env.NODE_ENV === "production";
+  const vercelIsProdOrPreview =
+    process.env.VERCEL_ENV === "production" || process.env.VERCEL_ENV === "preview";
+  if (nodeIsProd || vercelIsProdOrPreview) {
     throw new Error(
-      "PRAXIS_CLINICAL_DEV=1 is ENABLED but NODE_ENV=production — clinical-dev-mode " +
-        "must NEVER run in production. Unset PRAXIS_CLINICAL_DEV in Vercel env.",
+      "PRAXIS_CLINICAL_DEV=1 is ENABLED but running under production/preview " +
+        `(NODE_ENV=${process.env.NODE_ENV}, VERCEL_ENV=${process.env.VERCEL_ENV}). ` +
+        "Clinical-dev-mode må ALDRIG køre der. Unset PRAXIS_CLINICAL_DEV i Vercel-env.",
     );
   }
   return true;
