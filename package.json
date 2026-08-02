@@ -11,7 +11,8 @@
     "test": "vitest run",
     "test:watch": "vitest",
     "awaken": "tsx scripts/awaken.ts",
-    "swarm:status": "node -e \"console.log('Use /admin/swarm or npm run awaken')\""
+    "swarm:status": "node -e \"console.log('Use /admin/swarm or npm run awaken')\"",
+    "agent:export": "bash scripts/claude-code-export.sh docs/exports/LATEST.md"
   },
   "dependencies": {
     "@langchain/anthropic": "^1.5.2",
