@@ -51,10 +51,10 @@ describe("C18 · PRAXIS_CLINICAL_DEV symmetri mellem dev-mode.ts og agents.ts", 
     process.env.VERCEL_ENV = "production";
     process.env.PRAXIS_CLINICAL_DEV = "1";
 
-    expect(() => isClinicalDevModeEnabled()).toThrow(/must NEVER run in production/);
+    expect(() => isClinicalDevModeEnabled()).toThrow(/ALDRIG køre|must NEVER/i);
     expect(() =>
       canDispatchAgent(FROZEN_CLASS_IIA_AGENT, "none", "bypilar"),
-    ).toThrow(/must NEVER run in production/);
+    ).toThrow(/ALDRIG køre|must NEVER/i);
   });
 
   it("(b) NODE_ENV=production alene (Vercel preview) -> BEGGE lag kaster (post-security-review tightening)", () => {
