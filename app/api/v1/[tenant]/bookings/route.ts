@@ -4,6 +4,7 @@ import {
   dataBackend,
 } from "@/lib/data/repo";
 import { drainOutbox, enqueueBookingMessages } from "@/lib/messaging/outbox";
+import { sendNotification } from "@/lib/notifications/dispatch";
 import { getTenant } from "@/lib/tenants";
 
 // POST /api/v1/{tenant}/bookings — persists booking (memory or Supabase)
@@ -79,6 +80,18 @@ export async function POST(
   // Immediately drain due confirms (reminders stay scheduled).
   const drained = await drainOutbox(10);
 
+  const staffNote = await sendNotification({
+    tenant: t.slug,
+    kind: "booking_created",
+    title: "Ny booking",
+    body: `${booking.clientName} · ${booking.service} · ${new Date(booking.startsAt).toLocaleString("da-DK")}`,
+    channels: ["in_app"],
+    audience: "staff",
+    recipientName: booking.clientName,
+    bookingId: booking.id,
+    clientId: booking.clientId,
+  });
+
   return NextResponse.json(
     {
       id: booking.id,
@@ -110,10 +123,14 @@ export async function POST(
         })),
         drained,
       },
+      notification:
+        "error" in staffNote
+          ? { error: staffNote.error }
+          : { id: staffNote.id, status: staffNote.status },
       aria: {
         reminderScheduled: queued.some((m) => m.category === "reminder_24h"),
         message:
-          "Booking gemt. Bekræftelse lagt i SMS-outbox (mock indtil NemSMS-nøgler).",
+          "Booking gemt. SMS-outbox + staff-notifikation oprettet.",
       },
     },
     { status: 201, headers: { "access-control-allow-origin": "*" } },

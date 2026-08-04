@@ -174,7 +174,11 @@ export default function NemSmsAdmin() {
               {logs.map((l) => (
                 <tr key={l.id} className="border-b border-line/60 last:border-b-0">
                   <td className="py-2 pr-3 mono text-[11px]">{l.id}</td>
-                  <td className="py-2 pr-3 text-[11.5px]">{CATEGORY_LABEL[l.category]}</td>
+                  <td className="py-2 pr-3 text-[11.5px]">
+                    {l.category === "notification"
+                      ? "Notifikation"
+                      : CATEGORY_LABEL[l.category]}
+                  </td>
                   <td className="py-2 pr-3 font-medium">{l.recipientName}</td>
                   <td className="py-2 pr-3 mono text-[10.5px] text-faint">{l.toPhone ?? "—"}</td>
                   <td className="py-2 pr-3">

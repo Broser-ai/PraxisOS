@@ -18,26 +18,67 @@ export function nemsmsConfigured(): boolean {
   );
 }
 
+/** Cheap/self-host SMS gateway (Android SMS Gateway, GatewayAPI-compatible REST, etc.). */
+export function smsGatewayConfigured(): boolean {
+  return Boolean(process.env.SMS_GATEWAY_URL && process.env.SMS_GATEWAY_API_KEY);
+}
+
 /**
  * Deliver one outbox row.
- * - mock: always succeeds (dev / no KOMBIT keys)
- * - live without keys: fails closed with clear error (does not pretend sent)
- * - live with keys: HTTP POST stub to NEMSMS_BASE_URL (real contract TBD with KOMBIT)
+ * - mock: always succeeds
+ * - channel sms → SMS_GATEWAY_* when live
+ * - channel nemsms → NEMSMS_* when live
+ * - live without keys: fail closed
  */
 export async function deliverOutboxMessage(msg: OutboxMessage): Promise<SendResult> {
-  if (messagingMode() === "mock" || !nemsmsConfigured()) {
-    if (messagingMode() === "live" && !nemsmsConfigured()) {
-      return {
-        ok: false,
-        errorCode: "NEMSMS_NOT_CONFIGURED",
-        provider: "none",
-      };
-    }
+  if (messagingMode() === "mock") {
     return {
       ok: true,
       providerRef: `mock_${msg.id}`,
       provider: "mock",
     };
+  }
+
+  if (msg.channel === "email") {
+    // Email provider not wired yet — keep queued failure explicit in live.
+    return { ok: false, errorCode: "EMAIL_PROVIDER_NOT_CONFIGURED", provider: "none" };
+  }
+
+  if (msg.channel === "sms") {
+    if (!smsGatewayConfigured()) {
+      return { ok: false, errorCode: "SMS_GATEWAY_NOT_CONFIGURED", provider: "none" };
+    }
+    const base = process.env.SMS_GATEWAY_URL!.replace(/\/$/, "");
+    try {
+      const res = await fetch(`${base}/messages`, {
+        method: "POST",
+        headers: {
+          "content-type": "application/json",
+          authorization: `Bearer ${process.env.SMS_GATEWAY_API_KEY}`,
+        },
+        body: JSON.stringify({
+          phoneNumbers: [msg.toPhone],
+          message: msg.body,
+          deviceActive: true,
+        }),
+      });
+      if (!res.ok) {
+        return { ok: false, errorCode: `SMS_GATEWAY_HTTP_${res.status}`, provider: "sms_gateway" };
+      }
+      const json = (await res.json().catch(() => ({}))) as { id?: string };
+      return {
+        ok: true,
+        providerRef: json.id ?? `sms_${msg.id}`,
+        provider: "sms_gateway",
+      };
+    } catch {
+      return { ok: false, errorCode: "SMS_GATEWAY_NETWORK", provider: "sms_gateway" };
+    }
+  }
+
+  // nemsms
+  if (!nemsmsConfigured()) {
+    return { ok: false, errorCode: "NEMSMS_NOT_CONFIGURED", provider: "none" };
   }
 
   const base = process.env.NEMSMS_BASE_URL!.replace(/\/$/, "");

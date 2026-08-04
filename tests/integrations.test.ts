@@ -16,6 +16,11 @@ import {
   createPaymentIntent,
   paymentsMode,
 } from "@/lib/payments/intents";
+import {
+  listNotifications,
+  markNotificationRead,
+  sendNotification,
+} from "@/lib/notifications/dispatch";
 
 afterEach(() => {
   resetIntegrationStoreForTests();
@@ -77,6 +82,45 @@ describe("MitID OIDC scaffold", () => {
       expect(exchanged.identity.provider).toBe("mock");
       expect(exchanged.pending.returnTo).toBe("/dashboard");
     }
+  });
+});
+
+describe("Notifications", () => {
+  it("creates in-app staff notification", async () => {
+    const n = await sendNotification({
+      tenant: "bypilar",
+      kind: "staff_alert",
+      title: "Test",
+      body: "Hej klinik",
+      channels: ["in_app"],
+      audience: "staff",
+    });
+    expect("error" in n).toBe(false);
+    if ("error" in n) return;
+    expect(n.status).toBe("delivered");
+    expect(listNotifications("bypilar")).toHaveLength(1);
+    const read = markNotificationRead("bypilar", n.id);
+    expect("error" in read).toBe(false);
+  });
+
+  it("fans out SMS notification into outbox", async () => {
+    const n = await sendNotification({
+      tenant: "bypilar",
+      kind: "custom",
+      title: "Påmindelse",
+      body: "Din tid er i morgen",
+      channels: ["sms"],
+      audience: "client",
+      toPhone: "+4511223344",
+      recipientName: "Mette",
+      flush: true,
+    });
+    expect("error" in n).toBe(false);
+    if ("error" in n) return;
+    expect(n.outboxIds.length).toBe(1);
+    expect(listOutbox("bypilar").some((m) => m.category === "notification")).toBe(
+      true,
+    );
   });
 });
 

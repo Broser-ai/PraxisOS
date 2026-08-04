@@ -56,6 +56,31 @@ create table if not exists mitid_login_states (
   expires_at      timestamptz not null
 );
 
+create table if not exists notifications (
+  id              text primary key,
+  tenant_id       uuid not null references tenants(id) on delete cascade,
+  kind            text not null,
+  title           text not null,
+  body            text not null,
+  channels        text[] not null default '{}',
+  status          text not null,
+  audience        text not null,
+  recipient_name  text,
+  to_phone        text,
+  to_email        text,
+  booking_id      text,
+  client_id       text,
+  account_id      text,
+  read_at         timestamptz,
+  outbox_ids      text[] not null default '{}',
+  created_at      timestamptz not null default now(),
+  meta            jsonb
+);
+
+create index if not exists notifications_tenant_idx
+  on notifications (tenant_id, created_at desc);
+
 alter table message_outbox enable row level security;
 alter table payment_intents enable row level security;
 alter table mitid_login_states enable row level security;
+alter table notifications enable row level security;

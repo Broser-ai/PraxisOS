@@ -1,7 +1,15 @@
 import { NEMSMS_CONFIG } from "@/lib/nemsms";
-import { deliverOutboxMessage, messagingMode } from "@/lib/messaging/provider";
+import {
+  deliverOutboxMessage,
+  messagingMode,
+  smsGatewayConfigured,
+} from "@/lib/messaging/provider";
 import { renderTemplate } from "@/lib/messaging/render";
-import type { EnqueueInput, OutboxMessage } from "@/lib/messaging/types";
+import type {
+  EnqueueInput,
+  EnqueueRawInput,
+  OutboxMessage,
+} from "@/lib/messaging/types";
 import { getIntegrationStore } from "@/lib/integrations/store";
 
 function newId(prefix: string): string {
@@ -20,10 +28,11 @@ export function enqueueMessage(input: EnqueueInput): OutboxMessage | { error: st
   const cfg = NEMSMS_CONFIG[input.tenant];
   const costOere = cfg?.costPerSmsOere ?? 50;
   const now = new Date().toISOString();
+  const channel = input.channel ?? "nemsms";
   const msg: OutboxMessage = {
     id: newId("msg"),
     tenant: input.tenant,
-    channel: input.channel ?? "nemsms",
+    channel,
     category: input.category,
     toPhone: input.toPhone,
     toEmail: input.toEmail,
@@ -32,7 +41,7 @@ export function enqueueMessage(input: EnqueueInput): OutboxMessage | { error: st
     clientId: input.clientId,
     body: rendered.body,
     status: "pending",
-    provider: messagingMode() === "mock" ? "mock" : nemsmsProviderLabel(),
+    provider: providerForChannel(channel),
     costOere,
     scheduledAt: (input.scheduledAt ?? new Date()).toISOString(),
     createdAt: now,
@@ -42,8 +51,41 @@ export function enqueueMessage(input: EnqueueInput): OutboxMessage | { error: st
   return msg;
 }
 
-function nemsmsProviderLabel(): OutboxMessage["provider"] {
-  return process.env.NEMSMS_API_KEY ? "nemsms_http" : "none";
+/** Free-form SMS/email for notifications (not NemSMS template-bound). */
+export function enqueueRawMessage(
+  input: EnqueueRawInput,
+): OutboxMessage | { error: string } {
+  if (!input.body.trim()) return { error: "empty_body" };
+  if (input.channel === "sms" && !input.toPhone) return { error: "missing_phone" };
+  if (input.channel === "email" && !input.toEmail) return { error: "missing_email" };
+
+  const now = new Date().toISOString();
+  const msg: OutboxMessage = {
+    id: newId("msg"),
+    tenant: input.tenant,
+    channel: input.channel,
+    category: "notification",
+    toPhone: input.toPhone,
+    toEmail: input.toEmail,
+    recipientName: input.recipientName,
+    bookingId: input.bookingId,
+    clientId: input.clientId,
+    body: input.body.trim(),
+    status: "pending",
+    provider: providerForChannel(input.channel),
+    costOere: input.channel === "sms" ? 50 : 0,
+    scheduledAt: (input.scheduledAt ?? new Date()).toISOString(),
+    createdAt: now,
+  };
+  getIntegrationStore().outbox.unshift(msg);
+  return msg;
+}
+
+function providerForChannel(channel: OutboxMessage["channel"]): OutboxMessage["provider"] {
+  if (messagingMode() === "mock") return "mock";
+  if (channel === "nemsms") return process.env.NEMSMS_API_KEY ? "nemsms_http" : "none";
+  if (channel === "sms") return smsGatewayConfigured() ? "sms_gateway" : "none";
+  return "none";
 }
 
 export function listOutbox(tenant: string, limit = 100): OutboxMessage[] {

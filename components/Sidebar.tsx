@@ -24,6 +24,7 @@ const secondary = [
   { href: "/admin/reporting", label: "Indberetning", icon: "M3 3v18h18M7 17l4-4 4 4 6-6" },
   { href: "/admin/api", label: "Universal API", icon: "M4 16l-3-3 3-3M20 8l3 3-3 3M14 4l-4 16" },
   { href: "/admin/nemsms", label: "NemSMS", icon: "M21 11.5a8.38 8.38 0 01-.9 3.8 8.5 8.5 0 01-7.6 4.7 8.38 8.38 0 01-3.8-.9L3 21l1.9-5.7a8.38 8.38 0 01-.9-3.8 8.5 8.5 0 014.7-7.6 8.38 8.38 0 013.8-.9h.5a8.48 8.48 0 018 8v.5z" },
+  { href: "/admin/notifications", label: "Notifikationer", icon: "M18 8A6 6 0 006 8c0 7-3 9-3 9h18s-3-2-3-9M13.73 21a2 2 0 01-3.46 0" },
   { href: "/admin/agents", label: "Agent-team", icon: "M16 21v-2a4 4 0 00-4-4H6a4 4 0 00-4 4v2M9 11a4 4 0 100-8 4 4 0 000 8zM22 21v-2a4 4 0 00-3-3.9M16 3.1a4 4 0 010 7.8" },
   { href: "/admin/swarm", label: "S-H Swarm · 24/7", icon: "M12 2v4M12 18v4M4.9 4.9l2.8 2.8M16.3 16.3l2.8 2.8M2 12h4M18 12h4M4.9 19.1l2.8-2.8M16.3 7.7l2.8-2.8" },
   { href: "/admin/research", label: "Alphaxiv Research", icon: "M4 19V5a2 2 0 012-2h9l5 5v11a2 2 0 01-2 2H6a2 2 0 01-2-2zM13 3v6h6" },

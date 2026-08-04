@@ -27,6 +27,7 @@ const PROTECTED_PATH_PATTERNS: RegExp[] = [
   /^\/api\/v1\/[^/]+\/orchestrator(?:\/|$)/,
   /^\/api\/v1\/[^/]+\/research(?:\/|$)/,
   /^\/api\/v1\/[^/]+\/messages(?:\/|$)/,
+  /^\/api\/v1\/[^/]+\/notifications(?:\/|$)/,
 ];
 
 // Cron is authenticated inside the route (CRON_SECRET / x-vercel-cron).
