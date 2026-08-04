@@ -1,0 +1,6 @@
+.env
+**/.env
+!**/.env.example
+traefik/letsencrypt/acme.json
+**/node_modules/
+**/*.log
