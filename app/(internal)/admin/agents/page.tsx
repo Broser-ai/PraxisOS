@@ -14,9 +14,14 @@ export default function AgentRoster() {
             Hver har en personlighed, et fag-domæne og klare grænser for hvad de ikke gør.
           </p>
         </div>
-        <Link href="/chat" className="btn btn-primary">
-          <span className="h-1.5 w-1.5 rounded-full bg-paper live-dot" /> Åbn samlet chat →
-        </Link>
+        <div className="flex flex-wrap gap-2">
+          <Link href="/admin/swarm" className="btn btn-ghost">
+            S-H Swarm · Savage →
+          </Link>
+          <Link href="/chat" className="btn btn-primary">
+            <span className="h-1.5 w-1.5 rounded-full bg-paper live-dot" /> Åbn samlet chat →
+          </Link>
+        </div>
       </div>
 
       {/* Top-stats */}

@@ -134,7 +134,7 @@ export default function Login() {
                     </span>
                   </Link>
                   <Link
-                    href="/login/mitid"
+                    href="/api/auth/mitid/start?mode=staff&returnTo=/dashboard"
                     className="block w-full rounded-[10px] border border-line-2 bg-card py-2.5 text-center text-[13px] font-medium hover:bg-paper-2"
                   >
                     <span className="inline-flex items-center gap-2">

@@ -1,11 +1,17 @@
 import Link from "next/link";
+import { cookies } from "next/headers";
 import { notFound } from "next/navigation";
-import { getBooking, statusLabel, sourceLabel } from "@/lib/bookings";
+import { SESSION_COOKIE, decodeSession } from "@/lib/auth";
+import { statusLabel, sourceLabel } from "@/lib/bookings";
+import { getBookingForTenant } from "@/lib/data/repo";
 import { calcFee, TENANT_PAYMENT_CONFIG } from "@/lib/payments";
 
 export default async function BookingDetail({ params }: { params: Promise<{ id: string }> }) {
   const { id } = await params;
-  const b = getBooking(id);
+  const jar = await cookies();
+  const session = decodeSession(jar.get(SESSION_COOKIE)?.value ?? "");
+  if (!session) notFound();
+  const b = await getBookingForTenant(session.tenant, id);
   if (!b) notFound();
 
   const d = new Date(b.startsAt);

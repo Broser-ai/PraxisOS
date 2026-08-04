@@ -1,0 +1,15 @@
+# Demo override: HTTP Traefik labels + avoid port clashes with gateway :8080
+services:
+  dashboard:
+    labels: !override
+      - "traefik.enable=true"
+      - "traefik.http.routers.fonoster-dash.rule=Host(`voice.localhost`) || Host(`voice.praxios.dk`) || PathPrefix(`/voice`)"
+      - "traefik.http.routers.fonoster-dash.entrypoints=web"
+      - "traefik.http.services.fonoster-dash.loadbalancer.server.port=3030"
+      - "traefik.docker.network=omni_net"
+
+  # rtpengine binds host 8080 in upstream compose — conflicts with Traefik demo dashboard
+  rtpengine:
+    ports: !override
+      - "10000-10100:10000-10100/udp"
+      - "18080:8080"

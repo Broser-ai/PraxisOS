@@ -1,12 +1,34 @@
 import Link from "next/link";
-import { DB_MODE, currentConfig } from "@/lib/supabase";
+import { dataBackend } from "@/lib/data/repo";
+import { DB_MODE, currentConfig, isSupabaseConfigured } from "@/lib/supabase";
 
 type Status = "live" | "stub" | "pending" | "down";
 
+const backend = dataBackend();
+const supabaseReady = isSupabaseConfigured();
+
 const INTEGRATIONS: { name: string; modul: string; status: Status; note: string; href?: string }[] = [
-  { name: "Next.js · App Router", modul: "next 16.2.7", status: "live", note: "49 routes · build ✓" },
-  { name: "Database · Postgres", modul: `Supabase · ${DB_MODE}`, status: DB_MODE === "mock" ? "stub" : "live", note: currentConfig.region, href: "/admin/database" },
-  { name: "Row-Level Security", modul: "16/18 tables", status: "live", note: "tenant_isolation enforced" },
+  { name: "Next.js · App Router", modul: "next 16.2.12", status: "live", note: "App Router · build" },
+  {
+    name: "Data-backend",
+    modul: backend === "supabase" ? `Supabase · ${DB_MODE}` : "durable memory",
+    status: backend === "supabase" ? "live" : "stub",
+    note: supabaseReady ? currentConfig.region : "writes persist in-process until Supabase keys are live",
+    href: "/admin/database",
+  },
+  {
+    name: "Auth · signed sessions",
+    modul: "HMAC cookie + scrypt",
+    status: "live",
+    note: "middleware gates staff UI",
+  },
+  {
+    name: "Bookings + clients API",
+    modul: "POST persists",
+    status: "live",
+    note: "lib/data/repo.ts",
+  },
+  { name: "Row-Level Security", modul: "SQL policies", status: supabaseReady ? "live" : "pending", note: "enforced in Postgres when Supabase is wired" },
   { name: "MitID OIDC", modul: "Signaturgruppen broker", status: "stub", note: "afventer trust-aftale", href: "/login/mitid?mode=patient" },
   { name: "DAWA · adresser", modul: "api.dataforsyningen.dk", status: "live", note: "public · ingen API-key", href: "/admin/dk-data" },
   { name: "CVR · Erhvervsstyrelsen", modul: "cvrapi.dk + cache", status: "live", note: "1000 lookups/dag · 7 dages cache", href: "/admin/dk-data" },
@@ -14,10 +36,12 @@ const INTEGRATIONS: { name: string; modul: string; status: Status; note: string;
   { name: "MedCom · EDI", modul: "VANS-routing", status: "stub", note: "EAN + VANS-aftale", href: "/admin/medcom" },
   { name: "NemSMS", modul: "KOMBIT", status: "stub", note: "sender-id afventer", href: "/admin/nemsms" },
   { name: "Sygesikringen danmark", modul: "EDIFACT D04A", status: "stub", note: "webservice-aftale" },
-  { name: "PraxisOS Pay", modul: "egen-built", status: "live", note: "9 metoder · PraxisRisk + Trust 2", href: "/admin/payments" },
-  { name: "AI · Aria/Niels/Sigrid", modul: "9 humaniserede agenter", status: "live", note: "mock-svar · OpenAI key for prod", href: "/admin/agents" },
-  { name: "MCP-server", modul: "JSON-RPC 2.0", status: "live", note: "19 tools eksponeret", href: "/admin/mcp" },
-  { name: "Modul-marketplace", modul: "20 moduler · 7 kategorier", status: "live", note: "aktivering ✓", href: "/admin/marketplace" },
+  { name: "PraxisOS Pay", modul: "UI + config", status: "stub", note: "ingen Stripe/processor endnu", href: "/admin/payments" },
+  { name: "AI · Aria/Niels/Sigrid", modul: "9 personas", status: "stub", note: "demo-svar · ikke LLM-koblet", href: "/admin/agents" },
+  { name: "S-H Swarm · Savage", modul: "ARIA_META + worktrees", status: "live", note: "human-gated merge · NO_AUTO_DEPLOY", href: "/admin/swarm" },
+  { name: "LangGraph orchestrator", modul: "EPIC-1", status: "live", note: "feature-flag AGENT_ORCHESTRATION_ENABLED", href: "/admin/swarm" },
+  { name: "MCP-server", modul: "JSON-RPC 2.0", status: "stub", note: "katalog · demo tools", href: "/admin/mcp" },
+  { name: "Modul-marketplace", modul: "UI", status: "stub", note: "aktivering er lokal state", href: "/admin/marketplace" },
 ];
 
 export default function HealthPage() {

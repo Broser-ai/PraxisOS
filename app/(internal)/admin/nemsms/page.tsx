@@ -1,8 +1,9 @@
 "use client";
 
-import { useState } from "react";
+import { useEffect, useState } from "react";
 import Link from "next/link";
-import { NEMSMS_CONFIG, NEMSMS_TEMPLATES, nemsmsLog, CATEGORY_LABEL, type NemSmsCategory } from "@/lib/nemsms";
+import { NEMSMS_CONFIG, NEMSMS_TEMPLATES, CATEGORY_LABEL, type NemSmsCategory } from "@/lib/nemsms";
+import type { OutboxMessage } from "@/lib/integrations/types";
 import { listTenants } from "@/lib/tenants";
 
 const ALL_CATEGORIES: NemSmsCategory[] = ["booking_confirm", "reminder_24h", "reminder_1h", "cancellation", "prescription", "treatment_results"];
@@ -11,13 +12,49 @@ export default function NemSmsAdmin() {
   const tenants = listTenants();
   const [activeTenant, setActiveTenant] = useState(tenants[0].slug);
   const cfg = NEMSMS_CONFIG[activeTenant];
-  const logs = nemsmsLog.filter((l) => l.tenant === activeTenant);
+  const [logs, setLogs] = useState<OutboxMessage[]>([]);
+  const [outboxMeta, setOutboxMeta] = useState<string>("");
+
+  useEffect(() => {
+    let cancelled = false;
+    (async () => {
+      try {
+        const res = await fetch(`/api/v1/${activeTenant}/messages/outbox`, {
+          credentials: "include",
+        });
+        const json = await res.json();
+        if (cancelled) return;
+        if (res.ok) {
+          setLogs(json.data ?? []);
+          setOutboxMeta(
+            `${json.meta?.messagingMode ?? "?"} · nemsmsConfigured=${Boolean(json.meta?.nemsmsConfigured)}`,
+          );
+        } else {
+          setLogs([]);
+          setOutboxMeta(json.error ?? "unauthorized");
+        }
+      } catch {
+        if (!cancelled) {
+          setLogs([]);
+          setOutboxMeta("fetch_failed");
+        }
+      }
+    })();
+    return () => {
+      cancelled = true;
+    };
+  }, [activeTenant]);
 
   const stats = {
     sent30d: logs.filter((l) => l.status === "delivered" || l.status === "sent").length,
     failed30d: logs.filter((l) => l.status === "failed").length,
     spent30dKr: logs.reduce((s, l) => s + l.costOere, 0) / 100,
-    deliveryRate: logs.length > 0 ? (logs.filter((l) => l.status === "delivered").length / logs.length) * 100 : 0,
+    deliveryRate:
+      logs.length > 0
+        ? (logs.filter((l) => l.status === "delivered" || l.status === "sent").length /
+            logs.length) *
+          100
+        : 0,
   };
 
   return (
@@ -115,20 +152,20 @@ export default function NemSmsAdmin() {
         </div>
       </section>
 
-      {/* Log */}
+      {/* Outbox */}
       <section className="card rise mt-3 p-5" style={{ animationDelay: "0.16s" }}>
-        <div className="flex items-center justify-between">
-          <h2 className="display text-[17px] font-semibold">Sendte NemSMS · 30 dage</h2>
+        <div className="flex items-center justify-between gap-3">
+          <h2 className="display text-[17px] font-semibold">Message outbox</h2>
           <span className="chip mono !text-[10px] text-signal">
             <span className="h-1.5 w-1.5 rounded-full bg-signal live-dot" />
-            live
+            {outboxMeta || "…"}
           </span>
         </div>
         <div className="mt-4 overflow-x-auto">
           <table className="w-full text-[12px]">
             <thead className="text-faint">
               <tr className="border-b border-line">
-                {["ID", "Kategori", "Modtager", "CPR", "Booking", "Tid", "Status", "Pris"].map((h) => (
+                {["ID", "Kategori", "Modtager", "Telefon", "Booking", "Planlagt", "Status", "Pris"].map((h) => (
                   <th key={h} className="kicker text-left pb-2 pr-3 font-normal">{h}</th>
                 ))}
               </tr>
@@ -137,21 +174,43 @@ export default function NemSmsAdmin() {
               {logs.map((l) => (
                 <tr key={l.id} className="border-b border-line/60 last:border-b-0">
                   <td className="py-2 pr-3 mono text-[11px]">{l.id}</td>
-                  <td className="py-2 pr-3 text-[11.5px]">{CATEGORY_LABEL[l.category]}</td>
-                  <td className="py-2 pr-3 font-medium">{l.recipientName}</td>
-                  <td className="py-2 pr-3 mono text-[10.5px] text-faint">{l.to}</td>
-                  <td className="py-2 pr-3">
-                    {l.bookingId ? <Link href={`/bookings/${l.bookingId}`} className="mono text-accent hover:underline">{l.bookingId}</Link> : <span className="text-faint">—</span>}
+                  <td className="py-2 pr-3 text-[11.5px]">
+                    {l.category === "notification"
+                      ? "Notifikation"
+                      : CATEGORY_LABEL[l.category]}
                   </td>
-                  <td className="py-2 pr-3 mono text-[10.5px] text-faint">{new Date(l.sentAt).toLocaleString("da-DK", { day: "numeric", month: "short", hour: "2-digit", minute: "2-digit" })}</td>
+                  <td className="py-2 pr-3 font-medium">{l.recipientName}</td>
+                  <td className="py-2 pr-3 mono text-[10.5px] text-faint">{l.toPhone ?? "—"}</td>
                   <td className="py-2 pr-3">
-                    <span className={`mono text-[10.5px] ${
-                      l.status === "delivered" ? "text-signal" :
-                      l.status === "failed" ? "text-clay" : "text-amber"
-                    }`}>
+                    {l.bookingId ? (
+                      <Link href={`/bookings/${l.bookingId}`} className="mono text-accent hover:underline">
+                        {l.bookingId}
+                      </Link>
+                    ) : (
+                      <span className="text-faint">—</span>
+                    )}
+                  </td>
+                  <td className="py-2 pr-3 mono text-[10.5px] text-faint">
+                    {new Date(l.sentAt ?? l.scheduledAt).toLocaleString("da-DK", {
+                      day: "numeric",
+                      month: "short",
+                      hour: "2-digit",
+                      minute: "2-digit",
+                    })}
+                  </td>
+                  <td className="py-2 pr-3">
+                    <span
+                      className={`mono text-[10.5px] ${
+                        l.status === "delivered" || l.status === "sent"
+                          ? "text-signal"
+                          : l.status === "failed"
+                            ? "text-clay"
+                            : "text-amber"
+                      }`}
+                    >
                       ● {l.status}
                     </span>
-                    {l.errorCode && <div className="text-[9.5px] text-clay mt-0.5">{l.errorCode}</div>}
+                    {l.errorCode && <div className="mt-0.5 text-[9.5px] text-clay">{l.errorCode}</div>}
                   </td>
                   <td className="py-2 pr-3 mono">{(l.costOere / 100).toFixed(2)} kr</td>
                 </tr>
@@ -160,7 +219,7 @@ export default function NemSmsAdmin() {
           </table>
           {logs.length === 0 && (
             <div className="py-10 text-center text-[12.5px] text-faint">
-              Ingen NemSMS sendt endnu for denne tenant.
+              Ingen outbox-beskeder for denne tenant endnu (opret en booking).
             </div>
           )}
         </div>

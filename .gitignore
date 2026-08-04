@@ -28,6 +28,8 @@ yarn-error.log*
 .env.local
 .env.development.local
 .env.production.local
+.env.vercel
+.env*.local
 
 # Vercel
 .vercel
@@ -45,6 +47,10 @@ Thumbs.db
 
 # Screenshots (lokale tests)
 screenshots/
+
+# Swarm worktrees (savage parallel execution)
+.worktrees/
+.swarm-data/
 
 # Word-doc · sendes separat til ma@keap.me
 PraxisOS-Forarbejde.docx

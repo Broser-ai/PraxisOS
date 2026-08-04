@@ -1,0 +1,10 @@
+services:
+  dittofeed-lite:
+    ports:
+      - "3002:3000"
+    labels: !override
+      - "traefik.enable=true"
+      - "traefik.http.routers.dittofeed.rule=Host(`engage.localhost`) || Host(`engage.praxios.dk`) || PathPrefix(`/engage`)"
+      - "traefik.http.routers.dittofeed.entrypoints=web"
+      - "traefik.http.services.dittofeed.loadbalancer.server.port=3000"
+      - "traefik.docker.network=omni_net"

@@ -12,9 +12,17 @@
 //   - resources/read
 //   - ping
 import { NextResponse } from "next/server";
-import { MCP_TOOLS } from "@/lib/mcp-tools";
-import { listTenants } from "@/lib/tenants";
 import { AGENTS } from "@/lib/agents";
+import { verifyApiKey } from "@/lib/api-keys";
+import {
+  createBookingForTenant,
+  createClientForTenant,
+  listBookingsForTenant,
+  listClientsForTenant,
+} from "@/lib/data/repo";
+import { MCP_TOOLS } from "@/lib/mcp-tools";
+import { getClient } from "@/lib/clients";
+import { listTenants } from "@/lib/tenants";
 
 const SERVER_INFO = {
   name: "praxisos",
@@ -52,11 +60,33 @@ export async function POST(req: Request) {
   if (body.jsonrpc !== "2.0") return rpcErr(body.id, -32600, "Invalid JSON-RPC version");
   if (!body.method) return rpcErr(body.id, -32600, "Missing method");
 
-  // Auth-tjek (lempelig for prototype — i prod: validér Bearer mod api-keys)
-  const auth = req.headers.get("authorization");
-  const isAuthed = auth?.startsWith("Bearer ");
-  if (!isAuthed && body.method !== "initialize" && body.method !== "ping") {
-    return rpcErr(body.id, -32001, "Unauthorized · add Authorization: Bearer sk_live_...");
+  // Auth: initialize/ping are open; tools/resources require a verified API key.
+  // Tenant is taken from tool args (default bypilar) and checked against the key.
+  const authHeader = req.headers.get("authorization");
+  const bearer = authHeader?.startsWith("Bearer ")
+    ? authHeader.slice("Bearer ".length).trim()
+    : "";
+  const needsAuth =
+    body.method !== "initialize" && body.method !== "ping";
+  if (needsAuth) {
+    if (!bearer) {
+      return rpcErr(body.id, -32001, "Unauthorized · add Authorization: Bearer sk_live_...");
+    }
+    // Resolve tenant hint from params when present; else accept any active key match
+    const argsTenant =
+      typeof body.params?.arguments?.tenant === "string"
+        ? body.params.arguments.tenant
+        : typeof body.params?.arguments?.tenantSlug === "string"
+          ? body.params.arguments.tenantSlug
+          : "bypilar";
+    const verified = verifyApiKey(bearer, argsTenant);
+    if (!verified.ok) {
+      // Also try nordlys if default tenant failed (MCP clients often omit tenant)
+      const alt = argsTenant === "bypilar" ? verifyApiKey(bearer, "nordlys") : verified;
+      if (!alt.ok) {
+        return rpcErr(body.id, -32001, `Unauthorized · ${verified.error}`);
+      }
+    }
   }
 
   switch (body.method) {
@@ -89,12 +119,19 @@ export async function POST(req: Request) {
       const tool = MCP_TOOLS.find((t) => t.name === name);
       if (!tool) return rpcErr(body.id, -32601, `Unknown tool: ${name}`);
 
-      // Stub-implementering — i prod kalder vi den ægte handler
-      const sample = simulateToolResult(name, args);
-      return rpcOk(body.id, {
-        content: [{ type: "text", text: JSON.stringify(sample, null, 2) }],
-        isError: false,
-      });
+      try {
+        const sample = await executeTool(name, args ?? {});
+        return rpcOk(body.id, {
+          content: [{ type: "text", text: JSON.stringify(sample, null, 2) }],
+          isError: Boolean((sample as { error?: string }).error),
+        });
+      } catch (err) {
+        const message = err instanceof Error ? err.message : String(err);
+        return rpcOk(body.id, {
+          content: [{ type: "text", text: JSON.stringify({ error: message }) }],
+          isError: true,
+        });
+      }
     }
 
     case "resources/list":
@@ -165,39 +202,121 @@ export async function GET() {
   }, { headers: { "access-control-allow-origin": "*" } });
 }
 
-// Mock tool-results (i prod: kald ægte handlers)
-function simulateToolResult(name: string, args: any): any {
+/** Real clinic tools via lib/data/repo — remaining tools keep honest stubs. */
+async function executeTool(name: string, args: Record<string, any>): Promise<any> {
+  const tenant = String(args.tenant ?? args.tenantSlug ?? "bypilar");
+
   switch (name) {
-    case "list_bookings":
-      return { count: 9, bookings: [
-        { id: "bk_a1", clientName: "Mette L.", service: "Hudanalyse", startsAt: "2026-06-12T14:00:00+02:00", status: "confirmed" },
-        { id: "bk_a4", clientName: "Per S.", service: "Medicinsk fodpleje", startsAt: "2026-06-13T11:30:00+02:00", status: "pending" },
-      ]};
-    case "create_booking":
-      return { id: "bk_" + Math.random().toString(36).slice(2, 11), status: "confirmed", receiptUrl: `/r/bk_xxx`, aria: { reminderScheduled: true } };
+    case "list_bookings": {
+      const bookings = await listBookingsForTenant(tenant, {
+        status: args.status,
+        limit: Number(args.limit ?? 25),
+      });
+      return {
+        count: bookings.length,
+        backend: "repo",
+        bookings: bookings.map((b) => ({
+          id: b.id,
+          clientName: b.clientName,
+          service: b.service,
+          startsAt: b.startsAt,
+          status: b.status,
+        })),
+      };
+    }
+    case "create_booking": {
+      const created = await createBookingForTenant(tenant, {
+        serviceId: args.serviceId ?? "fod-med",
+        startsAt: args.startsAt ?? new Date(Date.now() + 86400000).toISOString(),
+        client: {
+          name: args.client?.name ?? args.clientName ?? "MCP Client",
+          email: args.client?.email ?? args.email ?? `mcp-${Date.now()}@praxis.local`,
+          phone: args.client?.phone ?? args.phone,
+        },
+        modality: args.modality ?? "Klinik",
+        notes: args.notes,
+        source: "aria",
+      });
+      if ("error" in created) return { error: created.error };
+      return {
+        id: created.id,
+        status: created.status,
+        receiptUrl: `/r/${created.id}`,
+        backend: "repo",
+      };
+    }
+    case "list_clients": {
+      const clients = await listClientsForTenant(tenant);
+      return {
+        count: clients.length,
+        backend: "repo",
+        clients: clients.map((c) => ({
+          id: c.id,
+          name: c.name,
+          email: c.email,
+          age: c.age,
+          tag: c.tag,
+        })),
+      };
+    }
+    case "create_client": {
+      const created = await createClientForTenant(tenant, {
+        name: args.name,
+        email: args.email,
+        phone: args.phone,
+      });
+      if ("error" in created) return { error: created.error };
+      return { ...created, backend: "repo" };
+    }
+    case "get_client": {
+      const c = getClient(String(args.clientId ?? ""));
+      return c ?? { error: "not_found" };
+    }
     case "calculate_subsidy":
-      return { best: { scheme: "diabetes", schemeLabel: "Diabetes-tilskud · kommunal", subsidyKr: 495, authority: "Aarhus Kommune" }, all: [
-        { scheme: "danmark_g1", subsidyKr: 150, eligible: true },
-        { scheme: "diabetes", subsidyKr: 495, eligible: true },
-        { scheme: "helbredstillaeg", subsidyKr: 421, eligible: true },
-      ]};
-    case "list_clients":
-      return { count: 5, clients: [
-        { id: "mette", name: "Mette Lindqvist", age: 42, tag: "Æstetik" },
-        { id: "per", name: "Per Sørensen", age: 73, tag: "Sårpleje" },
-      ]};
-    case "get_client":
-      return { id: args?.clientId ?? "mette", name: "Mette Lindqvist", age: 42, consentLevel: "Sundhedsdata", mitidVerified: true };
+      return {
+        best: {
+          scheme: "diabetes",
+          schemeLabel: "Diabetes-tilskud · kommunal",
+          subsidyKr: 495,
+          authority: "Aarhus Kommune",
+        },
+        note: "stub calculator — MedCom not wired",
+      };
     case "validate_voucher":
-      return { valid: true, voucher: { code: args?.code, kind: "clip", sessionsRemaining: 5, serviceName: "Medicinsk fodpleje" } };
+      return {
+        valid: true,
+        voucher: {
+          code: args?.code,
+          kind: "clip",
+          sessionsRemaining: 5,
+          serviceName: "Medicinsk fodpleje",
+        },
+        note: "stub",
+      };
     case "draft_soap_note":
-      return { S: "Patient rapporterer reduceret rødme.", O: "AR-scan viser fald i pigmentering.", A: "Positiv respons.", P: "Fortsæt protokol.", suggestedICD: ["L70.0"] };
+      return {
+        S: "Patient rapporterer reduceret rødme.",
+        O: "Observation pending clinician review.",
+        A: "Afventer behandler.",
+        P: "Opfølgning.",
+        suggestedICD: ["L70.0"],
+        note: "stub — Class IIa frozen",
+      };
     case "ask_agent":
-      return { agent: "aria", response: "Hej — modtaget. Jeg vender tilbage med svar." };
-    case "get_tenant_info":
-      const t = listTenants().find((x) => x.slug === args?.tenant);
-      return t ? { slug: t.slug, name: t.brand.name, plan: t.license.plan, modules: t.license.modules, clients: t.stats?.clients } : { error: "tenant not found" };
+      return { agent: args?.agent ?? "aria", response: "Modtaget — routing via orchestrator når enabled." };
+    case "get_tenant_info": {
+      const t = listTenants().find((x) => x.slug === (args?.tenant ?? tenant));
+      return t
+        ? {
+            slug: t.slug,
+            name: t.brand.name,
+            plan: t.license.plan,
+            modules: t.license.modules,
+            clients: t.stats?.clients,
+          }
+        : { error: "tenant not found" };
+    }
     default:
-      return { ok: true, message: `${name} executed (prototype stub)`, args };
+      return { ok: true, message: `${name} has no real handler yet`, args };
   }
 }

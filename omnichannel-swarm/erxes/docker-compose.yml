@@ -1,0 +1,105 @@
+# Erxes (XOS) · Omnichannel CRM inbox
+# Joins external network omni_net (created by `make -C .. init`)
+#
+# Data-flow:
+#   Browser → Traefik (TLS Host crm.praxios.dk)
+#          → erxes-gateway
+#          → erxes plugins / API
+#          → MongoDB (docs) + Postgres (relational) + Redis (queues/cache)
+
+services:
+  erxes-mongo:
+    image: mongo:6
+    container_name: erxes_mongo
+    restart: unless-stopped
+    environment:
+      MONGO_INITDB_ROOT_USERNAME: ${MONGO_INITDB_ROOT_USERNAME:-erxes}
+      MONGO_INITDB_ROOT_PASSWORD: ${MONGO_INITDB_ROOT_PASSWORD:-change-me-mongo-root}
+      MONGO_INITDB_DATABASE: ${MONGO_DB:-erxes}
+    volumes:
+      - erxes_mongo_data:/data/db
+    networks:
+      - omni_net
+    healthcheck:
+      test: ["CMD", "mongosh", "--eval", "db.adminCommand('ping')"]
+      interval: 20s
+      timeout: 5s
+      retries: 10
+
+  erxes-postgres:
+    image: postgres:15-alpine
+    container_name: erxes_postgres
+    restart: unless-stopped
+    environment:
+      POSTGRES_USER: ${POSTGRES_USER:-erxes}
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:-change-me-postgres}
+      POSTGRES_DB: ${POSTGRES_DB:-erxes}
+    volumes:
+      - erxes_pg_data:/var/lib/postgresql/data
+    networks:
+      - omni_net
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U ${POSTGRES_USER:-erxes}"]
+      interval: 10s
+      timeout: 5s
+      retries: 10
+
+  erxes-redis:
+    image: redis:7-alpine
+    container_name: erxes_redis
+    restart: unless-stopped
+    command: ["redis-server", "--requirepass", "${REDIS_PASSWORD:-change-me-redis}"]
+    volumes:
+      - erxes_redis_data:/data
+    networks:
+      - omni_net
+    healthcheck:
+      test: ["CMD", "redis-cli", "-a", "${REDIS_PASSWORD:-change-me-redis}", "ping"]
+      interval: 10s
+      timeout: 3s
+      retries: 10
+
+  # Official image tags evolve — pin/adjust to your Erxes release channel.
+  # This service is the Traefik edge for CRM hosts.
+  # Official `erxes/erxes` image is the static UI (nginx). Full API plugins
+  # are installed via Erxes' own installer; DB services below stay ready.
+  erxes-gateway:
+    image: erxes/erxes:latest
+    container_name: erxes_gateway
+    restart: unless-stopped
+    depends_on:
+      erxes-mongo:
+        condition: service_healthy
+      erxes-postgres:
+        condition: service_healthy
+      erxes-redis:
+        condition: service_healthy
+    environment:
+      NGINX_HOST: ${ERXES_HOST:-crm.praxios.dk}
+      NODE_ENV: production
+      DOMAIN: ${DOMAIN:-https://crm.praxios.dk}
+      JWT_TOKEN_SECRET: ${JWT_TOKEN_SECRET:-change-me-long-random-jwt}
+      MONGO_URL: mongodb://${MONGO_INITDB_ROOT_USERNAME:-erxes}:${MONGO_INITDB_ROOT_PASSWORD:-change-me-mongo-root}@erxes-mongo:27017/${MONGO_DB:-erxes}?authSource=admin
+      REDIS_HOST: erxes-redis
+      REDIS_PORT: 6379
+      REDIS_PASSWORD: ${REDIS_PASSWORD:-change-me-redis}
+      POSTGRES_URL: postgres://${POSTGRES_USER:-erxes}:${POSTGRES_PASSWORD:-change-me-postgres}@erxes-postgres:5432/${POSTGRES_DB:-erxes}
+    networks:
+      - omni_net
+    labels:
+      - "traefik.enable=true"
+      # Praxios primary + optional multi-brand Host OR rules
+      - "traefik.http.routers.erxes.rule=Host(`${ERXES_HOST:-crm.praxios.dk}`) || Host(`crm.cirkel.dk`) || Host(`crm.dpnnails.dk`)"
+      - "traefik.http.routers.erxes.entrypoints=websecure"
+      - "traefik.http.routers.erxes.tls.certresolver=myresolver"
+      - "traefik.http.services.erxes.loadbalancer.server.port=80"
+      - "traefik.docker.network=omni_net"
+
+networks:
+  omni_net:
+    external: true
+
+volumes:
+  erxes_mongo_data:
+  erxes_pg_data:
+  erxes_redis_data:

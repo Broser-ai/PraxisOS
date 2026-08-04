@@ -1,0 +1,170 @@
+import { NextResponse } from "next/server";
+import { registerOwnerAccount } from "@/lib/auth";
+import { dataBackend, signupTenantInSupabase } from "@/lib/data/repo";
+import { getBackoffMs, recordAttempt } from "@/lib/rate-limit";
+import { isSupabaseConfigured } from "@/lib/supabase";
+import { getTenant, registerTenant } from "@/lib/tenants";
+
+type SignupBody = {
+  cvr?: string;
+  legalName?: string;
+  address?: string;
+  email?: string;
+  phone?: string;
+  contactName?: string;
+  slug?: string;
+  plan?: string;
+  password?: string;
+};
+
+function slugify(s: string): string {
+  return s
+    .toLowerCase()
+    .replace(/[^a-z0-9]+/g, "-")
+    .replace(/^-|-$/g, "")
+    .slice(0, 32);
+}
+
+/**
+ * POST /api/signup — creates tenant + owner account with chosen password.
+ * Uses Supabase when service role is configured; otherwise durable memory.
+ */
+export async function POST(req: Request) {
+  const ip =
+    req.headers.get("x-forwarded-for")?.split(",")[0]?.trim() ?? "127.0.0.1";
+
+  let body: SignupBody;
+  try {
+    body = await req.json();
+  } catch {
+    return NextResponse.json({ error: "invalid_json" }, { status: 400 });
+  }
+
+  const email = body.email?.trim().toLowerCase() ?? "";
+  const legalName = body.legalName?.trim() ?? "";
+  const contactName = body.contactName?.trim() ?? "";
+  const cvr = body.cvr?.trim() ?? "";
+  const slug = slugify(body.slug || legalName);
+  const plan = body.plan || "practice";
+  const phone = body.phone?.trim() ?? "";
+  const address = body.address?.trim() ?? "";
+  const password = body.password ?? "";
+
+  if (!legalName || !email || !contactName || !slug || !password) {
+    return NextResponse.json({ error: "missing_fields" }, { status: 400 });
+  }
+  if (password.length < 8) {
+    return NextResponse.json({ error: "weak_password" }, { status: 400 });
+  }
+  if (!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email)) {
+    return NextResponse.json({ error: "invalid_email" }, { status: 400 });
+  }
+  if (cvr && !/^\d{8}$/.test(cvr)) {
+    return NextResponse.json({ error: "invalid_cvr" }, { status: 400 });
+  }
+
+  const backoff = getBackoffMs(ip, email);
+  if (backoff > 0) {
+    return NextResponse.json(
+      { error: "rate_limited", retryAfterMs: backoff },
+      {
+        status: 429,
+        headers: { "Retry-After": Math.ceil(backoff / 1000).toString() },
+      },
+    );
+  }
+
+  if (isSupabaseConfigured()) {
+    const result = await signupTenantInSupabase({
+      slug,
+      legalName,
+      cvr,
+      address,
+      email,
+      phone,
+      contactName,
+      plan,
+      password,
+    });
+    if ("error" in result) {
+      recordAttempt(ip, email, false);
+      const status =
+        result.error === "slug_taken" || result.error === "email_taken"
+          ? 409
+          : 500;
+      return NextResponse.json({ error: result.error, slug }, { status });
+    }
+    if (!getTenant(slug)) {
+      registerTenant({
+        slug,
+        legalName,
+        cvr,
+        address,
+        email,
+        phone,
+        contactName,
+        plan,
+      });
+      registerOwnerAccount({
+        email,
+        name: contactName,
+        tenantSlug: slug,
+        password,
+      });
+    }
+    recordAttempt(ip, email, true);
+    return NextResponse.json(
+      {
+        success: true,
+        backend: dataBackend(),
+        tenant: { slug, id: result.tenantId },
+        owner: { id: result.userId, email },
+        loginHint: "Log ind med den e-mail og det password du valgte.",
+      },
+      { status: 201 },
+    );
+  }
+
+  if (getTenant(slug)) {
+    recordAttempt(ip, email, false);
+    return NextResponse.json({ error: "slug_taken", slug }, { status: 409 });
+  }
+
+  const tenantResult = registerTenant({
+    slug,
+    legalName,
+    cvr,
+    address,
+    email,
+    phone,
+    contactName,
+    plan,
+  });
+  if ("error" in tenantResult) {
+    recordAttempt(ip, email, false);
+    return NextResponse.json({ error: tenantResult.error }, { status: 400 });
+  }
+
+  const owner = registerOwnerAccount({
+    email,
+    name: contactName,
+    tenantSlug: slug,
+    password,
+  });
+  if ("error" in owner) {
+    recordAttempt(ip, email, false);
+    return NextResponse.json({ error: owner.error }, { status: 409 });
+  }
+
+  recordAttempt(ip, email, true);
+  return NextResponse.json(
+    {
+      success: true,
+      backend: dataBackend(),
+      tenant: { slug: tenantResult.slug, legalName: tenantResult.legalName },
+      owner: { id: owner.id, email: owner.email },
+      loginHint: "Log ind med den e-mail og det password du valgte.",
+    },
+    { status: 201 },
+  );
+}

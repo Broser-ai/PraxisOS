@@ -1,0 +1,50 @@
+# Omnichannel Swarm · Master Gateway (Traefik)
+# Network `omni_net` must exist: `make init`
+#
+# Brands / Host routing (examples):
+#   traefik.praxios.dk  → dashboard
+#   crm.praxios.dk      → Erxes (see ./erxes)
+#   crm.cirkel.dk       → Erxes tenant host
+#   crm.dpnnails.dk     → Erxes tenant host
+
+services:
+  traefik:
+    image: traefik:v3.6.13
+    container_name: traefik_gateway
+    restart: unless-stopped
+    command:
+      - "--api.insecure=false"
+      - "--api.dashboard=true"
+      - "--providers.docker=true"
+      - "--providers.docker.exposedbydefault=false"
+      - "--providers.docker.network=omni_net"
+      - "--entrypoints.web.address=:80"
+      - "--entrypoints.websecure.address=:443"
+      - "--entrypoints.web.http.redirections.entrypoint.to=websecure"
+      - "--entrypoints.web.http.redirections.entrypoint.scheme=https"
+      - "--certificatesresolvers.myresolver.acme.tlschallenge=true"
+      - "--certificatesresolvers.myresolver.acme.email=${ACME_EMAIL:-admin@praxios.dk}"
+      - "--certificatesresolvers.myresolver.acme.storage=/letsencrypt/acme.json"
+      - "--log.level=INFO"
+    ports:
+      - "80:80"
+      - "443:443"
+    volumes:
+      - "/var/run/docker.sock:/var/run/docker.sock:ro"
+      - "./traefik/letsencrypt:/letsencrypt"
+    networks:
+      - omni_net
+    labels:
+      - "traefik.enable=true"
+      - "traefik.http.routers.dashboard.rule=Host(`traefik.praxios.dk`)"
+      - "traefik.http.routers.dashboard.entrypoints=websecure"
+      - "traefik.http.routers.dashboard.tls.certresolver=myresolver"
+      - "traefik.http.routers.dashboard.service=api@internal"
+      - "traefik.http.routers.dashboard.middlewares=auth"
+      # Default basic auth user `admin` — REPLACE via `htpasswd -nb admin 'YOUR_PASSWORD'`
+      # (escape `$` as `$$` in compose)
+      - "traefik.http.middlewares.auth.basicauth.users=${TRAEFIK_BASIC_AUTH:-admin:$$apr1$$H6uskkkW$$IgXLP6ewTrSuBkTrqE8wj/}"
+
+networks:
+  omni_net:
+    external: true

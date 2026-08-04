@@ -1,11 +1,15 @@
 "use client";
 
 import Link from "next/link";
+import { useRouter } from "next/navigation";
 import { useState } from "react";
 import { CvrLookup } from "@/components/CvrLookup";
 
 export default function SignupPage() {
+  const router = useRouter();
   const [step, setStep] = useState<1 | 2 | 3>(1);
+  const [submitting, setSubmitting] = useState(false);
+  const [submitError, setSubmitError] = useState<string | null>(null);
   const [data, setData] = useState({
     cvr: "",
     legalName: "",
@@ -15,10 +19,44 @@ export default function SignupPage() {
     contactName: "",
     slug: "",
     plan: "practice",
+    password: "",
+    passwordConfirm: "",
   });
 
   const slugify = (s: string) =>
     s.toLowerCase().replace(/[^a-z0-9]+/g, "-").replace(/^-|-$/g, "").slice(0, 32);
+
+  const createClinic = async () => {
+    setSubmitting(true);
+    setSubmitError(null);
+    try {
+      const res = await fetch("/api/signup", {
+        method: "POST",
+        headers: { "content-type": "application/json" },
+        body: JSON.stringify(data),
+      });
+      const json = await res.json();
+      if (!res.ok) {
+        setSubmitError(
+          json.error === "slug_taken"
+            ? "Klinik-slug er optaget — vælg et andet navn."
+            : json.error === "email_taken"
+              ? "Email er allerede i brug."
+              : json.error === "weak_password"
+                ? "Password skal være mindst 8 tegn."
+                : json.error ?? "Kunne ikke oprette klinik",
+        );
+        return;
+      }
+      router.push(
+        `/login?created=${encodeURIComponent(data.slug)}&email=${encodeURIComponent(data.email)}`,
+      );
+    } catch {
+      setSubmitError("Netværksfejl — prøv igen.");
+    } finally {
+      setSubmitting(false);
+    }
+  };
 
   return (
     <div className="min-h-screen bg-paper">
@@ -98,14 +136,21 @@ export default function SignupPage() {
               <Field label="Navn" value={data.contactName} onChange={(v) => setData({ ...data, contactName: v })} placeholder="Pilar Mortensen" />
               <Field label="E-mail" value={data.email} onChange={(v) => setData({ ...data, email: v })} placeholder="hej@bypilar.dk" type="email" />
               <Field label="Mobil" value={data.phone} onChange={(v) => setData({ ...data, phone: v })} placeholder="+45 93 95 20 41" />
+              <Field label="Password (min. 8 tegn)" value={data.password} onChange={(v) => setData({ ...data, password: v })} placeholder="••••••••" type="password" />
+              <Field label="Gentag password" value={data.passwordConfirm} onChange={(v) => setData({ ...data, passwordConfirm: v })} placeholder="••••••••" type="password" />
             </div>
             <div className="mt-4 rounded-[10px] border border-line bg-paper-2/40 p-3 text-[11.5px] text-ink-soft">
-              I prod: vi sender MitID-bekræftelse til denne mobil og verificerer du er tegningsberettiget for CVR {data.cvr}.
+              Du logger ind med denne e-mail og dit valgte password. MitID-verifikation kommer senere.
             </div>
             <div className="mt-6 flex gap-2">
               <button onClick={() => setStep(1)} className="rounded-[10px] border border-line bg-card px-4 py-2.5 text-[13px]">← Tilbage</button>
               <button
-                disabled={!data.contactName || !data.email}
+                disabled={
+                  !data.contactName ||
+                  !data.email ||
+                  data.password.length < 8 ||
+                  data.password !== data.passwordConfirm
+                }
                 onClick={() => setStep(3)}
                 className="flex-1 rounded-[10px] bg-ink px-4 py-2.5 text-[13.5px] font-medium text-paper disabled:opacity-40"
               >
@@ -155,16 +200,18 @@ export default function SignupPage() {
               </div>
             </div>
 
+            {submitError && (
+              <p className="mt-4 text-[13px] text-clay">{submitError}</p>
+            )}
             <div className="mt-6 flex gap-2">
               <button onClick={() => setStep(2)} className="rounded-[10px] border border-line bg-card px-4 py-2.5 text-[13px]">← Tilbage</button>
               <button
-                onClick={() => {
-                  // I prod: POST /api/signup → opretter tenant + sender invite
-                  alert(`Tenant '${data.slug}' oprettet (mock).\n\nI prod sender vi MitID-invite til ${data.phone}.`);
-                }}
-                className="flex-1 rounded-[10px] bg-ink px-4 py-2.5 text-[13.5px] font-medium text-paper"
+                type="button"
+                disabled={submitting}
+                onClick={() => void createClinic()}
+                className="flex-1 rounded-[10px] bg-ink px-4 py-2.5 text-[13.5px] font-medium text-paper disabled:opacity-60"
               >
-                Opret klinik
+                {submitting ? "Opretter…" : "Opret klinik"}
               </button>
             </div>
           </div>

@@ -1,5 +1,6 @@
-// Klienter — udvidet mock-data så alle profiler har indhold.
-// Erstatter den simple liste i lib/mock.ts.
+// Klienter — seed + durable memory store (lib/data/memory).
+
+import { ensureClientSeed, getMemoryStore } from "@/lib/data/memory";
 
 export type ClientProfile = {
   id: string;
@@ -67,16 +68,21 @@ export const clientsFull: ClientProfile[] = [
   },
 ];
 
-export function listClients(): ClientProfile[] {
-  return clientsFull;
+function readyStore() {
+  ensureClientSeed(clientsFull);
+  return getMemoryStore();
+}
+
+export function listClients(tenant = "bypilar"): ClientProfile[] {
+  return readyStore().clients.filter((c) => c.tenant === tenant);
 }
 
 export function getClient(id: string): ClientProfile | undefined {
-  return clientsFull.find((c) => c.id === id);
+  return readyStore().clients.find((c) => c.id === id);
 }
 
 export function findClientByEmail(email: string): ClientProfile | undefined {
   const e = email.trim().toLowerCase();
   if (!e) return undefined;
-  return clientsFull.find((c) => c.email.toLowerCase() === e);
+  return readyStore().clients.find((c) => c.email.toLowerCase() === e);
 }
