@@ -4,76 +4,39 @@
 
 | Field | Value |
 |---|---|
-| Direction | Cursor Cloud → (human / next agent) |
+| Direction | Cursor Cloud → human |
 | Author agent | Cursor Cloud `bc-ec386d26-3f78-44d2-8785-64c5664b2c11` |
-| Author human | Michael Ambrosius |
-| UTC timestamp | 2026-08-04T15:11:00Z |
-| Repo | https://github.com/Broser-ai/PraxisOS |
-
----
+| UTC timestamp | 2026-08-04T17:03:00Z |
+| Branch | `cursor/clinic-core-takeover-2c11` |
 
 ## 1. Mission
 
-**Goal:** Overtage efter Claude Code (ingen reel clinic-kode leveret) — programmér clinic-core der er klar nu.
-
-**Out of scope:** MitID, NemSMS send, Stripe, scanner/MDR, auto-merge.
-
-**Prompt:**
-
-```
-Hvad er vi klar til at programmere? Jeg har fået lavet en rystende analyse at claude ikke har lavet noget som helst. så du skal overtage det hele
-```
-
----
-
-## 2. Git truth
-
-| Field | Value |
-|---|---|
-| Base | `origin/cursor/swarm-savage-execution-2c11` |
-| Work branch | `cursor/clinic-core-takeover-2c11` |
-| Tests | 47/47 pass |
-
----
+På plads først: SMS/NemSMS outbox, MitID OIDC scaffold, MobilePay payment intents — mock default, live-ready når keys findes. Ingen falske “sendt i prod”-claims.
 
 ## 3. Ændringskort
 
-| Path | Intent | Status |
+| Area | Paths | Status |
 |---|---|---|
-| `lib/calendar.ts` | Konflikt + availability | done |
-| `lib/data/repo.ts` | slot_conflict, getById, signup password | done |
-| availability + bookings API | conflict-aware | done |
-| klienter/bookings UI | Ny klient / Manuel booking | done |
-| detail pages | repo + session tenant | done |
-| signup | valgt password (min 8) | done |
-| `tests/calendar.test.ts` | unit | done |
-
----
+| SMS outbox | `lib/messaging/*`, cron drain, booking enqueue, admin NemSMS | done |
+| MitID | `lib/mitid/oidc.ts`, `/api/auth/mitid/start|callback`, login wiring | done |
+| MobilePay | `lib/payments/intents.ts`, intents API, PaymentStep | done |
+| Schema | `supabase/migrations/0005_integrations.sql` | done |
+| Tests | `tests/integrations.test.ts` (53 total) | done |
 
 ## 9. DONE / BLOCKED / NEXT
 
 ### DONE
-- Takeover branch fra swarm (ikke den tomme gennemgang-branch)
-- Booking-konflikter + staff create UI + detail fra repo + signup password
+- Outbox + mock deliver + booking confirm enqueue
+- MitID mock OIDC + session cookie for staff
+- Payment intent create/complete (mock MobilePay)
+- Env knobs: `MESSAGING_MODE`, `MITID_MODE`, `PAYMENTS_MODE`
 
-### BLOCKED
-- Prod migration `0004` confirm
-- Real MitID / NemSMS / payments
+### BLOCKED (needs Michael / contracts)
+- KOMBIT NemSMS keys → `MESSAGING_MODE=live`
+- Signaturgruppen MitID client → `MITID_MODE=live`
+- Vipps MobilePay merchant → `PAYMENTS_MODE=live`
 
 ### NEXT
-1. Message outbox (uden ekstern SMS)
-2. Persist hashed API keys
-3. Voucher redemption
-4. Merge clinic-core når smoke OK
-
----
-
-## 10. Acceptkriterier
-
-- [x] Staff kan oprette klient via UI
-- [x] Staff kan oprette manuel booking via UI
-- [x] Dobbeltbooking afvises (409)
-- [x] Availability skjuler optagne slots
-- [x] Detail-sider læser fra repo (session-tenant)
-- [x] Signup kræver eget password
-- [x] Tests grønne
+1. Persist outbox/intents to Supabase when keys present
+2. CPR↔account linking for MitID staff
+3. Webhook endpoint for real MobilePay callbacks

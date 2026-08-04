@@ -3,6 +3,7 @@ import {
   createBookingForTenant,
   dataBackend,
 } from "@/lib/data/repo";
+import { drainOutbox, enqueueBookingMessages } from "@/lib/messaging/outbox";
 import { getTenant } from "@/lib/tenants";
 
 // POST /api/v1/{tenant}/bookings — persists booking (memory or Supabase)
@@ -63,6 +64,21 @@ export async function POST(
 
   const idempotencyKey = req.headers.get("idempotency-key") ?? booking.id;
 
+  const queued = enqueueBookingMessages({
+    tenant: t.slug,
+    bookingId: booking.id,
+    clientId: booking.clientId,
+    clientName: booking.clientName,
+    clientPhone: body.client.phone,
+    clientEmail: body.client.email,
+    clinicName: t.legalName,
+    serviceName: booking.service,
+    startsAt: booking.startsAt,
+    receiptPath: `/r/${booking.id}`,
+  });
+  // Immediately drain due confirms (reminders stay scheduled).
+  const drained = await drainOutbox(10);
+
   return NextResponse.json(
     {
       id: booking.id,
@@ -85,10 +101,19 @@ export async function POST(
       idempotencyKey,
       receiptUrl: `/r/${booking.id}`,
       backend: dataBackend(),
+      messaging: {
+        queued: queued.map((m) => ({
+          id: m.id,
+          category: m.category,
+          status: m.status,
+          scheduledAt: m.scheduledAt,
+        })),
+        drained,
+      },
       aria: {
-        reminderScheduled: false,
+        reminderScheduled: queued.some((m) => m.category === "reminder_24h"),
         message:
-          "Booking er gemt. E-mail/SMS-påmindelse aktiveres når messaging er koblet på.",
+          "Booking gemt. Bekræftelse lagt i SMS-outbox (mock indtil NemSMS-nøgler).",
       },
     },
     { status: 201, headers: { "access-control-allow-origin": "*" } },

@@ -13,6 +13,10 @@
     {
       "path": "/api/cron/swarm-tick",
       "schedule": "*/15 * * * *"
+    },
+    {
+      "path": "/api/cron/message-drain",
+      "schedule": "*/5 * * * *"
     }
   ]
 }

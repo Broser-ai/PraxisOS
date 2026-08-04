@@ -26,12 +26,14 @@ const PROTECTED_PATH_PATTERNS: RegExp[] = [
   /^\/api\/v1\/[^/]+\/swarm(?:\/|$)/,
   /^\/api\/v1\/[^/]+\/orchestrator(?:\/|$)/,
   /^\/api\/v1\/[^/]+\/research(?:\/|$)/,
+  /^\/api\/v1\/[^/]+\/messages(?:\/|$)/,
 ];
 
 // Cron is authenticated inside the route (CRON_SECRET / x-vercel-cron).
 
 const PUBLIC_PATH_PATTERNS: RegExp[] = [
   /^\/api\/auth\/(login|logout)$/,
+  /^\/api\/auth\/mitid\//,
   /^\/api\/signup$/,
   // /api/auth/me requires session — handled via PROTECTED below
 
@@ -41,6 +43,7 @@ const PUBLIC_PATH_PATTERNS: RegExp[] = [
   /^\/api\/v1\/[^/]+\/bookings$/,
   /^\/api\/v1\/[^/]+\/availability/,
   /^\/api\/v1\/[^/]+\/services/,
+  /^\/api\/v1\/[^/]+\/payments\/intents(?:\/|$)/,
   /^\/login(?:\/|$)/,
   /^\/signup(?:\/|$)/,
 ];

@@ -32,17 +32,35 @@ function MitIDFlow() {
     return () => { clearTimeout(t1); clearTimeout(t2); };
   }, []);
 
-  const confirm = () => {
-    // Patient-flow kræver CPR Match først (privat SaaS-constraint)
+  const state = sp.get("state");
+
+  const finishOidc = () => {
+    if (state) {
+      window.location.href = `/api/auth/mitid/callback?code=mock_ok&state=${encodeURIComponent(state)}`;
+      return;
+    }
+    // Legacy direct visit without start() state
     if (isPatient) {
       setPhase("cpr-match");
     } else {
       setPhase("success");
-      setTimeout(() => r.push("/review"), 2200);
+      setTimeout(() => r.push("/dashboard"), 2200);
     }
   };
 
+  const confirm = () => {
+    if (isPatient && !state) {
+      setPhase("cpr-match");
+      return;
+    }
+    finishOidc();
+  };
+
   const onCprMatched = () => {
+    if (state) {
+      finishOidc();
+      return;
+    }
     setPhase("success");
     setTimeout(() => r.push("/t/bypilar/portal"), 2200);
   };

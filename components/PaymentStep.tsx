@@ -44,12 +44,53 @@ export function PaymentStep({ tenant, serviceName, amountKr, paymentMode, onPaid
   const [processing, setProcessing] = useState(false);
   const [step, setStep] = useState<"select" | "3ds" | "approving">("select");
 
+  const [payError, setPayError] = useState<string | null>(null);
+
   const start = () => {
     setProcessing(true);
+    setPayError(null);
     setStep("3ds");
-    // Simulér 3DS2-flow
-    setTimeout(() => setStep("approving"), 1500);
-    setTimeout(() => onPaid(selected), 3000);
+    void (async () => {
+      try {
+        const createRes = await fetch(`/api/v1/${tenant}/payments/intents`, {
+          method: "POST",
+          headers: { "content-type": "application/json" },
+          body: JSON.stringify({
+            amountKr,
+            method: selected,
+            mobilepayPhone: selected === "mobilepay" ? mobilepayPhone : undefined,
+          }),
+        });
+        const created = await createRes.json();
+        if (!createRes.ok) {
+          setPayError(created.error ?? "Kunne ikke oprette betaling");
+          setProcessing(false);
+          setStep("select");
+          return;
+        }
+        setStep("approving");
+        const doneRes = await fetch(
+          `/api/v1/${tenant}/payments/intents/${created.id}/complete`,
+          { method: "POST" },
+        );
+        const done = await doneRes.json();
+        if (!doneRes.ok) {
+          setPayError(
+            done.error === "mobilepay_not_configured"
+              ? "MobilePay er ikke konfigureret (mangler merchant-nøgler)."
+              : (done.error ?? "Betaling fejlede"),
+          );
+          setProcessing(false);
+          setStep("select");
+          return;
+        }
+        onPaid(selected);
+      } catch {
+        setPayError("Netværksfejl under betaling");
+        setProcessing(false);
+        setStep("select");
+      }
+    })();
   };
 
   const modeText = {
@@ -215,6 +256,8 @@ export function PaymentStep({ tenant, serviceName, amountKr, paymentMode, onPaid
         <span>·</span>
         <span>PraxisRisk aktiv</span>
       </div>
+
+      {payError && <p className="mt-4 text-[13px] text-clay">{payError}</p>}
 
       <div className="mt-6 flex gap-2">
         <button onClick={onBack} disabled={processing} className="rounded-[10px] border border-line-2 px-5 py-2.5 text-[13px] disabled:opacity-40">← Tilbage</button>
