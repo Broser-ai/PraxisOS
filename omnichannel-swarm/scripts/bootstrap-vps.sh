@@ -27,14 +27,15 @@ fi
 PUBLIC_IP="$(curl -4 -fsSL https://ifconfig.me 2>/dev/null || curl -4 -fsSL https://api.ipify.org 2>/dev/null || hostname -I | awk '{print $1}')"
 echo "=> Offentlig IP: ${PUBLIC_IP}"
 
-echo "=> Installerer Docker..."
+echo "=> Installerer basis-pakker + Docker..."
+apt-get update -qq
+apt-get install -y -qq ca-certificates curl git openssl make wget
 if ! command -v docker >/dev/null 2>&1; then
-  apt-get update -qq
-  apt-get install -y -qq ca-certificates curl git openssl
   curl -fsSL https://get.docker.com | sh
   systemctl enable --now docker
 fi
 docker --version
+make --version | head -1
 
 # Locate swarm dir
 SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
