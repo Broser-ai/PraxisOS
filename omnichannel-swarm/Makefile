@@ -88,7 +88,7 @@ deploy-demo: init
 	@$(MAKE) init-keys
 	-cd $(ROOT) && $(COMPOSE) -f dittofeed/docker-compose.yml -f dittofeed/docker-compose.demo.yml --env-file dittofeed/.env up -d
 	-cd $(ROOT) && $(COMPOSE) -f fonoster/docker-compose.yml -f fonoster/docker-compose.demo.yml --env-file fonoster/.env up -d
-	@echo "=> Demo up. Traefik: http://127.0.0.1:8080/dashboard/  ·  make doctor"
+	@echo "=> Demo up. Traefik: http://127.0.0.1:8888/dashboard/  ·  make doctor"
 
 doctor:
 	@echo "== network =="

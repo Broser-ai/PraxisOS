@@ -19,7 +19,7 @@ See [ARCHITECTURE.md](./ARCHITECTURE.md) for data-flows. Cursor rules: [`.cursor
 cd omnichannel-swarm
 make init
 make deploy-demo
-# Traefik http://SERVER:8080/dashboard/
+# Traefik http://SERVER:8888/dashboard/
 # CRM     http://SERVER:3001/
 # Engage  http://SERVER:3002/
 ```

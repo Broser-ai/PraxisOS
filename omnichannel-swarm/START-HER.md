@@ -23,7 +23,7 @@ Når scriptet er færdigt, står der en IP. Åbn:
 
 | Hvad | Adresse |
 |------|---------|
-| Traefik kontrolpanel | `http://DIN-IP:8080/dashboard/` |
+| Traefik kontrolpanel | `http://DIN-IP:8888/dashboard/` |
 | CRM (Erxes UI) | `http://DIN-IP:3001/` |
 | Engage (Dittofeed) | `http://DIN-IP:3002/` |
 

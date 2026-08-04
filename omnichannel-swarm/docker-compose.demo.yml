@@ -12,7 +12,8 @@ services:
       - "--log.level=INFO"
     ports: !override
       - "80:80"
-      - "8080:8080"
+      # Avoid clash with other services that often bind :8080
+      - "8888:8080"
     labels: !override
       - "traefik.enable=true"
       - "traefik.http.routers.dashboard.rule=PathPrefix(`/dashboard`) || PathPrefix(`/api`)"
