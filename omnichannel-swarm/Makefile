@@ -1,5 +1,5 @@
 .PHONY: help init init-keys start-gateway stop stop-all status logs \
-	deploy-erxes deploy-fonoster deploy-dittofeed deploy-all \
+	deploy-erxes deploy-fonoster deploy-dittofeed deploy-all deploy-demo \
 	pull doctor
 
 COMPOSE ?= docker compose
@@ -11,10 +11,11 @@ help:
 	@echo "  make init             Create omni_net + ACME storage + .env skeletons"
 	@echo "  make init-keys        Generate Fonoster RSA keys"
 	@echo "  make start-gateway    Start Traefik"
+	@echo "  make deploy-demo      HTTP demo (no DNS/SSL) — recommended first run"
 	@echo "  make deploy-erxes     CRM / inbox"
 	@echo "  make deploy-fonoster  WebRTC / voice"
 	@echo "  make deploy-dittofeed Marketing automation"
-	@echo "  make deploy-all       Gateway + Erxes + Fonoster + Dittofeed"
+	@echo "  make deploy-all       Gateway + Erxes + Fonoster + Dittofeed (prod TLS)"
 	@echo "  make status | logs | stop | stop-all | doctor | pull"
 
 init:
@@ -79,6 +80,15 @@ deploy-dittofeed:
 
 deploy-all: init start-gateway deploy-erxes deploy-fonoster deploy-dittofeed
 	@echo "=> Full matrix up. Run: make doctor"
+
+deploy-demo: init
+	@echo "=> Demo HTTP stack (Traefik :80/:8080, no Let's Encrypt)"
+	cd $(ROOT) && $(COMPOSE) -f docker-compose.yml -f docker-compose.demo.yml --env-file .env up -d
+	cd $(ROOT) && $(COMPOSE) -f erxes/docker-compose.yml -f erxes/docker-compose.demo.yml --env-file erxes/.env up -d
+	@$(MAKE) init-keys
+	-cd $(ROOT) && $(COMPOSE) -f dittofeed/docker-compose.yml -f dittofeed/docker-compose.demo.yml --env-file dittofeed/.env up -d
+	-cd $(ROOT) && $(COMPOSE) -f fonoster/docker-compose.yml -f fonoster/docker-compose.demo.yml --env-file fonoster/.env up -d
+	@echo "=> Demo up. Traefik: http://127.0.0.1:8080/dashboard/  ·  make doctor"
 
 doctor:
 	@echo "== network =="

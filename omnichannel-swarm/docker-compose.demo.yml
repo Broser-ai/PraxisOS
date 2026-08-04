@@ -1,0 +1,20 @@
+# Demo override: HTTP only (no Let's Encrypt). Use with:
+#   docker compose -f docker-compose.yml -f docker-compose.demo.yml up -d
+services:
+  traefik:
+    command: !override
+      - "--api.insecure=true"
+      - "--api.dashboard=true"
+      - "--providers.docker=true"
+      - "--providers.docker.exposedbydefault=false"
+      - "--providers.docker.network=omni_net"
+      - "--entrypoints.web.address=:80"
+      - "--log.level=INFO"
+    ports: !override
+      - "80:80"
+      - "8080:8080"
+    labels: !override
+      - "traefik.enable=true"
+      - "traefik.http.routers.dashboard.rule=PathPrefix(`/dashboard`) || PathPrefix(`/api`)"
+      - "traefik.http.routers.dashboard.entrypoints=web"
+      - "traefik.http.routers.dashboard.service=api@internal"

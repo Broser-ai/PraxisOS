@@ -61,6 +61,8 @@ services:
 
   # Official image tags evolve — pin/adjust to your Erxes release channel.
   # This service is the Traefik edge for CRM hosts.
+  # Official `erxes/erxes` image is the static UI (nginx). Full API plugins
+  # are installed via Erxes' own installer; DB services below stay ready.
   erxes-gateway:
     image: erxes/erxes:latest
     container_name: erxes_gateway
@@ -73,6 +75,7 @@ services:
       erxes-redis:
         condition: service_healthy
     environment:
+      NGINX_HOST: ${ERXES_HOST:-crm.praxios.dk}
       NODE_ENV: production
       DOMAIN: ${DOMAIN:-https://crm.praxios.dk}
       JWT_TOKEN_SECRET: ${JWT_TOKEN_SECRET:-change-me-long-random-jwt}
@@ -89,7 +92,7 @@ services:
       - "traefik.http.routers.erxes.rule=Host(`${ERXES_HOST:-crm.praxios.dk}`) || Host(`crm.cirkel.dk`) || Host(`crm.dpnnails.dk`)"
       - "traefik.http.routers.erxes.entrypoints=websecure"
       - "traefik.http.routers.erxes.tls.certresolver=myresolver"
-      - "traefik.http.services.erxes.loadbalancer.server.port=3000"
+      - "traefik.http.services.erxes.loadbalancer.server.port=80"
       - "traefik.docker.network=omni_net"
 
 networks:

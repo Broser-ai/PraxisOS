@@ -1,5 +1,11 @@
 # Omnichannel Swarm · Architecture
 
+## Knowledge base (read before changing a stack)
+
+- [`docs/erxes-architecture.md`](./docs/erxes-architecture.md)
+- [`docs/fonoster-architecture.md`](./docs/fonoster-architecture.md)
+- [`docs/dittofeed-architecture.md`](./docs/dittofeed-architecture.md)
+
 ## Brands (tenants)
 
 | Brand | CRM | Voice | Engage |

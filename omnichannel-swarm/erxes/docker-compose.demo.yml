@@ -1,0 +1,10 @@
+services:
+  erxes-gateway:
+    ports:
+      - "3001:80"
+    labels: !override
+      - "traefik.enable=true"
+      - "traefik.http.routers.erxes.rule=Host(`crm.localhost`) || Host(`crm.praxios.dk`) || PathPrefix(`/crm`)"
+      - "traefik.http.routers.erxes.entrypoints=web"
+      - "traefik.http.services.erxes.loadbalancer.server.port=80"
+      - "traefik.docker.network=omni_net"
