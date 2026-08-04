@@ -1,16 +1,18 @@
 # Dittofeed · Marketing automation
 
-Web-push, email, Telegram — prefer data channels over SMS/PSTN.
-
-## Next
-
-Ask Cursor to generate `docker-compose.yml` + `.env.example` on `omni_net`, Traefik hosts e.g.:
+Lite stack on `omni_net` with Traefik:
 
 - `engage.praxios.dk`
 - `engage.cirkel.dk`
 - `engage.dpnnails.dk`
 
+Includes: `dittofeed-lite`, Postgres, ClickHouse, Temporal.
+
 ```bash
-# from omnichannel-swarm/
+cd ..
 make deploy-dittofeed
 ```
+
+After first boot, set `BOOTSTRAP=false` in `.env` and recreate the lite service.
+
+Prefer web-push / email / Telegram. SMS is optional.

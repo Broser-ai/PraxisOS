@@ -1,0 +1,113 @@
+# Dittofeed · marketing automation (web-push, email, Telegram)
+# Adapted from upstream docker-compose.lite.yaml for omni_net + Traefik.
+#
+# Data-flow:
+#   Browser → Traefik Host engage.*.dk → dittofeed-lite:3000
+#          → Postgres (state) + ClickHouse (events) + Temporal (workflows)
+#
+# Prefer data channels (web-push / email / Telegram). SMS is optional fallback.
+
+x-database-credentials: &database-credentials
+  DATABASE_USER: ${DATABASE_USER:-dittofeed}
+  DATABASE_PASSWORD: ${DATABASE_PASSWORD:-change-me-dittofeed-db}
+
+x-clickhouse-credentials: &clickhouse-credentials
+  CLICKHOUSE_USER: ${CLICKHOUSE_USER:-dittofeed}
+  CLICKHOUSE_PASSWORD: ${CLICKHOUSE_PASSWORD:-change-me-clickhouse}
+
+x-backend-app-env: &backend-app-env
+  <<: [*clickhouse-credentials, *database-credentials]
+  NODE_ENV: production
+  DATABASE_HOST: ${DATABASE_HOST:-dittofeed-postgres}
+  DATABASE_PORT: ${DATABASE_PORT:-5432}
+  CLICKHOUSE_HOST: ${CLICKHOUSE_HOST:-http://dittofeed-clickhouse:8123}
+  TEMPORAL_ADDRESS: ${TEMPORAL_ADDRESS:-dittofeed-temporal:7233}
+  WORKSPACE_NAME: ${WORKSPACE_NAME:-Praxios}
+  AUTH_MODE: ${AUTH_MODE:-single-tenant}
+  SECRET_KEY: ${SECRET_KEY:-CHANGE_ME_BASE64_SECRET_KEY_32B_MIN}
+  PASSWORD: ${PASSWORD:-change-me-dashboard-password}
+  DASHBOARD_API_BASE: ${DASHBOARD_API_BASE:-https://engage.praxios.dk}
+
+services:
+  dittofeed-lite:
+    image: ${IMAGE_REPOSITORY:-dittofeed/dittofeed-lite}:${IMAGE_TAG:-v0.23.0}
+    container_name: dittofeed_lite
+    restart: unless-stopped
+    command: node --max-old-space-size=${LITE_MEM_LIMIT:-824} ./packages/lite/dist/scripts/startLite.js --workspace-name=${WORKSPACE_NAME:-Praxios}
+    depends_on:
+      - dittofeed-postgres
+      - dittofeed-temporal
+      - dittofeed-clickhouse
+    environment:
+      <<: *backend-app-env
+      BOOTSTRAP: ${BOOTSTRAP:-true}
+    networks:
+      - omni_net
+    labels:
+      - "traefik.enable=true"
+      - "traefik.http.routers.dittofeed.rule=Host(`engage.praxios.dk`) || Host(`engage.cirkel.dk`) || Host(`engage.dpnnails.dk`)"
+      - "traefik.http.routers.dittofeed.entrypoints=websecure"
+      - "traefik.http.routers.dittofeed.tls.certresolver=myresolver"
+      - "traefik.http.services.dittofeed.loadbalancer.server.port=3000"
+      - "traefik.docker.network=omni_net"
+
+  dittofeed-temporal:
+    image: temporalio/auto-setup:${TEMPORAL_VERSION:-1.22.4}
+    container_name: dittofeed_temporal
+    restart: unless-stopped
+    depends_on:
+      - dittofeed-postgres
+    environment:
+      DB: postgresql
+      DB_PORT: ${DATABASE_PORT:-5432}
+      POSTGRES_USER: ${DATABASE_USER:-dittofeed}
+      POSTGRES_PWD: ${DATABASE_PASSWORD:-change-me-dittofeed-db}
+      POSTGRES_SEEDS: dittofeed-postgres
+      DYNAMIC_CONFIG_FILE_PATH: config/dynamicconfig/prod.yaml
+    volumes:
+      - ./temporal-dynamicconfig:/etc/temporal/config/dynamicconfig:ro
+    networks:
+      - omni_net
+
+  dittofeed-postgres:
+    image: postgres:${POSTGRES_VERSION:-15}-alpine
+    container_name: dittofeed_postgres
+    restart: unless-stopped
+    environment:
+      POSTGRES_PASSWORD: ${DATABASE_PASSWORD:-change-me-dittofeed-db}
+      POSTGRES_USER: ${DATABASE_USER:-dittofeed}
+      POSTGRES_DB: dittofeed
+    volumes:
+      - dittofeed_pg_data:/var/lib/postgresql/data
+    networks:
+      - omni_net
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U ${DATABASE_USER:-dittofeed}"]
+      interval: 10s
+      timeout: 5s
+      retries: 10
+
+  dittofeed-clickhouse:
+    image: clickhouse/clickhouse-server:24.12.6.70-alpine
+    container_name: dittofeed_clickhouse
+    restart: unless-stopped
+    environment:
+      <<: *clickhouse-credentials
+    volumes:
+      - dittofeed_ch_data:/var/lib/clickhouse
+      - dittofeed_ch_log:/var/log/clickhouse-server
+    networks:
+      - omni_net
+    ulimits:
+      nofile:
+        soft: 262144
+        hard: 262144
+
+networks:
+  omni_net:
+    external: true
+
+volumes:
+  dittofeed_pg_data:
+  dittofeed_ch_data:
+  dittofeed_ch_log:

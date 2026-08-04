@@ -4,3 +4,7 @@
 traefik/letsencrypt/acme.json
 **/node_modules/
 **/*.log
+fonoster/config/keys/*.pem
+fonoster/compose.upstream.yaml
+fonoster/.env.upstream
+**/*.pem

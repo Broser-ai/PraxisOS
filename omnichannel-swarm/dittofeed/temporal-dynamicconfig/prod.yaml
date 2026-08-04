@@ -1,0 +1,7 @@
+# Minimal Temporal dynamic config for Dittofeed lite (self-host)
+limit.maxIDLength:
+  - value: 255
+    constraints: {}
+system.forceSearchAttributesCacheRefreshOnRead:
+  - value: true
+    constraints: {}

@@ -1,0 +1,5 @@
+.env
+config/keys/*.pem
+*.pem
+compose.upstream.yaml
+.env.upstream
