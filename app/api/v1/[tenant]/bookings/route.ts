@@ -23,6 +23,7 @@ export async function POST(
     client?: { name?: string; email?: string; phone?: string };
     modality?: "Klinik" | "Hjemmebesøg" | "Video";
     notes?: string;
+    source?: "online" | "tlf" | "aria" | "embed" | "admin";
   };
   try {
     body = await req.json();
@@ -47,14 +48,16 @@ export async function POST(
     },
     modality: body.modality,
     notes: body.notes,
-    source: "online",
+    source: body.source ?? "online",
   });
 
   if ("error" in booking) {
     const status =
       booking.error === "tenant_not_found" || booking.error === "service_not_found"
         ? 404
-        : 400;
+        : booking.error === "slot_conflict"
+          ? 409
+          : 400;
     return NextResponse.json({ error: booking.error }, { status });
   }
 

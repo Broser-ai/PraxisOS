@@ -1,18 +1,23 @@
 import Link from "next/link";
+import { cookies } from "next/headers";
 import { notFound } from "next/navigation";
-import { getClient } from "@/lib/clients";
-import { listBookings, statusLabel } from "@/lib/bookings";
+import { SESSION_COOKIE, decodeSession } from "@/lib/auth";
+import { statusLabel } from "@/lib/bookings";
+import { getClientForTenant, listBookingsForTenant } from "@/lib/data/repo";
 import { skinParams, journalEntries } from "@/lib/mock";
 import { SkinScan } from "@/components/SkinScan";
 
 export default async function ClientDetail({ params }: { params: Promise<{ id: string }> }) {
   const { id } = await params;
-  const client = getClient(id);
+  const jar = await cookies();
+  const session = decodeSession(jar.get(SESSION_COOKIE)?.value ?? "");
+  if (!session) notFound();
+  const client = await getClientForTenant(session.tenant, id);
   if (!client) notFound();
 
-  const clientBookings = listBookings({ clientId: id }).sort(
-    (a, b) => new Date(b.startsAt).getTime() - new Date(a.startsAt).getTime()
-  );
+  const clientBookings = (await listBookingsForTenant(session.tenant, { limit: 200 }))
+    .filter((b) => b.clientId === id)
+    .sort((a, b) => new Date(b.startsAt).getTime() - new Date(a.startsAt).getTime());
 
   return (
     <div className="mx-auto max-w-[1180px]">

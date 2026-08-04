@@ -5,6 +5,7 @@ import type { Booking, BookingStatus } from "@/lib/bookings";
 import { bookings as seedBookings } from "@/lib/bookings";
 import type { ClientProfile } from "@/lib/clients";
 import { clientsFull as seedClients } from "@/lib/clients";
+import { hasConflict, toInterval } from "@/lib/calendar";
 import {
   ensureBookingSeed,
   ensureClientSeed,
@@ -48,6 +49,14 @@ export async function listClientsForTenant(tenant: string): Promise<ClientProfil
   }
 
   return readyMemory().clients.filter((c) => c.tenant === tenant);
+}
+
+export async function getClientForTenant(
+  tenant: string,
+  id: string,
+): Promise<ClientProfile | null> {
+  const clients = await listClientsForTenant(tenant);
+  return clients.find((c) => c.id === id) ?? null;
 }
 
 export async function createClientForTenant(
@@ -151,6 +160,14 @@ export async function listBookingsForTenant(
   return list.slice(0, opts?.limit ?? 100);
 }
 
+export async function getBookingForTenant(
+  tenant: string,
+  id: string,
+): Promise<Booking | null> {
+  const list = await listBookingsForTenant(tenant, { limit: 500 });
+  return list.find((b) => b.id === id) ?? null;
+}
+
 export async function createBookingForTenant(
   tenant: string,
   input: {
@@ -169,8 +186,14 @@ export async function createBookingForTenant(
 
   const starts = new Date(input.startsAt);
   if (Number.isNaN(starts.getTime())) return { error: "invalid_startsAt" };
-  const ends = new Date(starts.getTime() + service.durationMin * 60_000);
   const modality = input.modality ?? "Klinik";
+
+  const existing = await listBookingsForTenant(tenant, { limit: 500 });
+  if (
+    hasConflict(toInterval(starts, service.durationMin), existing)
+  ) {
+    return { error: "slot_conflict" };
+  }
 
   // Ensure client exists
   const clients = await listClientsForTenant(tenant);
@@ -342,6 +365,7 @@ export async function signupTenantInSupabase(input: {
   phone?: string;
   contactName: string;
   plan: string;
+  password: string;
 }): Promise<{ tenantId: string; userId: string } | { error: string }> {
   const sb = getServiceSupabase();
   if (!sb) return { error: "supabase_not_configured" };
@@ -409,7 +433,7 @@ export async function signupTenantInSupabase(input: {
     .from("users")
     .insert({
       email: input.email,
-      password_hash: hashPassword("demo"),
+      password_hash: hashPassword(input.password),
       name: input.contactName,
       initials,
       two_fa_enabled: false,

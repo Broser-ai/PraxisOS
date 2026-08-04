@@ -19,6 +19,8 @@ export default function SignupPage() {
     contactName: "",
     slug: "",
     plan: "practice",
+    password: "",
+    passwordConfirm: "",
   });
 
   const slugify = (s: string) =>
@@ -40,11 +42,15 @@ export default function SignupPage() {
             ? "Klinik-slug er optaget — vælg et andet navn."
             : json.error === "email_taken"
               ? "Email er allerede i brug."
-              : json.error ?? "Kunne ikke oprette klinik",
+              : json.error === "weak_password"
+                ? "Password skal være mindst 8 tegn."
+                : json.error ?? "Kunne ikke oprette klinik",
         );
         return;
       }
-      router.push(`/login?created=${encodeURIComponent(data.slug)}&email=${encodeURIComponent(data.email)}`);
+      router.push(
+        `/login?created=${encodeURIComponent(data.slug)}&email=${encodeURIComponent(data.email)}`,
+      );
     } catch {
       setSubmitError("Netværksfejl — prøv igen.");
     } finally {
@@ -130,14 +136,21 @@ export default function SignupPage() {
               <Field label="Navn" value={data.contactName} onChange={(v) => setData({ ...data, contactName: v })} placeholder="Pilar Mortensen" />
               <Field label="E-mail" value={data.email} onChange={(v) => setData({ ...data, email: v })} placeholder="hej@bypilar.dk" type="email" />
               <Field label="Mobil" value={data.phone} onChange={(v) => setData({ ...data, phone: v })} placeholder="+45 93 95 20 41" />
+              <Field label="Password (min. 8 tegn)" value={data.password} onChange={(v) => setData({ ...data, password: v })} placeholder="••••••••" type="password" />
+              <Field label="Gentag password" value={data.passwordConfirm} onChange={(v) => setData({ ...data, passwordConfirm: v })} placeholder="••••••••" type="password" />
             </div>
             <div className="mt-4 rounded-[10px] border border-line bg-paper-2/40 p-3 text-[11.5px] text-ink-soft">
-              I prod: vi sender MitID-bekræftelse til denne mobil og verificerer du er tegningsberettiget for CVR {data.cvr}.
+              Du logger ind med denne e-mail og dit valgte password. MitID-verifikation kommer senere.
             </div>
             <div className="mt-6 flex gap-2">
               <button onClick={() => setStep(1)} className="rounded-[10px] border border-line bg-card px-4 py-2.5 text-[13px]">← Tilbage</button>
               <button
-                disabled={!data.contactName || !data.email}
+                disabled={
+                  !data.contactName ||
+                  !data.email ||
+                  data.password.length < 8 ||
+                  data.password !== data.passwordConfirm
+                }
                 onClick={() => setStep(3)}
                 className="flex-1 rounded-[10px] bg-ink px-4 py-2.5 text-[13.5px] font-medium text-paper disabled:opacity-40"
               >

@@ -1,11 +1,13 @@
 import { NextResponse } from "next/server";
+import { buildAvailabilitySlots } from "@/lib/calendar";
+import { listBookingsForTenant } from "@/lib/data/repo";
 import { getTenant } from "@/lib/tenants";
 
 // GET /api/v1/{tenant}/availability?service=ID&from=YYYY-MM-DD&days=7
-// Returnerer ledige tider — mock-generator, swappes til ægte kalender-engine senere.
+// Ledige tider minus eksisterende (ikke-cancelled) bookings.
 export async function GET(
   req: Request,
-  { params }: { params: Promise<{ tenant: string }> }
+  { params }: { params: Promise<{ tenant: string }> },
 ) {
   const { tenant: slug } = await params;
   const t = getTenant(slug);
@@ -16,32 +18,35 @@ export async function GET(
   const days = Math.min(14, Math.max(1, Number(url.searchParams.get("days") ?? "5")));
   const fromParam = url.searchParams.get("from");
   const service = t.services.find((s) => s.id === serviceId) ?? t.services[0];
+  if (!service) {
+    return NextResponse.json({ error: "service_not_found" }, { status: 404 });
+  }
 
   const from = fromParam ? new Date(fromParam) : new Date();
-  const slots: { day: string; times: string[] }[] = [];
-  for (let i = 0; i < days; i++) {
-    const d = new Date(from);
-    d.setDate(d.getDate() + i);
-    const dow = d.getDay(); // 0 = søndag
-    if (dow === 0) continue; // lukket søndag
-    const isSat = dow === 6;
-    const base = isSat ? ["09:00", "10:30", "12:00", "13:30"] : ["09:00", "10:30", "12:00", "13:30", "15:00", "16:30"];
-    // pseudo-random hul: spring ét slot over på onsdage
-    const times = dow === 3 ? base.slice(1) : base;
-    slots.push({ day: d.toISOString().slice(0, 10), times });
+  if (Number.isNaN(from.getTime())) {
+    return NextResponse.json({ error: "invalid_from" }, { status: 400 });
   }
+
+  const busy = await listBookingsForTenant(slug, { limit: 500 });
+  const slots = buildAvailabilitySlots({
+    from,
+    days,
+    durationMin: service.durationMin,
+    busy,
+  });
 
   return NextResponse.json(
     {
       service: { id: service.id, name: service.name, durationMin: service.durationMin },
       timezone: t.timezone,
       slots,
+      meta: { conflictAware: true, busyCount: busy.filter((b) => b.status !== "cancelled").length },
     },
     {
       headers: {
-        "cache-control": "public, max-age=30",
+        "cache-control": "private, max-age=15",
         "access-control-allow-origin": "*",
       },
-    }
+    },
   );
 }

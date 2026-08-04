@@ -26,7 +26,10 @@ type ApiBooking = {
   modality: Booking["modality"];
   priceKr: number;
   paid: boolean;
+  source?: Booking["source"];
 };
+
+type ServiceOpt = { id: string; name: string; durationMin: number; priceKr: number };
 
 function toBooking(b: ApiBooking, tenant: string): Booking {
   const name = b.client?.name ?? "Klient";
@@ -49,17 +52,39 @@ function toBooking(b: ApiBooking, tenant: string): Booking {
     priceKr: b.priceKr,
     paid: b.paid,
     noShowRisk: 0,
-    source: "admin",
+    source: b.source ?? "admin",
   };
 }
 
 export default function BookingsAdmin() {
   const [tenant, setTenant] = useState<string | null>(null);
   const [rows, setRows] = useState<Booking[]>([]);
+  const [services, setServices] = useState<ServiceOpt[]>([]);
   const [loading, setLoading] = useState(true);
   const [filter, setFilter] = useState<BookingStatus | "all">("all");
   const [search, setSearch] = useState("");
   const [backend, setBackend] = useState<string>("");
+  const [showCreate, setShowCreate] = useState(false);
+  const [creating, setCreating] = useState(false);
+  const [createError, setCreateError] = useState<string | null>(null);
+  const [form, setForm] = useState({
+    name: "",
+    email: "",
+    phone: "",
+    serviceId: "",
+    startsAt: "",
+    modality: "Klinik" as Booking["modality"],
+    notes: "",
+  });
+
+  const reload = async (tenantSlug: string) => {
+    const res = await fetch(`/api/v1/${tenantSlug}/bookings/list?limit=100`, {
+      credentials: "include",
+    });
+    const json = await res.json();
+    setBackend(json.meta?.backend ?? "");
+    setRows((json.data ?? []).map((b: ApiBooking) => toBooking(b, tenantSlug)));
+  };
 
   useEffect(() => {
     let cancelled = false;
@@ -72,13 +97,16 @@ export default function BookingsAdmin() {
           return;
         }
         setTenant(me.tenant);
-        const res = await fetch(`/api/v1/${me.tenant}/bookings/list?limit=100`, {
-          credentials: "include",
-        });
-        const json = await res.json();
-        if (cancelled) return;
-        setBackend(json.meta?.backend ?? "");
-        setRows((json.data ?? []).map((b: ApiBooking) => toBooking(b, me.tenant)));
+        const meRes = await fetch("/api/auth/me", { credentials: "include" });
+        const meJson = await meRes.json();
+        if (!cancelled) {
+          const svcs = (meJson.services ?? []) as ServiceOpt[];
+          setServices(svcs);
+          if (svcs[0] && !form.serviceId) {
+            setForm((f) => ({ ...f, serviceId: svcs[0]!.id }));
+          }
+        }
+        await reload(me.tenant);
       } catch {
         if (!cancelled) setRows([]);
       } finally {
@@ -88,6 +116,7 @@ export default function BookingsAdmin() {
     return () => {
       cancelled = true;
     };
+    // eslint-disable-next-line react-hooks/exhaustive-deps -- bootstrap once
   }, []);
 
   const filtered = useMemo(() => {
@@ -116,6 +145,51 @@ export default function BookingsAdmin() {
     return c;
   }, [rows]);
 
+  const submitCreate = async () => {
+    if (!tenant) return;
+    setCreating(true);
+    setCreateError(null);
+    try {
+      const startsAt = new Date(form.startsAt).toISOString();
+      const res = await fetch(`/api/v1/${tenant}/bookings`, {
+        method: "POST",
+        credentials: "include",
+        headers: { "content-type": "application/json" },
+        body: JSON.stringify({
+          serviceId: form.serviceId,
+          startsAt,
+          modality: form.modality,
+          notes: form.notes || undefined,
+          client: { name: form.name, email: form.email, phone: form.phone || undefined },
+          source: "admin",
+        }),
+      });
+      const json = await res.json();
+      if (!res.ok) {
+        setCreateError(
+          json.error === "slot_conflict"
+            ? "Tidspunktet er optaget — vælg en anden tid."
+            : (json.error ?? "Kunne ikke oprette booking"),
+        );
+        return;
+      }
+      setShowCreate(false);
+      setForm((f) => ({
+        ...f,
+        name: "",
+        email: "",
+        phone: "",
+        startsAt: "",
+        notes: "",
+      }));
+      await reload(tenant);
+    } catch {
+      setCreateError("Netværksfejl");
+    } finally {
+      setCreating(false);
+    }
+  };
+
   return (
     <div className="mx-auto max-w-[1280px]">
       <div className="rise flex flex-wrap items-end justify-between gap-3">
@@ -128,14 +202,124 @@ export default function BookingsAdmin() {
           <h1 className="display mt-2 text-[30px] font-semibold leading-none">Bookings</h1>
         </div>
         <div className="flex items-center gap-2">
-          <button type="button" className="btn btn-ghost">
+          <button type="button" className="btn btn-ghost" disabled>
             Eksportér CSV
           </button>
-          <button type="button" className="btn btn-primary">
+          <button
+            type="button"
+            className="btn btn-primary"
+            onClick={() => {
+              setCreateError(null);
+              setShowCreate(true);
+            }}
+          >
             + Manuel booking
           </button>
         </div>
       </div>
+
+      {showCreate && (
+        <div className="card rise mt-4 p-5">
+          <div className="kicker">Manuel booking</div>
+          <div className="mt-3 grid gap-3 md:grid-cols-3">
+            <label className="block text-[12px]">
+              <span className="kicker">Klientnavn</span>
+              <input
+                className="mt-1 w-full rounded-[10px] border border-line-2 bg-card px-3 py-2 text-[13px]"
+                value={form.name}
+                onChange={(e) => setForm({ ...form, name: e.target.value })}
+              />
+            </label>
+            <label className="block text-[12px]">
+              <span className="kicker">E-mail</span>
+              <input
+                type="email"
+                className="mt-1 w-full rounded-[10px] border border-line-2 bg-card px-3 py-2 text-[13px]"
+                value={form.email}
+                onChange={(e) => setForm({ ...form, email: e.target.value })}
+              />
+            </label>
+            <label className="block text-[12px]">
+              <span className="kicker">Telefon</span>
+              <input
+                className="mt-1 w-full rounded-[10px] border border-line-2 bg-card px-3 py-2 text-[13px]"
+                value={form.phone}
+                onChange={(e) => setForm({ ...form, phone: e.target.value })}
+              />
+            </label>
+            <label className="block text-[12px]">
+              <span className="kicker">Ydelse</span>
+              <select
+                className="mt-1 w-full rounded-[10px] border border-line-2 bg-card px-3 py-2 text-[13px]"
+                value={form.serviceId}
+                onChange={(e) => setForm({ ...form, serviceId: e.target.value })}
+              >
+                {services.map((s) => (
+                  <option key={s.id} value={s.id}>
+                    {s.name} · {s.durationMin} min · {s.priceKr} kr
+                  </option>
+                ))}
+              </select>
+            </label>
+            <label className="block text-[12px]">
+              <span className="kicker">Start</span>
+              <input
+                type="datetime-local"
+                className="mt-1 w-full rounded-[10px] border border-line-2 bg-card px-3 py-2 text-[13px]"
+                value={form.startsAt}
+                onChange={(e) => setForm({ ...form, startsAt: e.target.value })}
+              />
+            </label>
+            <label className="block text-[12px]">
+              <span className="kicker">Modality</span>
+              <select
+                className="mt-1 w-full rounded-[10px] border border-line-2 bg-card px-3 py-2 text-[13px]"
+                value={form.modality}
+                onChange={(e) =>
+                  setForm({ ...form, modality: e.target.value as Booking["modality"] })
+                }
+              >
+                <option value="Klinik">Klinik</option>
+                <option value="Hjemmebesøg">Hjemmebesøg</option>
+                <option value="Video">Video</option>
+              </select>
+            </label>
+          </div>
+          <label className="mt-3 block text-[12px]">
+            <span className="kicker">Note</span>
+            <input
+              className="mt-1 w-full rounded-[10px] border border-line-2 bg-card px-3 py-2 text-[13px]"
+              value={form.notes}
+              onChange={(e) => setForm({ ...form, notes: e.target.value })}
+            />
+          </label>
+          {createError && <p className="mt-3 text-[13px] text-clay">{createError}</p>}
+          <div className="mt-4 flex gap-2">
+            <button
+              type="button"
+              className="btn btn-ghost"
+              onClick={() => setShowCreate(false)}
+              disabled={creating}
+            >
+              Annuller
+            </button>
+            <button
+              type="button"
+              className="btn btn-primary"
+              disabled={
+                creating ||
+                !form.name ||
+                !form.email ||
+                !form.serviceId ||
+                !form.startsAt
+              }
+              onClick={() => void submitCreate()}
+            >
+              {creating ? "Gemmer…" : "Opret booking"}
+            </button>
+          </div>
+        </div>
+      )}
 
       <div className="rise mt-6 flex flex-wrap items-center gap-2">
         <div className="flex items-center gap-1 rounded-[10px] border border-line-2 bg-card p-0.5 text-[12px]">

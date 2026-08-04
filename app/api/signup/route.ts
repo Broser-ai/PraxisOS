@@ -14,6 +14,7 @@ type SignupBody = {
   contactName?: string;
   slug?: string;
   plan?: string;
+  password?: string;
 };
 
 function slugify(s: string): string {
@@ -25,7 +26,7 @@ function slugify(s: string): string {
 }
 
 /**
- * POST /api/signup — creates tenant + owner account.
+ * POST /api/signup — creates tenant + owner account with chosen password.
  * Uses Supabase when service role is configured; otherwise durable memory.
  */
 export async function POST(req: Request) {
@@ -47,9 +48,13 @@ export async function POST(req: Request) {
   const plan = body.plan || "practice";
   const phone = body.phone?.trim() ?? "";
   const address = body.address?.trim() ?? "";
+  const password = body.password ?? "";
 
-  if (!legalName || !email || !contactName || !slug) {
+  if (!legalName || !email || !contactName || !slug || !password) {
     return NextResponse.json({ error: "missing_fields" }, { status: 400 });
+  }
+  if (password.length < 8) {
+    return NextResponse.json({ error: "weak_password" }, { status: 400 });
   }
   if (!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email)) {
     return NextResponse.json({ error: "invalid_email" }, { status: 400 });
@@ -79,6 +84,7 @@ export async function POST(req: Request) {
       phone,
       contactName,
       plan,
+      password,
     });
     if ("error" in result) {
       recordAttempt(ip, email, false);
@@ -88,7 +94,6 @@ export async function POST(req: Request) {
           : 500;
       return NextResponse.json({ error: result.error, slug }, { status });
     }
-    // Also register in memory so brand/UI getTenant works in same process.
     if (!getTenant(slug)) {
       registerTenant({
         slug,
@@ -100,7 +105,12 @@ export async function POST(req: Request) {
         contactName,
         plan,
       });
-      registerOwnerAccount({ email, name: contactName, tenantSlug: slug });
+      registerOwnerAccount({
+        email,
+        name: contactName,
+        tenantSlug: slug,
+        password,
+      });
     }
     recordAttempt(ip, email, true);
     return NextResponse.json(
@@ -108,8 +118,8 @@ export async function POST(req: Request) {
         success: true,
         backend: dataBackend(),
         tenant: { slug, id: result.tenantId },
-        owner: { id: result.userId, email, temporaryPassword: "demo" },
-        loginHint: "Log ind med email + password 'demo'",
+        owner: { id: result.userId, email },
+        loginHint: "Log ind med den e-mail og det password du valgte.",
       },
       { status: 201 },
     );
@@ -139,6 +149,7 @@ export async function POST(req: Request) {
     email,
     name: contactName,
     tenantSlug: slug,
+    password,
   });
   if ("error" in owner) {
     recordAttempt(ip, email, false);
@@ -151,8 +162,8 @@ export async function POST(req: Request) {
       success: true,
       backend: dataBackend(),
       tenant: { slug: tenantResult.slug, legalName: tenantResult.legalName },
-      owner: { id: owner.id, email: owner.email, temporaryPassword: "demo" },
-      loginHint: "Log ind med email + password 'demo'",
+      owner: { id: owner.id, email: owner.email },
+      loginHint: "Log ind med den e-mail og det password du valgte.",
     },
     { status: 201 },
   );

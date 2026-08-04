@@ -100,14 +100,17 @@ export function getAccountByEmail(email: string): Account | undefined {
   return accounts.find((a) => a.email.toLowerCase() === email.toLowerCase());
 }
 
-/** Opretter owner-konto til ny tenant (memory). Password default "demo". */
+/** Opretter owner-konto til ny tenant (memory). Password er påkrævet fra signup. */
 export function registerOwnerAccount(input: {
   email: string;
   name: string;
   tenantSlug: string;
-  password?: string;
+  password: string;
 }): Account | { error: string } {
   if (getAccountByEmail(input.email)) return { error: "email_taken" };
+  if (!input.password || input.password.length < 8) {
+    return { error: "weak_password" };
+  }
   const parts = input.name.trim().split(/\s+/);
   const initials =
     ((parts[0]?.[0] ?? "") + (parts[parts.length - 1]?.[0] ?? "")).toUpperCase() ||
@@ -115,7 +118,7 @@ export function registerOwnerAccount(input: {
   const account: Account = {
     id: "acc_" + Math.random().toString(36).slice(2, 10),
     email: input.email.toLowerCase(),
-    passwordHash: hashPassword(input.password ?? DEMO_PASSWORD),
+    passwordHash: hashPassword(input.password),
     name: input.name.trim(),
     initials,
     tenants: [{ slug: input.tenantSlug, role: "owner" }],

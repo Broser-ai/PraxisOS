@@ -29,5 +29,11 @@ export async function GET(req: NextRequest) {
     initials: account?.initials ?? null,
     tenants: account?.tenants ?? [{ slug: session.tenant, role: session.role }],
     tenantName: tenant?.legalName ?? session.tenant,
+    services: (tenant?.services ?? []).map((s) => ({
+      id: s.id,
+      name: s.name,
+      durationMin: s.durationMin,
+      priceKr: s.priceKr,
+    })),
   });
 }
