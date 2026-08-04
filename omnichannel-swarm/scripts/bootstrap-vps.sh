@@ -35,7 +35,7 @@ if ! command -v docker >/dev/null 2>&1; then
   systemctl enable --now docker
 fi
 docker --version
-make --version | head -1
+make --version >/dev/null
 
 # Locate swarm dir
 SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
