@@ -80,7 +80,8 @@ Hver integration har en `lib/*.ts` modul og en `/admin/*` side der viser status.
 | **MitID broker** | `lib/auth.ts` | stub | Trust-aftale m. Idura/Signaturgruppen · client_id |
 | **DAWA** | `app/api/dawa/` | live | Ingen aktion · public API |
 | **CVR (cvrapi.dk)** | `app/api/cvr/` | live | 1000 lookups/dag · upgrade ved skalering |
-| **NemSMS** | `lib/nemsms.ts` | stub | KOMBIT-onboarding · eller Bird.com |
+| **Bird.com SMS** | `lib/bird.ts` · `/api/bird/*` | klar (kræver env) | `BIRD_API_KEY` + `BIRD_SMS_FROM` fra app.bird.com |
+| **NemSMS** | `lib/nemsms.ts` | stub / parkér | KOMBIT kun hvis Bird ikke dækker behov |
 | **MedCom** | `lib/reporting.ts` | stub | EAN-adresse · VANS-aftale · ca. 8 uger |
 | **FMK / NSP** | `app/(internal)/admin/sundhed-dk/` | stub | Sundhedsdatastyrelsens trustaftale · 6 uger |
 | **Sygeforsikringen "danmark"** | `lib/reporting.ts` | stub | Webservice-aftale · UN/EDIFACT D04A |

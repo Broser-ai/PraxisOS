@@ -25,9 +25,9 @@ export default function NemSmsAdmin() {
       <div className="rise flex flex-wrap items-end justify-between gap-3">
         <div>
           <Link href="/admin/tenants" className="kicker hover:underline">← Tenants</Link>
-          <h1 className="display mt-2 text-[30px] font-semibold leading-none">NemSMS</h1>
+          <h1 className="display mt-2 text-[30px] font-semibold leading-none">NemSMS / Bird</h1>
           <p className="mt-2 text-[13.5px] text-muted">
-            Officiel sundheds-SMS via Sundhedsdatanettet · KOMBIT-registreret afsender-ID · gratis for borger.
+            NemSMS (KOMBIT) er stub. Live SMS går via Bird.com — sæt <span className="mono">BIRD_API_KEY</span> og se status på <span className="mono">/api/bird/status</span>.
           </p>
         </div>
         <button className="btn btn-ghost">Templates →</button>
