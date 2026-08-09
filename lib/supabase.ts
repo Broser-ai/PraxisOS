@@ -3,7 +3,7 @@
 // Tre modes styres af env.PRAXIS_DB:
 //   - "mock"        : returnerer fra in-memory mock (default i prototypen)
 //   - "supabase-local": kører mod lokal Supabase via supabase CLI (localhost:54321)
-//   - "supabase-eu" : kører mod produktion (eu-central-1)
+//   - "supabase-eu" : kører mod produktion (eu-west-1 · Ireland)
 //
 // Alle API-routes kan kalde getDb() og få samme interface — det er kun storage-laget
 // der skifter når vi går fra prototype → ægte backend.
@@ -45,8 +45,9 @@ export const DB_CONFIGS: Record<DbMode, DbConfig> = {
   },
   "supabase-eu": {
     mode: "supabase-eu",
-    url: "https://[project].supabase.co",
-    region: "eu-central-1 · Frankfurt",
+    // Faktisk projekt: jajdtvduzkitjzcazcng · eu-west-1 (Ireland). Vercel edge kører i fra1 (Frankfurt).
+    url: process.env.SUPABASE_URL || process.env.NEXT_PUBLIC_SUPABASE_URL || "https://jajdtvduzkitjzcazcng.supabase.co",
+    region: "eu-west-1 · Ireland",
     rlsEnabled: true,
     poolMin: 5,
     poolMax: 50,

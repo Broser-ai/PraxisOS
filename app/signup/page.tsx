@@ -1,11 +1,15 @@
 "use client";
 
 import Link from "next/link";
+import { useRouter } from "next/navigation";
 import { useState } from "react";
 import { CvrLookup } from "@/components/CvrLookup";
 
 export default function SignupPage() {
+  const router = useRouter();
   const [step, setStep] = useState<1 | 2 | 3>(1);
+  const [submitting, setSubmitting] = useState(false);
+  const [error, setError] = useState<string | null>(null);
   const [data, setData] = useState({
     cvr: "",
     legalName: "",
@@ -19,6 +23,36 @@ export default function SignupPage() {
 
   const slugify = (s: string) =>
     s.toLowerCase().replace(/[^a-z0-9]+/g, "-").replace(/^-|-$/g, "").slice(0, 32);
+
+  const submit = async () => {
+    setSubmitting(true);
+    setError(null);
+    try {
+      const res = await fetch("/api/signup", {
+        method: "POST",
+        headers: { "content-type": "application/json" },
+        body: JSON.stringify(data),
+      });
+      const json = await res.json();
+      if (!res.ok) {
+        const messages: Record<string, string> = {
+          slug_taken: `Slug «${data.slug}» er optaget — vælg et andet.`,
+          email_taken: "E-mailen er allerede i brug.",
+          invalid_cvr: "CVR skal være 8 cifre.",
+          invalid_email: "Ugyldig e-mail.",
+          missing_fields: "Udfyld alle påkrævede felter.",
+          rate_limited: "For mange forsøg — prøv igen om lidt.",
+        };
+        setError(messages[json.error] ?? `Kunne ikke oprette klinik (${json.error ?? res.status}).`);
+        return;
+      }
+      router.push(json.next?.onboardingUrl ?? `/t/${data.slug}/onboarding`);
+    } catch {
+      setError("Netværksfejl — prøv igen.");
+    } finally {
+      setSubmitting(false);
+    }
+  };
 
   return (
     <div className="min-h-screen bg-paper">
@@ -155,16 +189,20 @@ export default function SignupPage() {
               </div>
             </div>
 
+            {error && (
+              <div className="mt-4 rounded-[10px] border border-line bg-paper-2/60 px-3 py-2 text-[12px] text-clay">
+                {error}
+              </div>
+            )}
+
             <div className="mt-6 flex gap-2">
               <button onClick={() => setStep(2)} className="rounded-[10px] border border-line bg-card px-4 py-2.5 text-[13px]">← Tilbage</button>
               <button
-                onClick={() => {
-                  // I prod: POST /api/signup → opretter tenant + sender invite
-                  alert(`Tenant '${data.slug}' oprettet (mock).\n\nI prod sender vi MitID-invite til ${data.phone}.`);
-                }}
-                className="flex-1 rounded-[10px] bg-ink px-4 py-2.5 text-[13.5px] font-medium text-paper"
+                disabled={submitting}
+                onClick={submit}
+                className="flex-1 rounded-[10px] bg-ink px-4 py-2.5 text-[13.5px] font-medium text-paper disabled:opacity-40"
               >
-                Opret klinik
+                {submitting ? "Opretter…" : "Opret klinik"}
               </button>
             </div>
           </div>

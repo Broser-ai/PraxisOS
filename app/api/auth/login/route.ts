@@ -70,7 +70,7 @@ export async function POST(req: Request) {
   res.cookies.set(SESSION_COOKIE, session, {
     httpOnly: true,
     sameSite: "lax",
-    secure: false,
+    secure: process.env.NODE_ENV === "production",
     maxAge: 60 * 60 * 8,
     path: "/",
   });

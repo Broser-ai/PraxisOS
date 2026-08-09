@@ -1,0 +1,29 @@
+# PraxisOS · self-host on Hetzner (binds 0.0.0.0:$PORT for Render/Docker norms)
+services:
+  praxisos:
+    build: .
+    image: praxisos:local
+    container_name: praxisos_app
+    restart: unless-stopped
+    ports:
+      - "${PRAXIS_HOST_PORT:-3010}:3000"
+    env_file:
+      - .env.production
+    environment:
+      PORT: "3000"
+      HOSTNAME: "0.0.0.0"
+      NEXT_PUBLIC_BASE_URL: ${NEXT_PUBLIC_BASE_URL:-http://167.233.171.184:3010}
+    labels:
+      - "traefik.enable=true"
+      - "traefik.http.routers.praxisos.rule=Host(`app.bypilar.dk`) || Host(`praxis.bypilar.dk`) || PathPrefix(`/praxis`)"
+      - "traefik.http.routers.praxisos.entrypoints=web"
+      - "traefik.http.services.praxisos.loadbalancer.server.port=3000"
+      - "traefik.docker.network=omni_net"
+    networks:
+      - default
+      - omni_net
+
+networks:
+  omni_net:
+    external: true
+    name: omni_net
