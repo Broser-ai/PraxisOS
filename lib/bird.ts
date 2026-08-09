@@ -22,10 +22,18 @@ export type BirdSendSmsResult =
 
 function birdConfig() {
   const apiKey = process.env.BIRD_API_KEY?.trim() ?? "";
-  const apiBase = (process.env.BIRD_API_BASE?.trim() || "https://eu1.platform.bird.com").replace(/\/$/, "");
+  // Workspace access keys (app.bird.com) use AccessKey; platform keys bk_eu1_/bk_us1_ use Bearer.
+  const authMode =
+    (process.env.BIRD_AUTH_MODE?.trim() as "bearer" | "accesskey" | undefined) ||
+    (apiKey.startsWith("bk_") ? "bearer" : "accesskey");
+  const defaultBase =
+    authMode === "accesskey" ? "https://api.bird.com" : "https://eu1.platform.bird.com";
+  const apiBase = (process.env.BIRD_API_BASE?.trim() || defaultBase).replace(/\/$/, "");
   const from = process.env.BIRD_SMS_FROM?.trim() || "PraxisOS";
   const defaultCategory = (process.env.BIRD_SMS_CATEGORY?.trim() || "transactional") as BirdSmsCategory;
-  return { apiKey, apiBase, from, defaultCategory };
+  const workspaceId = process.env.BIRD_WORKSPACE_ID?.trim() || "";
+  const channelId = process.env.BIRD_SMS_CHANNEL_ID?.trim() || "";
+  return { apiKey, apiBase, from, defaultCategory, authMode, workspaceId, channelId };
 }
 
 export function isBirdConfigured(): boolean {
@@ -33,12 +41,15 @@ export function isBirdConfigured(): boolean {
 }
 
 export function getBirdPublicStatus() {
-  const { apiKey, apiBase, from, defaultCategory } = birdConfig();
+  const { apiKey, apiBase, from, defaultCategory, authMode, workspaceId, channelId } = birdConfig();
   return {
     configured: Boolean(apiKey),
     apiBase,
     from,
     defaultCategory,
+    authMode,
+    workspaceReady: Boolean(workspaceId),
+    channelReady: Boolean(channelId),
     keyHint: apiKey ? `${apiKey.slice(0, 4)}…${apiKey.slice(-4)}` : null,
   };
 }
@@ -54,7 +65,8 @@ export function normalizePhoneE164(input: string, defaultCountry = "45"): string
 }
 
 export async function sendBirdSms(input: BirdSendSmsInput): Promise<BirdSendSmsResult> {
-  const { apiKey, apiBase, from: defaultFrom, defaultCategory } = birdConfig();
+  const { apiKey, apiBase, from: defaultFrom, defaultCategory, authMode, workspaceId, channelId } =
+    birdConfig();
   if (!apiKey) {
     return { ok: false, error: "BIRD_API_KEY mangler i miljøvariabler" };
   }
@@ -67,10 +79,41 @@ export async function sendBirdSms(input: BirdSendSmsInput): Promise<BirdSendSmsR
   if (!text) return { ok: false, error: "Tom besked" };
 
   try {
+    if (authMode === "accesskey" && workspaceId && channelId) {
+      // Channels API (workspace access keys from app.bird.com)
+      const res = await fetch(
+        `${apiBase}/workspaces/${workspaceId}/channels/${channelId}/messages`,
+        {
+          method: "POST",
+          headers: {
+            Authorization: `AccessKey ${apiKey}`,
+            "Content-Type": "application/json",
+            Accept: "application/json",
+          },
+          body: JSON.stringify({
+            receiver: { contacts: [{ identifierValue: to }] },
+            body: { type: "text", text: { text } },
+          }),
+        },
+      );
+      const raw: unknown = await res.json().catch(() => null);
+      if (!res.ok) {
+        const message = extractBirdError(raw) || `Bird HTTP ${res.status}`;
+        return { ok: false, error: message, statusCode: res.status, raw };
+      }
+      return {
+        ok: true,
+        id: extractId(raw) ?? "unknown",
+        status: extractStatus(raw) ?? "accepted",
+        raw,
+      };
+    }
+
+    // Platform SMS API (Bearer bk_* keys)
     const res = await fetch(`${apiBase}/v1/sms/messages`, {
       method: "POST",
       headers: {
-        Authorization: `Bearer ${apiKey}`,
+        Authorization: authMode === "accesskey" ? `AccessKey ${apiKey}` : `Bearer ${apiKey}`,
         "Content-Type": "application/json",
         Accept: "application/json",
       },
