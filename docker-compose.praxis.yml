@@ -16,6 +16,7 @@ services:
       PRAXIS_DATA_DIR: /data
     volumes:
       - praxis_data:/data
+    user: "0:0"
     labels:
       - "traefik.enable=true"
       - "traefik.http.routers.praxisos.rule=Host(`app.bypilar.dk`) || Host(`praxis.bypilar.dk`) || PathPrefix(`/praxis`)"
