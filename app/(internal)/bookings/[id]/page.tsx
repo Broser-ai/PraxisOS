@@ -2,11 +2,13 @@ import Link from "next/link";
 import { notFound } from "next/navigation";
 import { getBooking, statusLabel, sourceLabel } from "@/lib/bookings";
 import { calcFee, TENANT_PAYMENT_CONFIG } from "@/lib/payments";
+import { getJournalByBooking, statusLabel as journalStatusLabel } from "@/lib/journal";
 
 export default async function BookingDetail({ params }: { params: Promise<{ id: string }> }) {
   const { id } = await params;
   const b = getBooking(id);
   if (!b) notFound();
+  const journal = getJournalByBooking(b.id);
 
   const d = new Date(b.startsAt);
   const dateLong = d.toLocaleDateString("da-DK", { weekday: "long", day: "numeric", month: "long", year: "numeric" });
@@ -140,15 +142,24 @@ export default async function BookingDetail({ params }: { params: Promise<{ id: 
                   <button className="btn btn-ghost justify-center">Ring til klient</button>
                 </>
               )}
-              {b.status === "completed" && (
-                <>
-                  <button className="btn btn-ghost justify-center">Åbn journal-note</button>
-                  <button className="btn btn-ghost justify-center">Send review-anmodning</button>
-                </>
+              {journal ? (
+                <Link href={`/journal/${journal.id}`} className="btn btn-primary justify-center">
+                  Åbn journal · {journalStatusLabel[journal.status].label}
+                </Link>
+              ) : (
+                <Link href={`/scribe?booking=${b.id}`} className="btn btn-primary justify-center">
+                  Opret journal (AI Scribe)
+                </Link>
               )}
-              <button className="btn btn-ghost justify-center">
-                <Link href={`/r/${b.id}`} target="_blank" className="flex items-center gap-1.5">Vis kvittering →</Link>
-              </button>
+              {b.status === "completed" && (
+                <button className="btn btn-ghost justify-center">Send review-anmodning</button>
+              )}
+              <Link href={`/scribe?booking=${b.id}`} className="btn btn-ghost justify-center">
+                AI Scribe →
+              </Link>
+              <Link href={`/r/${b.id}`} target="_blank" className="btn btn-ghost justify-center">
+                Vis kvittering →
+              </Link>
             </div>
           </section>
 

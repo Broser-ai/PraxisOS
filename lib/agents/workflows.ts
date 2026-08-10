@@ -13,6 +13,7 @@ import {
 import { runAgent } from "@/lib/agents/runtime";
 import { listBookings } from "@/lib/bookings";
 import { listClients } from "@/lib/clients";
+import { ensureJournalForBooking, getJournalByBooking } from "@/lib/journal";
 
 export type WorkflowSchedule = "hourly" | "daily" | "weekly" | "on_event" | "manual";
 
@@ -70,15 +71,28 @@ export const WORKFLOWS: WorkflowDef[] = [
     },
   },
   {
+    id: "wf_journal_on_complete",
+    name: "Journal · efter behandling",
+    description: "Når booking completed: opret journalpost + Niels SOAP-udkast.",
+    agents: ["niels"],
+    schedule: "on_event",
+    eventTypes: ["booking.completed"],
+    enabled: true,
+    prompt: ({ event, tenant }) => {
+      const bookingId = String(event?.data?.bookingId ?? "");
+      return `Booking completed i ${tenant}${bookingId ? ` (${bookingId})` : ""}. Sørg for journalpost + SOAP-udkast til godkendelse via draft_soap_note (clientId/bookingId fra event). Event: ${JSON.stringify(event?.data ?? {})}`;
+    },
+  },
+  {
     id: "wf_post_visit",
     name: "Efter besøg",
-    description: "Efter completed: Magnus review-udkast + Liv check-in.",
+    description: "Efter signeret journal / completed: Magnus review-udkast + Liv check-in.",
     agents: ["magnus", "liv"],
     schedule: "on_event",
-    eventTypes: ["booking.completed", "journal.note_signed"],
+    eventTypes: ["journal.note_signed"],
     enabled: true,
     prompt: ({ event }) =>
-      `Besøg afsluttet: ${JSON.stringify(event?.data ?? {})}. Magnus: review-forespørgsel (kræver approve). Liv: venlig check-in uden medicinske råd.`,
+      `Journal signeret: ${JSON.stringify(event?.data ?? {})}. Magnus: review-forespørgsel (kræver approve). Liv: venlig check-in uden medicinske råd.`,
   },
   {
     id: "wf_subsidy_daily",
@@ -277,6 +291,17 @@ export async function dispatchEventToWorkflows(event: PraxisEvent) {
   const results = [];
   dispatchDepth += 1;
   try {
+    // Side-effect: opret journalpost før Niels-workflow
+    if (event.type === "booking.completed") {
+      const bookingId = String(event.data?.bookingId ?? "");
+      if (bookingId && !getJournalByBooking(bookingId)) {
+        try {
+          await ensureJournalForBooking(bookingId);
+        } catch (err) {
+          console.error("[workflows] ensureJournalForBooking", err);
+        }
+      }
+    }
     for (const wf of matches) {
       results.push(await runWorkflow(wf.id, { event, tenant: event.tenant }));
     }

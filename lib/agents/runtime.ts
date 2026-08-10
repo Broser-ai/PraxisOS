@@ -123,12 +123,16 @@ async function heuristicReply(
     }
     case "niels": {
       const client = listClients()[0];
+      const bookingMatch = message.match(/bk_[a-z0-9]+/i);
       const draft = await call("draft_soap_note", {
         clientId: client?.id ?? "mette",
+        bookingId: bookingMatch?.[0],
+        tenant,
         transcript: message,
       });
+      const data = draft.data as any;
       return {
-        reply: `SOAP-udkast klar for ${client?.name ?? "patient"} — afventer din godkendelse (approval ${draft.approvalId ?? "—"}).\n\nS: ${(draft.data as any)?.S}\nO: ${(draft.data as any)?.O}\nA: ${(draft.data as any)?.A}\nP: ${(draft.data as any)?.P}\n\n${agent.signature.replace("{clinic}", tenant)}`,
+        reply: `SOAP-udkast klar for ${data?.clientId ?? client?.name ?? "patient"} — journal ${data?.journalId ?? "—"}${data?.url ? ` (${data.url})` : ""}. Afventer godkendelse (approval ${draft.approvalId ?? "—"}).\n\nS: ${data?.S}\nO: ${data?.O}\nA: ${data?.A}\nP: ${data?.P}\n\n${agent.signature.replace("{clinic}", tenant)}`,
         toolCalls,
       };
     }

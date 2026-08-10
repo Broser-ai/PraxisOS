@@ -2,6 +2,7 @@ import { NextResponse } from "next/server";
 import { decideApproval, listApprovals, getRun } from "@/lib/agent-store";
 import { publishEvent } from "@/lib/event-bus";
 import { sendBirdSms, isBirdConfigured } from "@/lib/bird";
+import { signJournalEntry } from "@/lib/journal";
 
 export const runtime = "nodejs";
 
@@ -26,6 +27,20 @@ export async function POST(req: Request) {
 
   const approval = decideApproval(body.id, body.decision, body.decidedBy ?? "clinic-owner");
   if (!approval) return NextResponse.json({ error: "not_found_or_decided" }, { status: 404 });
+
+  if (body.decision === "approved" && approval.action === "journal.sign_soap") {
+    const journalId = String(approval.payload.journalId ?? "");
+    if (journalId) {
+      try {
+        await signJournalEntry(journalId, {
+          signedBy: body.decidedBy ?? "clinic-owner",
+          soap: (approval.payload.soap as any) ?? undefined,
+        });
+      } catch {
+        // already signed or missing — ignore
+      }
+    }
+  }
 
   // Side-effect: if marketing SMS was approved and Bird is ready, send it
   if (

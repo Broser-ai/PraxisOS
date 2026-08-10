@@ -9,6 +9,13 @@ import { AGENTS, getAgent, routeMessage, type AgentId } from "@/lib/agents";
 import { sendBirdSms, isBirdConfigured } from "@/lib/bird";
 import { publishEvent, listEvents } from "@/lib/event-bus";
 import { createApproval } from "@/lib/agent-store";
+import {
+  createJournalEntry,
+  draftSoapForEntry,
+  listJournal,
+  getJournalByBooking,
+  ensureJournalForBooking,
+} from "@/lib/journal";
 
 export type ToolResult = {
   ok: boolean;
@@ -282,31 +289,65 @@ export async function executeMcpTool(
 
     case "draft_soap_note": {
       const clientId = asString(args.clientId);
-      const c = getClient(clientId);
       const transcript = asString(args.transcript, "");
-      const draft = {
-        S: transcript
-          ? `Patient rapporterer: ${transcript.slice(0, 280)}`
-          : `${c?.name ?? "Patient"} beskriver aktuelle symptomer (udkast).`,
-        O: "Klinisk observation afventer behandler-bekræftelse.",
-        A: "Vurdering afventer faglig godkendelse.",
-        P: "Plan foreslået — kræver signatur af behandler.",
-        suggestedICD: ["L70.0"],
-        clientId,
-        status: "draft_pending_approval",
-      };
+      const bookingId = asString(args.bookingId) || undefined;
+      const tenant = asString(args.tenant, ctx?.tenant ?? "bypilar");
+      let entry = bookingId ? getJournalByBooking(bookingId) : undefined;
+      if (!entry && bookingId) {
+        entry = await ensureJournalForBooking(bookingId);
+      }
+      if (!entry) {
+        entry = await createJournalEntry({
+          tenant,
+          clientId: clientId || "mette",
+          bookingId,
+          transcript,
+          aiDrafted: true,
+          draftedBy: "niels",
+        });
+      }
+      entry = await draftSoapForEntry(entry.id, { transcript: transcript || undefined });
       const approval = createApproval({
         runId: ctx?.runId ?? "manual",
         agentId: ctx?.agentId ?? "niels",
-        tenant: ctx?.tenant ?? "bypilar",
+        tenant: entry.tenant,
         action: "journal.sign_soap",
-        payload: draft,
+        payload: { journalId: entry.id, soap: entry.soap, codes: entry.codes },
       });
       return {
         ok: true,
-        data: draft,
+        data: {
+          journalId: entry.id,
+          ...entry.soap,
+          suggestedICD: entry.codes,
+          clientId: entry.clientId,
+          bookingId: entry.bookingId,
+          status: "draft_pending_approval",
+          url: `/journal/${entry.id}`,
+        },
         requiresApproval: true,
         approvalId: approval.id,
+      };
+    }
+
+    case "list_journal": {
+      const tenant = asString(args.tenant, "bypilar");
+      const clientId = asString(args.clientId) || undefined;
+      const rows = listJournal({ tenant, clientId, limit: asNumber(args.limit, 25) });
+      return {
+        ok: true,
+        data: {
+          count: rows.length,
+          entries: rows.map((e) => ({
+            id: e.id,
+            clientName: e.clientName,
+            service: e.service,
+            status: e.status,
+            visitAt: e.visitAt,
+            bookingId: e.bookingId,
+            aiDrafted: e.aiDrafted,
+          })),
+        },
       };
     }
 

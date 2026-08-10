@@ -30,6 +30,7 @@ export const AGENT_TOOL_MAP: Record<AgentId, string[]> = {
     "get_client",
     "list_clients",
     "draft_soap_note",
+    "list_journal",
     "interpret_foot_scan",
     "list_bookings",
     "ask_agent",

@@ -10,6 +10,7 @@ const nav = [
   { href: "/kalender", label: "Kalender", icon: "M4 5h16v15H4zM4 9h16M8 3v4M16 3v4" },
   { href: "/klienter", label: "Klienter", icon: "M4 20a6 6 0 0112 0M16 12a3 3 0 100-6M20 20a5 5 0 00-4-4.9M10 11a3.5 3.5 0 100-7 3.5 3.5 0 000 7z" },
   { href: "/bookings", label: "Bookings", icon: "M4 6h16M4 12h16M4 18h16M9 6v12" },
+  { href: "/journal", label: "Journal", icon: "M4 4h12v16H4zM8 8h4M8 12h4M8 16h3" },
   { href: "/scribe", label: "AI Scribe", icon: "M12 3a3 3 0 013 3v5a3 3 0 01-6 0V6a3 3 0 013-3zM5 11a7 7 0 0014 0M12 18v3" },
   { href: "/agent", label: "AI-agent", icon: "M5 4h14v11H8l-3 3zM9 9h.01M13 9h.01" },
   { href: "/chat", label: "Samlet chat · team", icon: "M21 11.5a8.38 8.38 0 01-.9 3.8 8.5 8.5 0 01-7.6 4.7 8.38 8.38 0 01-3.8-.9L3 21l1.9-5.7a8.38 8.38 0 01-.9-3.8 8.5 8.5 0 014.7-7.6 8.38 8.38 0 013.8-.9h.5a8.48 8.48 0 018 8v.5z" },
