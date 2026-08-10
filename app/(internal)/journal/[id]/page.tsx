@@ -110,9 +110,15 @@ export default function JournalDetailPage() {
   if (!entry) {
     return (
       <div className="mx-auto max-w-[900px] py-16 text-center">
-        <p className="text-clay">{err}</p>
-        <Link href="/journal" className="btn btn-ghost mt-4">
-          ← Journal
+        <div className="kicker">Journal</div>
+        <h1 className="display mt-2 text-[28px] font-semibold">Posten findes ikke</h1>
+        <p className="mx-auto mt-3 max-w-[42ch] text-[14px] text-muted">
+          Linket peede på et gammelt ID (fra før journal-listen blev dynamisk). Åbn listen og vælg
+          posten derfra.
+        </p>
+        {err && err !== "not_found" && <p className="mt-2 mono text-[12px] text-clay">{err}</p>}
+        <Link href="/journal" className="btn btn-primary mt-6">
+          ← Åbn journal-listen
         </Link>
       </div>
     );
