@@ -67,6 +67,61 @@ export function normalizePhoneE164(input: string, defaultCountry = "45"): string
   return `+${digits}`;
 }
 
+/**
+ * Bird UI URLs often expose the connector UUID (`…/channels/sms-messagebird:1/<connectorId>`),
+ * not the Channels API channel id. Resolve connector → active SMS channel when needed.
+ */
+export async function resolveBirdSmsChannelId(preferredId?: string): Promise<{
+  channelId: string | null;
+  resolvedFrom?: "preferred" | "connector" | "sms-active";
+  error?: string;
+}> {
+  const { apiKey, apiBase, authMode, workspaceId, channelId: configured } = birdConfig();
+  const preferred = preferredId?.trim() || configured;
+  if (!apiKey || authMode !== "accesskey" || !workspaceId) {
+    return { channelId: preferred || null, resolvedFrom: preferred ? "preferred" : undefined };
+  }
+
+  const headers = {
+    Authorization: `AccessKey ${apiKey}`,
+    Accept: "application/json",
+  };
+
+  if (preferred) {
+    const probe = await fetch(`${apiBase}/workspaces/${workspaceId}/channels/${preferred}`, {
+      headers,
+    });
+    if (probe.ok) return { channelId: preferred, resolvedFrom: "preferred" };
+  }
+
+  const listRes = await fetch(`${apiBase}/workspaces/${workspaceId}/channels`, { headers });
+  const listRaw: unknown = await listRes.json().catch(() => null);
+  if (!listRes.ok) {
+    return {
+      channelId: null,
+      error: extractBirdError(listRaw) || `Kunne ikke hente channels (HTTP ${listRes.status})`,
+    };
+  }
+
+  const items = extractChannelList(listRaw);
+  if (preferred) {
+    const byConnector = items.find((ch) => channelConnectorId(ch) === preferred);
+    if (byConnector?.id) return { channelId: byConnector.id, resolvedFrom: "connector" };
+  }
+
+  const sms =
+    items.find((ch) => isActiveSmsChannel(ch) && /bypilar/i.test(String(ch.name ?? ""))) ||
+    items.find((ch) => isActiveSmsChannel(ch));
+  if (sms?.id) return { channelId: sms.id, resolvedFrom: "sms-active" };
+
+  return {
+    channelId: null,
+    error: preferred
+      ? `Channel ikke fundet for id ${preferred}`
+      : "Ingen aktiv SMS-channel i Bird-workspace",
+  };
+}
+
 export async function sendBirdSms(input: BirdSendSmsInput): Promise<BirdSendSmsResult> {
   const { apiKey, apiBase, from: defaultFrom, defaultCategory, authMode, workspaceId, channelId } =
     birdConfig();
@@ -82,10 +137,14 @@ export async function sendBirdSms(input: BirdSendSmsInput): Promise<BirdSendSmsR
   if (!text) return { ok: false, error: "Tom besked" };
 
   try {
-    if (authMode === "accesskey" && workspaceId && channelId) {
+    if (authMode === "accesskey" && workspaceId) {
+      const resolved = await resolveBirdSmsChannelId(channelId);
+      if (!resolved.channelId) {
+        return { ok: false, error: resolved.error || "BIRD_SMS_CHANNEL_ID mangler" };
+      }
       // Channels API (workspace access keys from app.bird.com)
       const res = await fetch(
-        `${apiBase}/workspaces/${workspaceId}/channels/${channelId}/messages`,
+        `${apiBase}/workspaces/${workspaceId}/channels/${resolved.channelId}/messages`,
         {
           method: "POST",
           headers: {
@@ -136,6 +195,35 @@ export async function sendBirdSms(input: BirdSendSmsInput): Promise<BirdSendSmsR
     const message = err instanceof Error ? err.message : "Netværksfejl mod Bird";
     return { ok: false, error: message };
   }
+}
+
+type BirdChannelRow = {
+  id?: string;
+  name?: string;
+  platformId?: string;
+  status?: string;
+  connectorId?: string;
+  connector?: { id?: string };
+};
+
+function extractChannelList(raw: unknown): BirdChannelRow[] {
+  if (!raw || typeof raw !== "object") return [];
+  const obj = raw as Record<string, unknown>;
+  const items = obj.results ?? obj.items ?? obj.data ?? [];
+  return Array.isArray(items) ? (items as BirdChannelRow[]) : [];
+}
+
+function channelConnectorId(ch: BirdChannelRow): string | null {
+  if (typeof ch.connectorId === "string") return ch.connectorId;
+  if (ch.connector && typeof ch.connector.id === "string") return ch.connector.id;
+  return null;
+}
+
+function isActiveSmsChannel(ch: BirdChannelRow): boolean {
+  const platform = String(ch.platformId ?? "").toLowerCase();
+  const sms = platform.includes("sms");
+  const active = !ch.status || ch.status === "active";
+  return sms && active && Boolean(ch.id);
 }
 
 function extractBirdError(raw: unknown): string | null {

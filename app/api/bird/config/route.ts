@@ -1,6 +1,6 @@
 import { NextResponse } from "next/server";
 import { writeSecrets, secretsPublicStatus, type PraxisSecrets } from "@/lib/secrets";
-import { getBirdPublicStatus } from "@/lib/bird";
+import { getBirdPublicStatus, resolveBirdSmsChannelId } from "@/lib/bird";
 import { isLlmConfigured } from "@/lib/agents/llm";
 
 export const runtime = "nodejs";
@@ -40,14 +40,39 @@ export async function POST(req: Request) {
   }
 
   try {
+    // Persist first so resolve can see newly pasted API key / workspace.
     writeSecrets(patch);
+
+    const preferredChannel =
+      typeof body.BIRD_SMS_CHANNEL_ID === "string" ? body.BIRD_SMS_CHANNEL_ID.trim() : undefined;
+    const shouldResolve =
+      Boolean(preferredChannel) ||
+      typeof body.BIRD_API_KEY === "string" ||
+      typeof body.BIRD_WORKSPACE_ID === "string";
+
+    let channelNote: string | undefined;
+    if (shouldResolve) {
+      const resolved = await resolveBirdSmsChannelId(preferredChannel);
+      if (resolved.channelId && resolved.channelId !== preferredChannel) {
+        writeSecrets({ BIRD_SMS_CHANNEL_ID: resolved.channelId });
+        channelNote =
+          resolved.resolvedFrom === "connector"
+            ? "URL-UUID var connector-ID — gemte den rigtige SMS-channel automatisk"
+            : "Fandt aktiv bypilar SMS-channel automatisk";
+      } else if (!resolved.channelId && preferredChannel) {
+        channelNote = resolved.error || "Channel ikke fundet";
+      }
+    }
+
     return NextResponse.json({
       ok: true,
       bird: getBirdPublicStatus(),
       llm: { configured: isLlmConfigured() },
       secrets: secretsPublicStatus(),
+      channelNote,
     });
-  } catch (err: any) {
-    return NextResponse.json({ error: err?.message || "save_failed" }, { status: 500 });
+  } catch (err: unknown) {
+    const message = err instanceof Error ? err.message : "save_failed";
+    return NextResponse.json({ error: message }, { status: 500 });
   }
 }

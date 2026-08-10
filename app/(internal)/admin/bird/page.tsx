@@ -72,10 +72,15 @@ export default function BirdSetupPage() {
       setStatus(data.bird);
       setApiKey("");
       setOpenaiKey("");
-      setSaveMsg("Gemt på serveren · klar med det samme (ingen rebuild)");
+      setSaveMsg(
+        data.channelNote
+          ? `Gemt · ${data.channelNote}`
+          : "Gemt på serveren · klar med det samme (ingen rebuild)",
+      );
+      setChannelId("");
       await refresh();
-    } catch (e: any) {
-      setSaveMsg(e.message || "Fejl");
+    } catch (e: unknown) {
+      setSaveMsg(e instanceof Error ? e.message : "Fejl");
     } finally {
       setSaving(false);
     }
@@ -138,12 +143,16 @@ export default function BirdSetupPage() {
             />
           </label>
           <label className="block md:col-span-2">
-            <span className="kicker">BIRD_SMS_CHANNEL_ID · fra Bird URL</span>
+            <span className="kicker">BIRD_SMS_CHANNEL_ID · channel eller connector-UUID</span>
             <input
               className="mt-1.5 w-full rounded-[10px] border border-line-2 bg-paper px-3 py-2.5 mono text-[13px]"
               value={channelId}
               onChange={(e) => setChannelId(e.target.value)}
-              placeholder={status?.channelReady ? "Sat — indsæt for at erstatte" : "Channels → SMS → Manage (UUID i URL)"}
+              placeholder={
+                status?.channelReady
+                  ? "Sat — indsæt for at erstatte (URL-UUID virker også)"
+                  : "UUID fra Bird — vi finder den rigtige SMS-channel"
+              }
             />
           </label>
           <label className="block">
