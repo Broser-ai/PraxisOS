@@ -1,6 +1,9 @@
 import Link from "next/link";
 import { listJournal, journalStats, statusLabel } from "@/lib/journal";
 
+// Must not be statically prerendered — seed IDs differ between build and runtime store.
+export const dynamic = "force-dynamic";
+
 export default function JournalIndex() {
   const entries = listJournal({ tenant: "bypilar", limit: 80 });
   const stats = journalStats("bypilar");

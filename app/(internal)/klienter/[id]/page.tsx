@@ -6,6 +6,8 @@ import { skinParams } from "@/lib/mock";
 import { listJournal, statusLabel as journalStatusLabel } from "@/lib/journal";
 import { SkinScan } from "@/components/SkinScan";
 
+export const dynamic = "force-dynamic";
+
 export default async function ClientDetail({ params }: { params: Promise<{ id: string }> }) {
   const { id } = await params;
   const client = getClient(id);

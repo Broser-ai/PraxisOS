@@ -95,7 +95,8 @@ function seedEntries(): JournalEntry[] {
     const client = getClient(b.clientId);
     const signed = i < 4;
     return {
-      id: nid(),
+      // Stable ids so rebuild/SSG never invents dangling journal links.
+      id: `jr_${b.id}`,
       tenant: b.tenant,
       clientId: b.clientId,
       clientName: b.clientName,
@@ -118,7 +119,7 @@ function seedEntries(): JournalEntry[] {
 
   // One open draft without booking (manual note)
   seeded.unshift({
-    id: nid(),
+    id: "jr_draft_per_opfølgning",
     tenant: "bypilar",
     clientId: "per",
     clientName: "Per Sørensen",

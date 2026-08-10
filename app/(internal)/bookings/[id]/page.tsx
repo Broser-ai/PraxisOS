@@ -4,6 +4,8 @@ import { getBooking, statusLabel, sourceLabel } from "@/lib/bookings";
 import { calcFee, TENANT_PAYMENT_CONFIG } from "@/lib/payments";
 import { getJournalByBooking, statusLabel as journalStatusLabel } from "@/lib/journal";
 
+export const dynamic = "force-dynamic";
+
 export default async function BookingDetail({ params }: { params: Promise<{ id: string }> }) {
   const { id } = await params;
   const b = getBooking(id);
