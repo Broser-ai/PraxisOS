@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useState } from "react";
+import { useCallback, useEffect, useState } from "react";
 import Link from "next/link";
 
 type BirdStatus = {
@@ -12,37 +12,74 @@ type BirdStatus = {
   workspaceReady?: boolean;
   channelReady?: boolean;
   keyHint: string | null;
-  hint?: string;
 };
 
-type SendResult = {
-  ok: boolean;
-  id?: string;
-  status?: string;
-  error?: string;
-};
+type SendResult = { ok: boolean; id?: string; status?: string; error?: string };
 
 export default function BirdSetupPage() {
   const [status, setStatus] = useState<BirdStatus | null>(null);
+  const [apiKey, setApiKey] = useState("");
+  const [channelId, setChannelId] = useState("");
+  const [from, setFrom] = useState("+4526325220");
+  const [workspaceId, setWorkspaceId] = useState("4ad3f57b-b826-4217-b068-77c9ac0f4f02");
+  const [openaiKey, setOpenaiKey] = useState("");
+  const [saving, setSaving] = useState(false);
+  const [saveMsg, setSaveMsg] = useState<string | null>(null);
   const [to, setTo] = useState("+45");
   const [text, setText] = useState("Hej fra bypilar · din tid er bekræftet. Mvh PraxisOS");
   const [sending, setSending] = useState(false);
   const [result, setResult] = useState<SendResult | null>(null);
 
-  useEffect(() => {
-    fetch("/api/bird/status")
-      .then((r) => r.json())
-      .then((data: BirdStatus) => setStatus(data))
-      .catch(() =>
-        setStatus({
-          configured: false,
-          apiBase: "",
-          from: "",
-          defaultCategory: "transactional",
-          keyHint: null,
-        }),
-      );
+  const refresh = useCallback(async () => {
+    const res = await fetch("/api/bird/config");
+    const data = await res.json();
+    if (data.bird) {
+      setStatus(data.bird);
+      if (data.bird.from) setFrom(data.bird.from);
+    }
   }, []);
+
+  useEffect(() => {
+    refresh().catch(() =>
+      setStatus({
+        configured: false,
+        apiBase: "",
+        from: "",
+        defaultCategory: "transactional",
+        keyHint: null,
+      }),
+    );
+  }, [refresh]);
+
+  async function saveConfig() {
+    setSaving(true);
+    setSaveMsg(null);
+    try {
+      const body: Record<string, string> = {
+        BIRD_SMS_FROM: from,
+        BIRD_WORKSPACE_ID: workspaceId,
+      };
+      if (apiKey.trim()) body.BIRD_API_KEY = apiKey.trim();
+      if (channelId.trim()) body.BIRD_SMS_CHANNEL_ID = channelId.trim();
+      if (openaiKey.trim()) body.OPENAI_API_KEY = openaiKey.trim();
+      const res = await fetch("/api/bird/config", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify(body),
+      });
+      const data = await res.json();
+      if (!res.ok) throw new Error(data.error || "Gem fejlede");
+      setStatus(data.bird);
+      setApiKey("");
+      setOpenaiKey("");
+      setSaveMsg("Gemt på serveren · klar med det samme (ingen rebuild)");
+      await refresh();
+    } catch (e: any) {
+      setSaveMsg(e.message || "Fejl");
+    } finally {
+      setSaving(false);
+    }
+  }
 
   async function sendTest() {
     setSending(true);
@@ -53,8 +90,7 @@ export default function BirdSetupPage() {
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({ to, text }),
       });
-      const data = (await res.json()) as SendResult;
-      setResult(data);
+      setResult((await res.json()) as SendResult);
     } catch {
       setResult({ ok: false, error: "Kunne ikke kontakte serveren" });
     } finally {
@@ -68,12 +104,12 @@ export default function BirdSetupPage() {
     <div className="mx-auto max-w-[980px]">
       <div className="rise flex flex-wrap items-end justify-between gap-3">
         <div>
-          <Link href="/admin/health" className="kicker hover:underline">
-            ← System-status
+          <Link href="/admin/agents/automation" className="kicker hover:underline">
+            ← Agent-automation
           </Link>
           <h1 className="display mt-2 text-[32px] font-semibold leading-none">Bird · SMS setup</h1>
           <p className="mt-2 max-w-[52ch] text-[14px] text-muted">
-            Selvhostet opsætning til bypilar. Nøglen ligger kun på serveren — aldrig i browseren.
+            Indtast nøgler her — de gemmes kun på Hetzner (`/data/secrets.json`), ikke i Git.
           </p>
         </div>
         <span
@@ -85,49 +121,74 @@ export default function BirdSetupPage() {
         </span>
       </div>
 
-      <section className="card rise mt-6 overflow-hidden" style={{ animationDelay: "0.04s" }}>
-        <div
-          className="border-b border-line px-5 py-4"
-          style={{
-            background:
-              "linear-gradient(120deg, color-mix(in srgb, var(--color-accent) 10%, transparent), transparent)",
-          }}
-        >
-          <div className="kicker">Trin 1 · Status</div>
-          <h2 className="display mt-1 text-[20px] font-semibold">Forbindelse</h2>
+      <section className="card rise mt-6 overflow-hidden">
+        <div className="border-b border-line px-5 py-4 bg-paper-2/40">
+          <div className="kicker">Trin 1 · Nøgler</div>
+          <h2 className="display mt-1 text-[20px] font-semibold">Gem på serveren</h2>
         </div>
         <div className="grid gap-3 p-5 md:grid-cols-2">
-          <Stat label="API-nøgle" value={status?.keyHint ?? "ikke sat"} ok={ready} />
-          <Stat label="Afsender" value={status?.from || "—"} ok={Boolean(status?.from)} />
-          <Stat label="Auth" value={status?.authMode ?? "—"} ok />
-          <Stat label="API base" value={status?.apiBase || "—"} ok={Boolean(status?.apiBase)} mono />
-          <Stat
-            label="Workspace ID"
-            value={status?.workspaceReady ? "sat" : "valgfri / mangler"}
-            ok={Boolean(status?.workspaceReady)}
-          />
-          <Stat
-            label="SMS channel ID"
-            value={status?.channelReady ? "sat" : "valgfri / mangler"}
-            ok={Boolean(status?.channelReady)}
-          />
+          <label className="block md:col-span-2">
+            <span className="kicker">BIRD_API_KEY · bypilar_PraxisOS-SMS</span>
+            <input
+              type="password"
+              className="mt-1.5 w-full rounded-[10px] border border-line-2 bg-paper px-3 py-2.5 mono text-[13px]"
+              value={apiKey}
+              onChange={(e) => setApiKey(e.target.value)}
+              placeholder={status?.keyHint ? `Sat (${status.keyHint}) — indsæt for at erstatte` : "Indsæt API-nøgle"}
+            />
+          </label>
+          <label className="block md:col-span-2">
+            <span className="kicker">BIRD_SMS_CHANNEL_ID · fra Bird URL</span>
+            <input
+              className="mt-1.5 w-full rounded-[10px] border border-line-2 bg-paper px-3 py-2.5 mono text-[13px]"
+              value={channelId}
+              onChange={(e) => setChannelId(e.target.value)}
+              placeholder={status?.channelReady ? "Sat — indsæt for at erstatte" : "Channels → SMS → Manage (UUID i URL)"}
+            />
+          </label>
+          <label className="block">
+            <span className="kicker">BIRD_SMS_FROM</span>
+            <input
+              className="mt-1.5 w-full rounded-[10px] border border-line-2 bg-paper px-3 py-2.5 mono text-[13px]"
+              value={from}
+              onChange={(e) => setFrom(e.target.value)}
+            />
+          </label>
+          <label className="block">
+            <span className="kicker">BIRD_WORKSPACE_ID</span>
+            <input
+              className="mt-1.5 w-full rounded-[10px] border border-line-2 bg-paper px-3 py-2.5 mono text-[13px]"
+              value={workspaceId}
+              onChange={(e) => setWorkspaceId(e.target.value)}
+            />
+          </label>
+          <label className="block md:col-span-2">
+            <span className="kicker">OPENAI_API_KEY · valgfri (rigtige LLM-svar)</span>
+            <input
+              type="password"
+              className="mt-1.5 w-full rounded-[10px] border border-line-2 bg-paper px-3 py-2.5 mono text-[13px]"
+              value={openaiKey}
+              onChange={(e) => setOpenaiKey(e.target.value)}
+              placeholder="sk-… (valgfri)"
+            />
+          </label>
         </div>
-        {!ready && (
-          <div className="border-t border-line bg-paper-2/70 px-5 py-4 text-[13.5px] text-muted">
-            På Hetzner-serveren: sæt <span className="mono text-ink">BIRD_API_KEY</span> og{" "}
-            <span className="mono text-ink">BIRD_SMS_FROM=+4526325220</span> i{" "}
-            <span className="mono text-ink">.env.production</span>, kør derefter deploy-scriptet.
-          </div>
-        )}
+        <div className="flex flex-wrap items-center gap-3 border-t border-line px-5 py-4">
+          <button type="button" className="btn btn-primary" disabled={saving} onClick={saveConfig}>
+            {saving ? "Gemmer…" : "Gem nøgler"}
+          </button>
+          {saveMsg && <span className="text-[13px] text-muted">{saveMsg}</span>}
+        </div>
+        <div className="grid gap-3 border-t border-line p-5 md:grid-cols-3">
+          <Stat label="API-nøgle" value={status?.keyHint ?? "ikke sat"} ok={ready} />
+          <Stat label="Channel" value={status?.channelReady ? "sat" : "mangler"} ok={Boolean(status?.channelReady)} />
+          <Stat label="Afsender" value={status?.from || "—"} ok={Boolean(status?.from)} />
+        </div>
       </section>
 
-      <section className="card rise mt-3 p-5" style={{ animationDelay: "0.08s" }}>
+      <section className="card rise mt-3 p-5">
         <div className="kicker">Trin 2 · Test-SMS</div>
         <h2 className="display mt-1 text-[20px] font-semibold">Send prøvebesked</h2>
-        <p className="mt-1 text-[13.5px] text-muted">
-          Brug dit eget nummer først. Afsender er nummeret, indtil alphanumeric <span className="mono">bypilar</span> er klar.
-        </p>
-
         <div className="mt-4 grid gap-3">
           <label className="block">
             <span className="kicker">Modtager</span>
@@ -141,88 +202,41 @@ export default function BirdSetupPage() {
           <label className="block">
             <span className="kicker">Besked</span>
             <textarea
-              className="mt-1.5 min-h-[110px] w-full rounded-[10px] border border-line-2 bg-paper px-3 py-2.5 text-[14px]"
+              className="mt-1.5 min-h-[90px] w-full rounded-[10px] border border-line-2 bg-paper px-3 py-2.5 text-[14px]"
               value={text}
               onChange={(e) => setText(e.target.value)}
             />
           </label>
-          <div className="flex flex-wrap items-center gap-3">
-            <button
-              type="button"
-              className="btn btn-primary"
-              disabled={!ready || sending || to.length < 8}
-              onClick={sendTest}
-            >
-              {sending ? "Sender…" : "Send test-SMS"}
-            </button>
-            <Link href="/admin/nemsms" className="btn btn-ghost">
-              NemSMS (parkér)
-            </Link>
-          </div>
+          <button
+            type="button"
+            className="btn btn-primary w-fit"
+            disabled={!ready || sending || to.length < 8}
+            onClick={sendTest}
+          >
+            {sending ? "Sender…" : "Send test-SMS"}
+          </button>
           {result && (
             <div
               className={`rounded-[10px] border px-3 py-2.5 text-[13.5px] ${
-                result.ok
-                  ? "border-signal/30 bg-signal/5 text-signal"
-                  : "border-clay/30 bg-clay/5 text-clay"
+                result.ok ? "border-signal/30 bg-signal/5 text-signal" : "border-clay/30 bg-clay/5 text-clay"
               }`}
             >
-              {result.ok
-                ? `Sendt · id ${result.id} · status ${result.status}`
-                : `Fejl · ${result.error}`}
+              {result.ok ? `Sendt · id ${result.id}` : `Fejl · ${result.error}`}
             </div>
           )}
         </div>
       </section>
-
-      <section className="rise mt-3 grid gap-3 md:grid-cols-3" style={{ animationDelay: "0.12s" }}>
-        <GuideCard
-          step="01"
-          title="Bird"
-          body="SMS-kanal connected · nøgle bypilar_PraxisOS-SMS · afsender +45 26 32 52 20"
-        />
-        <GuideCard
-          step="02"
-          title="Hetzner"
-          body="PraxisOS kører i Docker på din egen server. Domende peger på 167.233.171.184"
-        />
-        <GuideCard
-          step="03"
-          title="Klinik"
-          body="Bookinger kan sende SMS via Bird. WordPress er valgfrit til knap på bypilar.dk"
-        />
-      </section>
     </div>
   );
 }
 
-function Stat({
-  label,
-  value,
-  ok,
-  mono,
-}: {
-  label: string;
-  value: string;
-  ok?: boolean;
-  mono?: boolean;
-}) {
+function Stat({ label, value, ok }: { label: string; value: string; ok?: boolean }) {
   return (
     <div className="rounded-[12px] border border-line-2 bg-paper px-3 py-3">
       <div className="kicker">{label}</div>
-      <div className={`mt-1 text-[14px] font-medium ${mono ? "mono break-all" : ""}`}>
-        <span style={{ color: ok === false ? "var(--color-amber)" : "var(--color-ink)" }}>{value}</span>
+      <div className="mt-1 text-[14px] font-medium" style={{ color: ok === false ? "var(--color-amber)" : "var(--color-ink)" }}>
+        {value}
       </div>
-    </div>
-  );
-}
-
-function GuideCard({ step, title, body }: { step: string; title: string; body: string }) {
-  return (
-    <div className="card p-4">
-      <div className="mono text-[11px] text-faint">{step}</div>
-      <div className="display mt-1 text-[18px] font-semibold">{title}</div>
-      <p className="mt-1.5 text-[13px] leading-relaxed text-muted">{body}</p>
     </div>
   );
 }

@@ -4,6 +4,7 @@ import { randomBytes } from "node:crypto";
 import { appendFileSync, existsSync, mkdirSync, writeFileSync, readFileSync } from "node:fs";
 import { join } from "node:path";
 import type { AgentId } from "@/lib/agents";
+import { resolveSecret } from "@/lib/secrets";
 
 export type AgentRunStatus = "queued" | "running" | "completed" | "failed" | "awaiting_approval";
 
@@ -283,7 +284,7 @@ export function getAutomationStats() {
     completed24h,
     failed24h,
     llmConfigured: Boolean(process.env.OPENAI_API_KEY?.trim()),
-    birdConfigured: Boolean(process.env.BIRD_API_KEY?.trim()),
+    birdConfigured: Boolean(resolveSecret("BIRD_API_KEY")),
     workerSecretConfigured: Boolean(process.env.AGENT_WORKER_SECRET?.trim() || process.env.PRAXIS_EVENT_SECRET?.trim()),
   };
 }

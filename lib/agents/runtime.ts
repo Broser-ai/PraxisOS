@@ -111,8 +111,28 @@ async function heuristicReply(
       }
       const bookings = await call("list_bookings", { tenant, limit: 5 });
       if (!isChat) {
+        const upcoming = listBookings({ tenant, status: ["confirmed", "pending"] }).slice(0, 3);
+        let smsOk = 0;
+        for (const b of upcoming) {
+          const client = getClient(b.clientId);
+          if (!client?.phone) continue;
+          const when = new Date(b.startsAt).toLocaleString("da-DK", {
+            weekday: "short",
+            day: "numeric",
+            month: "short",
+            hour: "2-digit",
+            minute: "2-digit",
+          });
+          const sent = await call("send_message_via_agent", {
+            agentId: "aria",
+            clientId: b.clientId,
+            topic: `Påmindelse: ${b.service} ${when}. Mvh bypilar`,
+            channel: "sms",
+          });
+          if ((sent.data as any)?.result?.ok || (sent.data as any)?.queued) smsOk += 1;
+        }
         return {
-          reply: `Aria workflow-kørsel: ${(bookings.data as any)?.count ?? 0} bookinger synlige. Bekræftelses-/påmindelses-tekster er klar som udkast — SMS sendes når Bird er konfigureret.\n\n${agent.signature.replace("{clinic}", tenant)}`,
+          reply: `Aria workflow: ${(bookings.data as any)?.count ?? 0} bookinger. Forsøgte SMS til ${smsOk}/${upcoming.length} kommende tider (kræver Bird).\n\n${agent.signature.replace("{clinic}", tenant)}`,
           toolCalls,
         };
       }
@@ -152,9 +172,20 @@ async function heuristicReply(
       };
     }
     case "magnus": {
-      const inactive = listClients().filter((c) => c.lastVisit.includes("uge") || c.forloeb?.status === "done");
+      const candidates = listClients().filter(
+        (c) => c.lastVisit.includes("uge") || c.forloeb?.status === "done" || c.forloeb?.status === "active",
+      );
+      const pick = (candidates.length ? candidates : listClients()).slice(0, 2);
+      for (const c of pick) {
+        await call("send_message_via_agent", {
+          agentId: "magnus",
+          clientId: c.id,
+          topic: `Venlig genbooking/recall fra bypilar — vi glæder os til at se dig igen.`,
+          channel: "sms",
+        });
+      }
       return {
-        reply: `Jeg har ${inactive.length || listClients().length} kandidater til recall/engagement. Marketing-SMS kræver din godkendelse før afsendelse.\n\n${agent.signature}`,
+        reply: `Magnus: ${pick.length} recall-kandidater. Marketing-SMS kræver din godkendelse i automation-UI før afsendelse.\n\n${agent.signature}`,
         toolCalls,
       };
     }

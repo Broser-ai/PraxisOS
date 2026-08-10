@@ -7,6 +7,8 @@
 //   BIRD_SMS_FROM     — E.164 number or alphanumeric sender (e.g. "BYPILAR")
 //   BIRD_SMS_CATEGORY — authentication | transactional | marketing (default transactional)
 
+import { resolveSecret } from "@/lib/secrets";
+
 export type BirdSmsCategory = "authentication" | "transactional" | "marketing";
 
 export type BirdSendSmsInput = {
@@ -21,7 +23,7 @@ export type BirdSendSmsResult =
   | { ok: false; error: string; statusCode?: number; raw?: unknown };
 
 function birdConfig() {
-  const apiKey = process.env.BIRD_API_KEY?.trim() ?? "";
+  const apiKey = resolveSecret("BIRD_API_KEY");
   // Workspace access keys (app.bird.com) use AccessKey; platform keys bk_eu1_/bk_us1_ use Bearer.
   const authMode =
     (process.env.BIRD_AUTH_MODE?.trim() as "bearer" | "accesskey" | undefined) ||
@@ -29,10 +31,11 @@ function birdConfig() {
   const defaultBase =
     authMode === "accesskey" ? "https://api.bird.com" : "https://eu1.platform.bird.com";
   const apiBase = (process.env.BIRD_API_BASE?.trim() || defaultBase).replace(/\/$/, "");
-  const from = process.env.BIRD_SMS_FROM?.trim() || "PraxisOS";
+  const from = resolveSecret("BIRD_SMS_FROM") || process.env.BIRD_SMS_FROM?.trim() || "PraxisOS";
   const defaultCategory = (process.env.BIRD_SMS_CATEGORY?.trim() || "transactional") as BirdSmsCategory;
-  const workspaceId = process.env.BIRD_WORKSPACE_ID?.trim() || "";
-  const channelId = process.env.BIRD_SMS_CHANNEL_ID?.trim() || "";
+  const workspaceId =
+    resolveSecret("BIRD_WORKSPACE_ID") || process.env.BIRD_WORKSPACE_ID?.trim() || "";
+  const channelId = resolveSecret("BIRD_SMS_CHANNEL_ID");
   return { apiKey, apiBase, from, defaultCategory, authMode, workspaceId, channelId };
 }
 

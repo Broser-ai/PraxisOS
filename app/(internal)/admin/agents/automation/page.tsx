@@ -181,6 +181,28 @@ export default function AgentAutomationPage() {
         />
       </div>
 
+      <div className="card mt-3 p-5">
+        <div className="flex flex-wrap items-center justify-between gap-3">
+          <div>
+            <div className="kicker">Setup · nøgler</div>
+            <p className="mt-1 text-[12.5px] text-muted">
+              Bird SMS + valgfri OpenAI. Approve-knapper styrer journal og marketing-SMS.
+            </p>
+          </div>
+          <div className="flex flex-wrap gap-2">
+            <Link href="/admin/bird" className="btn btn-primary">
+              Bird / OpenAI nøgler →
+            </Link>
+            <span className={`chip ${a?.llmConfigured ? "!border-signal/40 text-signal" : "text-amber"}`}>
+              LLM {a?.llmConfigured ? "on" : "off"}
+            </span>
+            <span className={`chip ${a?.birdConfigured ? "!border-signal/40 text-signal" : "text-amber"}`}>
+              Bird {a?.birdConfigured ? "on" : "off"}
+            </span>
+          </div>
+        </div>
+      </div>
+
       <div className="mt-3 grid gap-3 lg:grid-cols-2">
         <section className="card p-5">
           <div className="kicker">Test en agent</div>

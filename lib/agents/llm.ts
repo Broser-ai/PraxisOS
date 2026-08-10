@@ -1,5 +1,7 @@
 // OpenAI-compatible chat completions via fetch (no SDK dependency)
 
+import { resolveSecret } from "@/lib/secrets";
+
 export type LlmMessage =
   | { role: "system" | "user" | "assistant"; content: string }
   | { role: "tool"; tool_call_id: string; content: string };
@@ -30,7 +32,7 @@ export type LlmChatResult =
   | { ok: false; error: string; statusCode?: number };
 
 export function isLlmConfigured(): boolean {
-  return Boolean(process.env.OPENAI_API_KEY?.trim());
+  return Boolean(resolveSecret("OPENAI_API_KEY"));
 }
 
 export function llmModel(): string {
@@ -42,7 +44,7 @@ export async function chatCompletions(opts: {
   tools?: LlmToolDef[];
   temperature?: number;
 }): Promise<LlmChatResult> {
-  const apiKey = process.env.OPENAI_API_KEY?.trim();
+  const apiKey = resolveSecret("OPENAI_API_KEY");
   if (!apiKey) return { ok: false, error: "OPENAI_API_KEY mangler" };
 
   const base = (process.env.OPENAI_BASE_URL?.trim() || "https://api.openai.com/v1").replace(/\/$/, "");
