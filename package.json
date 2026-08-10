@@ -6,7 +6,9 @@
   "scripts": {
     "dev": "next dev",
     "build": "next build",
-    "start": "next start"
+    "start": "next start",
+    "agent:worker": "node scripts/agent-worker.mjs",
+    "agent:tick": "node -e \"fetch(process.env.PRAXIS_BASE_URL||'http://127.0.0.1:3000'+'/api/agents/tick',{method:'POST',headers:{'Content-Type':'application/json','x-agent-worker-secret':process.env.AGENT_WORKER_SECRET||''},body:JSON.stringify({force:true})}).then(r=>r.json()).then(console.log)\""
   },
   "dependencies": {
     "next": "^16.2.12",

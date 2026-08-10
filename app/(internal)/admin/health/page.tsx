@@ -16,8 +16,9 @@ const INTEGRATIONS: { name: string; modul: string; status: Status; note: string;
   { name: "NemSMS", modul: "KOMBIT", status: "stub", note: "parkér · Bird i stedet", href: "/admin/nemsms" },
   { name: "Sygesikringen danmark", modul: "EDIFACT D04A", status: "stub", note: "webservice-aftale" },
   { name: "PraxisOS Pay", modul: "egen-built", status: "live", note: "9 metoder · PraxisRisk + Trust 2", href: "/admin/payments" },
-  { name: "AI · Aria/Niels/Sigrid", modul: "9 humaniserede agenter", status: "live", note: "mock-svar · OpenAI key for prod", href: "/admin/agents" },
-  { name: "MCP-server", modul: "JSON-RPC 2.0", status: "live", note: "19 tools eksponeret", href: "/admin/mcp" },
+  { name: "AI · Agent-automation", modul: "runtime + worker + 12 workflows", status: "live", note: "LLM valgfri · /admin/agents/automation", href: "/admin/agents/automation" },
+  { name: "AI · Aria/Niels/Sigrid", modul: "9 humaniserede agenter", status: "live", note: "heuristik + tools · OpenAI optional", href: "/admin/agents" },
+  { name: "MCP-server", modul: "JSON-RPC 2.0", status: "live", note: "rigtige tool-handlers", href: "/admin/mcp" },
   { name: "Modul-marketplace", modul: "20 moduler · 7 kategorier", status: "live", note: "aktivering ✓", href: "/admin/marketplace" },
 ];
 

@@ -48,8 +48,9 @@ docker compose -f docker-compose.praxis.yml --env-file .env.production up -d --b
 
 echo ""
 echo "FÆRDIG"
-echo "  App:     http://$(curl -4 -fsSL https://ifconfig.me 2>/dev/null || echo SERVER-IP):3010"
-echo "  Bird UI: http://SERVER-IP:3010/admin/bird"
-echo "  Setup:   http://SERVER-IP:3010/setup"
+echo "  App:         http://$(curl -4 -fsSL https://ifconfig.me 2>/dev/null || echo SERVER-IP):3010"
+echo "  Automation:  http://SERVER-IP:3010/admin/agents/automation"
+echo "  Bird UI:     http://SERVER-IP:3010/admin/bird"
+echo "  Setup:       http://SERVER-IP:3010/setup"
 echo ""
 docker ps --format "table {{.Names}}\t{{.Status}}\t{{.Ports}}" | head -20

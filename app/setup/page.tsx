@@ -4,22 +4,22 @@ const STEPS = [
   {
     n: "01",
     title: "Server",
-    body: "Hetzner kører Docker. PraxisOS + Bird SMS hostes hos dig — ikke hos Vercel.",
+    body: "Hetzner kører Docker: PraxisOS-app + agent-worker. Alt hostes hos dig.",
   },
   {
     n: "02",
-    title: "Bird",
-    body: "SMS-kanal på +45 26 32 52 20. Nøgle bypilar_PraxisOS-SMS sættes i .env.production.",
+    title: "Bird SMS",
+    body: "SMS-kanal på +45 26 32 52 20. Nøgle sættes i .env.production.",
   },
   {
     n: "03",
-    title: "Test",
-    body: "Åbn /admin/bird og send en prøve-SMS til dig selv.",
+    title: "AI-agenter",
+    body: "12 workflows kører automatisk (booking, tilskud, recall, compliance…). OPENAI_API_KEY er valgfri.",
   },
   {
     n: "04",
-    title: "Klinik",
-    body: "Bookinger, klienter og kalender i PraxisOS. WordPress senere til knap på bypilar.dk.",
+    title: "Test",
+    body: "Åbn /admin/agents/automation og tryk «Kør alle workflows». Test SMS under /admin/bird.",
   },
 ];
 
@@ -32,15 +32,18 @@ export default function SetupPage() {
           bypilar på egen server
         </h1>
         <p className="mt-4 max-w-[48ch] text-[16px] leading-relaxed text-muted">
-          Ét setup: klinik-system + Bird SMS. Ingen Erxes-abonnementer. Alt kører på din Hetzner.
+          Klinik-system + Bird SMS + automatiske AI-agenter. Ét Docker-setup på din Hetzner.
         </p>
 
         <div className="mt-8 flex flex-wrap gap-3">
-          <Link href="/admin/bird" className="btn btn-primary">
-            Åbn Bird setup
+          <Link href="/admin/agents/automation" className="btn btn-primary">
+            Agent-automation
+          </Link>
+          <Link href="/admin/bird" className="btn btn-ghost">
+            Bird SMS
           </Link>
           <Link href="/dashboard" className="btn btn-ghost">
-            Gå til klinik
+            Klinik
           </Link>
         </div>
 
@@ -59,7 +62,7 @@ export default function SetupPage() {
           <pre className="mt-3 overflow-x-auto rounded-[10px] bg-ink px-4 py-3 mono text-[12px] leading-relaxed text-paper">
 {`ssh root@167.233.171.184
 cd /opt/PraxisOS
-# rediger .env.production · indsæt BIRD_API_KEY
+# rediger .env.production · BIRD_API_KEY (+ valgfri OPENAI_API_KEY)
 bash scripts/deploy-hetzner.sh`}
           </pre>
         </section>
