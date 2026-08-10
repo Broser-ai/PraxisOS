@@ -50,9 +50,11 @@ docker network create omni_net 2>/dev/null || true
 
 if [[ -d "${APP_DIR}/.git" ]]; then
   cd "${APP_DIR}"
-  git fetch origin
-  git checkout "${BRANCH}"
-  git pull --ff-only origin "${BRANCH}"
+  # Older clones may pin fetch to a single branch — open it up
+  git config remote.origin.fetch "+refs/heads/*:refs/remotes/origin/*"
+  git fetch origin "${BRANCH}"
+  git checkout -B "${BRANCH}" "origin/${BRANCH}" 2>/dev/null || git checkout -B "${BRANCH}" FETCH_HEAD
+  git reset --hard "origin/${BRANCH}" 2>/dev/null || git reset --hard FETCH_HEAD
 else
   rm -rf "${APP_DIR}"
   git clone -b "${BRANCH}" "${REPO_URL}" "${APP_DIR}"
