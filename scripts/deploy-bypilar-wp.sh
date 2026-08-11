@@ -31,7 +31,7 @@ WP_ADMIN_EMAIL=hej@bypilar.dk
 PRAXISOS_BASE_URL=http://app.bypilar.dk
 # Efter DNS-skift: http://bypilar.dk (eller https:// når TLS er klar)
 WP_SITEURL=http://167.233.171.184:8088
-WP_SITENAME=by Pilar
+WP_SITENAME="by Pilar"
 EOF
   chmod 600 "${ENV_FILE}"
   echo "=> Credentials gemt i .env.bypilar-wp (ikke i Git)"
