@@ -21,7 +21,8 @@ export async function GET(
   if (!t) return new NextResponse("// tenant not found\n", { status: 404 });
 
   const url = new URL(req.url);
-  const origin = `${url.protocol}//${url.host}`;
+  const configured = process.env.NEXT_PUBLIC_BASE_URL?.trim().replace(/\/$/, "");
+  const origin = configured || `${url.protocol}//${url.host}`;
   const accent = t.brand.accent;
 
   const js = `// PraxisOS embed v1 · tenant=${t.slug}

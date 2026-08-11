@@ -153,6 +153,11 @@ export default async function BookingDetail({ params }: { params: Promise<{ id: 
                   Opret journal (AI Scribe)
                 </Link>
               )}
+              {(b.serviceId === "fod-scan" || b.service.toLowerCase().includes("scan")) && (
+                <Link href={`/scan?bookingId=${b.id}`} className="btn btn-ghost justify-center">
+                  Start fod-scan · Nexus →
+                </Link>
+              )}
               {b.status === "completed" && (
                 <button className="btn btn-ghost justify-center">Send review-anmodning</button>
               )}

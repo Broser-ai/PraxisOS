@@ -38,13 +38,16 @@ export default function SetupPage() {
 
         <div className="mt-8 flex flex-wrap gap-3">
           <Link href="/scan" className="btn btn-primary">
-            Fod-scan · Nexus
+            Fod-scan · by Pilar
           </Link>
-          <Link href="/admin/agents/automation" className="btn btn-ghost">
-            Agent-automation
+          <Link href="/t/bypilar/book" className="btn btn-ghost">
+            Book tid
           </Link>
           <Link href="/admin/bird" className="btn btn-ghost">
             Bird SMS
+          </Link>
+          <Link href="/admin/agents/automation" className="btn btn-ghost">
+            Agenter
           </Link>
         </div>
 
@@ -59,12 +62,29 @@ export default function SetupPage() {
         </div>
 
         <section className="card mt-3 p-5">
-          <div className="kicker">Deploy-kommando</div>
+          <div className="kicker">by Pilar · live</div>
+          <p className="mt-2 text-[14px] text-muted">
+            Klinik-OS:{" "}
+            <a className="text-accent hover:underline" href="http://app.bypilar.dk">
+              app.bypilar.dk
+            </a>
+            {" · "}
+            Fod-scan:{" "}
+            <a className="text-accent hover:underline" href="http://app.bypilar.dk/scan">
+              /scan
+            </a>
+            {" · "}
+            Booking:{" "}
+            <a className="text-accent hover:underline" href="http://app.bypilar.dk/t/bypilar/book">
+              /t/bypilar/book
+            </a>
+          </p>
+          <div className="kicker mt-5">Deploy-kommando</div>
           <pre className="mt-3 overflow-x-auto rounded-[10px] bg-ink px-4 py-3 mono text-[12px] leading-relaxed text-paper">
 {`ssh root@167.233.171.184
 cd /opt/PraxisOS
 bash scripts/deploy-hetzner.sh
-# Åbn http://SERVER:3010/scan`}
+# Åbn http://app.bypilar.dk/scan`}
           </pre>
         </section>
       </div>

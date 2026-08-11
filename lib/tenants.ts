@@ -86,7 +86,7 @@ const bypilar: Tenant = {
     fontDisplay: "Fraunces",
     fontSans: "Hanken Grotesk",
   },
-  domains: ["bypilar.dk", "booking.bypilar.dk", "bypilar.praxis.app"],
+  domains: ["bypilar.dk", "www.bypilar.dk", "booking.bypilar.dk", "app.bypilar.dk", "praxis.bypilar.dk", "bypilar.praxis.app"],
   mode: "hybrid", // headless API til deres website + full admin
   locale: "da-DK",
   timezone: "Europe/Copenhagen",
