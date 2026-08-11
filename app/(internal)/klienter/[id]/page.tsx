@@ -2,8 +2,11 @@ import Link from "next/link";
 import { notFound } from "next/navigation";
 import { getClient } from "@/lib/clients";
 import { listBookings, statusLabel } from "@/lib/bookings";
-import { skinParams, journalEntries } from "@/lib/mock";
+import { skinParams } from "@/lib/mock";
+import { listJournal, statusLabel as journalStatusLabel } from "@/lib/journal";
 import { SkinScan } from "@/components/SkinScan";
+
+export const dynamic = "force-dynamic";
 
 export default async function ClientDetail({ params }: { params: Promise<{ id: string }> }) {
   const { id } = await params;
@@ -13,6 +16,7 @@ export default async function ClientDetail({ params }: { params: Promise<{ id: s
   const clientBookings = listBookings({ clientId: id }).sort(
     (a, b) => new Date(b.startsAt).getTime() - new Date(a.startsAt).getTime()
   );
+  const clientJournal = listJournal({ clientId: id, limit: 20 });
 
   return (
     <div className="mx-auto max-w-[1180px]">
@@ -39,7 +43,8 @@ export default async function ClientDetail({ params }: { params: Promise<{ id: s
           </div>
         </div>
         <div className="ml-auto flex gap-2">
-          <Link href="/scribe" className="btn btn-ghost">AI Scribe</Link>
+          <Link href="/journal" className="btn btn-ghost">Journal</Link>
+          <Link href={`/scribe`} className="btn btn-ghost">AI Scribe</Link>
           {client.hasFootScan && <Link href="/scan/start" className="btn btn-ghost">Nyt fod-scan</Link>}
           <button className="btn btn-primary">+ Aftale</button>
         </div>
@@ -133,45 +138,74 @@ export default async function ClientDetail({ params }: { params: Promise<{ id: s
 
             {/* Journal timeline */}
             <section className="card rise p-5" style={{ animationDelay: "0.20s" }}>
-              <h2 className="display text-[16px] font-semibold">Journal</h2>
+              <div className="flex items-center justify-between">
+                <h2 className="display text-[16px] font-semibold">Journal</h2>
+                <Link href="/journal" className="mono text-[11px] text-accent hover:underline">Alle →</Link>
+              </div>
               <div className="mt-4 flex flex-col">
-                {journalEntries.map((j, i) => (
-                  <div key={i} className="relative flex gap-4 pb-5 last:pb-0">
-                    <div className="flex flex-col items-center">
-                      <div className="mt-1 h-2.5 w-2.5 rounded-full bg-accent ring-4 ring-accent/12" />
-                      {i < journalEntries.length - 1 && <div className="w-px flex-1 bg-line" />}
-                    </div>
-                    <div className="flex-1">
-                      <div className="flex flex-wrap items-center gap-2">
-                        <span className="text-[13.5px] font-semibold">{j.title}</span>
-                        {j.aiDrafted && (
-                          <span className="chip !border-signal/40 text-signal !py-0.5">AI-udkast</span>
-                        )}
-                        <span className="ml-auto mono text-[11px] text-faint">{j.date}</span>
+                {clientJournal.length === 0 && (
+                  <p className="text-[13px] text-faint">Ingen journalposter endnu.</p>
+                )}
+                {clientJournal.map((j, i) => {
+                  const st = journalStatusLabel[j.status];
+                  return (
+                    <Link key={j.id} href={`/journal/${j.id}`} className="relative flex gap-4 pb-5 last:pb-0 hover:opacity-90">
+                      <div className="flex flex-col items-center">
+                        <div className="mt-1 h-2.5 w-2.5 rounded-full bg-accent ring-4 ring-accent/12" />
+                        {i < clientJournal.length - 1 && <div className="w-px flex-1 bg-line" />}
                       </div>
-                      <div className="mt-1.5 flex gap-3 mono text-[11px] text-muted">
-                        <span>TruSkin {j.truSkinAge}</span><span>·</span><span>{j.concerns} concerns</span>
+                      <div className="flex-1">
+                        <div className="flex flex-wrap items-center gap-2">
+                          <span className="text-[13.5px] font-semibold">{j.service}</span>
+                          {j.aiDrafted && (
+                            <span className="chip !border-signal/40 text-signal !py-0.5">Niels</span>
+                          )}
+                          <span className="rounded-full px-2 py-0.5 text-[10px] font-medium" style={{ background: st.bg, color: st.color }}>{st.label}</span>
+                          <span className="ml-auto mono text-[11px] text-faint">
+                            {new Date(j.visitAt).toLocaleDateString("da-DK", { day: "numeric", month: "short", year: "numeric" })}
+                          </span>
+                        </div>
+                        <p className="mt-2 text-[13px] leading-relaxed text-ink-soft line-clamp-3">
+                          {j.soap.S || j.soap.A || "Tom kladde"}
+                        </p>
                       </div>
-                      <p className="mt-2 text-[13px] leading-relaxed text-ink-soft">{j.note}</p>
-                    </div>
-                  </div>
-                ))}
+                    </Link>
+                  );
+                })}
               </div>
             </section>
           </div>
         </div>
       ) : (
-        <div className="card rise mt-6 p-6" style={{ animationDelay: "0.1s" }}>
-          <div className="kicker">Journal</div>
-          <h2 className="display mt-2 text-[18px] font-semibold">Ingen AR-scan endnu</h2>
-          <p className="mt-2 text-[13px] text-muted">
-            {client.name.split(" ")[0]} har ikke fået lavet en hud-scan. Du kan tilføje en ny ved næste session.
-          </p>
-          <div className="mt-4 flex gap-2">
-            <button className="btn btn-primary">Tilføj note</button>
-            <button className="btn btn-ghost">Planlæg AR-scan</button>
+        <section className="card rise mt-6 p-5" style={{ animationDelay: "0.1s" }}>
+          <div className="flex items-center justify-between">
+            <div>
+              <div className="kicker">Journal</div>
+              <h2 className="display mt-1 text-[18px] font-semibold">Behandlingsjournal</h2>
+            </div>
+            <Link href="/scribe" className="btn btn-primary">AI Scribe</Link>
           </div>
-        </div>
+          <div className="mt-4 flex flex-col divide-y divide-line">
+            {clientJournal.length === 0 && (
+              <p className="py-4 text-[13px] text-faint">Ingen journalposter endnu — start fra booking eller Scribe.</p>
+            )}
+            {clientJournal.map((j) => {
+              const st = journalStatusLabel[j.status];
+              return (
+                <Link key={j.id} href={`/journal/${j.id}`} className="flex items-center gap-3 py-3 hover:bg-paper-2 -mx-2 px-2 rounded-md">
+                  <div className="min-w-[72px] mono text-[11px] text-faint">
+                    {new Date(j.visitAt).toLocaleDateString("da-DK", { day: "numeric", month: "short" })}
+                  </div>
+                  <div className="min-w-0 flex-1">
+                    <div className="text-[13px] font-medium">{j.service}</div>
+                    <div className="truncate text-[12px] text-muted">{j.soap.S || "Kladde"}</div>
+                  </div>
+                  <span className="rounded-full px-2 py-0.5 text-[10px] font-medium" style={{ background: st.bg, color: st.color }}>{st.label}</span>
+                </Link>
+              );
+            })}
+          </div>
+        </section>
       )}
 
       {/* Booking-historik */}

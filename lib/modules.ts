@@ -604,7 +604,22 @@ export const CATEGORIES = [
 
 // Mock active modules per tenant
 export const TENANT_ACTIVE_MODULES: Record<string, string[]> = {
-  bypilar: ["core-booking", "core-clients", "core-payments", "ai-aria", "ai-niels", "compliance-mitid", "compliance-nemsms", "compliance-subsidies", "growth-vouchers", "ops-finance", "ops-security", "platform-api"],
+  bypilar: [
+    "core-booking",
+    "core-clients",
+    "core-payments",
+    "ai-aria",
+    "ai-niels",
+    "clinical-foot-scan",
+    "clinical-ar-journal",
+    "compliance-mitid",
+    "compliance-nemsms",
+    "compliance-subsidies",
+    "growth-vouchers",
+    "ops-finance",
+    "ops-security",
+    "platform-api",
+  ],
   nordlys: ["core-booking", "core-clients", "core-payments", "ai-aria", "ai-niels", "ai-magnus", "compliance-mitid", "clinical-ar-journal", "ops-security", "platform-api"],
 };
 

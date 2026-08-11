@@ -1,8 +1,10 @@
 # PraxisOS · Complete Handover
 
-> **Status pr. 2026-06-16** · Single-source-of-truth for hele systemet.
+> **Status pr. 2026-07-31** · Single-source-of-truth for hele systemet.
 > Hvis du tager dette dokument + repo'et på `github.com/Broser-ai/PraxisOS`,
 > kan en ny udvikler tage over uden at spørge til noget.
+>
+> **Vigtigt:** Al kode ligger i **repo-roden** — der er ingen `prototype/`-mappe.
 
 ---
 
@@ -16,7 +18,7 @@
 | **Supabase-projekt** | `jajdtvduzkitjzcazcng` (eu-west-1 · Ireland) | ✓ 18 tabeller + RLS + seedet |
 | **Trial-kunde** | by Pilar (CVR 43947079, alle 11 moduler, 0 kr/md) | ✓ live i DB |
 | **Demo-kunde** | Nordlys Klinik ApS | ✓ live i DB |
-| **Build-status** | clean · TypeScript pass · 49 routes prerendered | ✓ |
+| **Build-status** | clean · TypeScript pass · 60 pages + 15 API (~75 routes) | ✓ |
 | **Næste blocker** | Env-vars ikke sat i Vercel (kører i mock-mode) | ⏳ 90 sek manuelt arbejde |
 
 ---
@@ -114,155 +116,53 @@ Switcher i `lib/supabase.ts:13-15`. Defensive parsing fanger whitespace eller uk
 ## 3 · Repository Structure
 
 ```
-C:\Users\Ambro2\praxisos\
+PraxisOS/                              ← repo-rod = hele kodebasen
 │
 ├── HANDOVER.md                        ← du er her
 ├── PRAXISOS-BRIEF.md                  ← system-brief (kort intro)
-├── 01-research-og-mvp-plan.md         ← konkurrent-analyse + MVP-plan
-├── 02-arkitektur-og-byggeplan.md      ← arkitektur-dybde
-├── 03-multi-tenant-og-bypilar.md      ← multi-tenant-design
-├── 04-auth-research-og-anbefalinger.md ← auth-research
+├── CODE-MAP.md                        ← fil-for-fil oversigt
+├── PRODUCTION.md                      ← deployment-runbook
+├── README.md                          ← lokal dev guide
+├── .env.example                       ← env-skabelon (committed)
+├── .env.local                         ← faktiske keys (gitignored)
+├── package.json
+├── next.config.mjs
+├── vercel.json                        ← Next.js framework pin + fra1
+├── tsconfig.json
+├── postcss.config.mjs
 │
-└── prototype/                          ← ALT kode lever her
-    ├── PraxisOS-Forarbejde.docx        ← go-live checklist (Word)
-    ├── PRODUCTION.md                   ← deployment-runbook
-    ├── README.md                       ← lokal dev guide
-    ├── .env.example                    ← env-skabelon (committed)
-    ├── .env.local                      ← faktiske keys (gitignored)
-    ├── package.json
-    ├── next.config.mjs
-    ├── vercel.json                     ← Next.js framework pin + fra1
-    ├── tsconfig.json
-    ├── postcss.config.mjs
-    │
-    ├── app/                            ← 49 Next.js routes
-    │   ├── page.tsx                    ← / landing
-    │   ├── pricing/page.tsx
-    │   ├── signup/page.tsx
-    │   ├── about/page.tsx
-    │   ├── not-found.tsx               ← 404
-    │   ├── error.tsx                   ← 500
-    │   ├── (internal)/                 ← Klinik-admin UI (kræver login)
-    │   │   ├── layout.tsx              ← Sidebar + Topbar wrapper
-    │   │   ├── review/                 ← guided tour
-    │   │   ├── dashboard/
-    │   │   ├── kalender/
-    │   │   ├── klienter/[id]/
-    │   │   ├── bookings/[id]/
-    │   │   ├── scribe/                 ← AI Scribe
-    │   │   ├── agent/                  ← AI-agent panel
-    │   │   ├── chat/                   ← team-chat
-    │   │   ├── scan/start/             ← foot-scanning
-    │   │   ├── felt/                   ← felt-service
-    │   │   ├── indstillinger/
-    │   │   └── admin/                  ← Tenant-admin
-    │   │       ├── tenants/
-    │   │       ├── payments/
-    │   │       ├── vouchers/[code]/
-    │   │       ├── subsidies/
-    │   │       ├── reporting/
-    │   │       ├── api/
-    │   │       ├── nemsms/
-    │   │       ├── agents/[id]/
-    │   │       │   ├── frej/engine/    ← Compliance-pipeline
-    │   │       │   ├── niels/pipeline/ ← AI-scribe pipeline
-    │   │       │   └── sigrid/engine/  ← Tilskuds-engine
-    │   │       ├── sundhed-dk/
-    │   │       ├── medcom/
-    │   │       ├── mcp/                ← MCP-server status
-    │   │       ├── marketplace/[id]/activate/
-    │   │       ├── dk-data/
-    │   │       ├── database/           ← Supabase-admin
-    │   │       ├── security/
-    │   │       ├── plan/
-    │   │       ├── services/
-    │   │       ├── staff/
-    │   │       ├── integration/[tenant]/
-    │   │       ├── new-tenant/
-    │   │       └── health/             ← Live system-status
-    │   │
-    │   ├── t/[tenant]/                 ← Tenant-frontend (brandet)
-    │   │   ├── layout.tsx              ← Per-tenant branding
-    │   │   ├── page.tsx                ← Tenant landing
-    │   │   ├── book/                   ← Booking-flow (5 trin)
-    │   │   ├── portal/                 ← Klient-portal
-    │   │   ├── onboarding/             ← Ny tenant-setup
-    │   │   ├── klippekort/
-    │   │   └── gavekort/
-    │   │
-    │   ├── login/                      ← Auth-flows
-    │   │   ├── page.tsx                ← Standard login
-    │   │   ├── mitid/                  ← MitID OIDC flow
-    │   │   ├── passkey/                ← WebAuthn passkey
-    │   │   └── reset/                  ← Password reset
-    │   │
-    │   ├── r/[id]/                     ← Patient-reservation
-    │   │   ├── page.tsx
-    │   │   ├── status/
-    │   │   └── layout.tsx
-    │   │
-    │   ├── demo/bypilar-website/       ← Demo embed
-    │   │
-    │   └── api/                        ← Server-side routes
-    │       ├── auth/login/route.ts
-    │       ├── auth/logout/route.ts
-    │       ├── cvr/lookup/route.ts     ← CVR via cvrapi.dk
-    │       ├── dawa/autocomplete/      ← DAWA-adresser
-    │       ├── events/route.ts         ← SSE event-stream
-    │       ├── mcp/v1/route.ts         ← JSON-RPC MCP-server
-    │       ├── v1/[tenant]/            ← Public API per tenant
-    │       │   ├── availability/
-    │       │   ├── bookings/
-    │       │   ├── bookings/list/
-    │       │   ├── clients/
-    │       │   ├── lookup/             ← CPR-match
-    │       │   ├── services/
-    │       │   └── voucher/
-    │       └── embed/v1/[tenant]/      ← JS-embed-snippet
-    │
-    ├── components/                     ← 14 delte UI-komponenter
-    │   ├── Sidebar.tsx                 ← Hovedmenu (admin)
-    │   ├── Topbar.tsx                  ← Søg + notifikationer
-    │   ├── TrialBanner.tsx             ← "Trial · gratis" banner
-    │   ├── FootScan.tsx                ← Top/side/bottom-view scan
-    │   ├── FootMesh3D.tsx              ← 3D-roterende mesh (canvas)
-    │   ├── SkinScan.tsx                ← Æstetik-skanner (Nordlys)
-    │   ├── AddressAutocomplete.tsx     ← DAWA
-    │   ├── CprMatch.tsx                ← CPR-verifikation
-    │   ├── CvrLookup.tsx               ← CVR-opslag
-    │   ├── NemSmsOptIn.tsx             ← 6-kategori SMS-opt-in
-    │   ├── PaymentStep.tsx             ← PraxisOS Pay step
-    │   ├── SubsidyBanner.tsx           ← Auto subsidy-valg
-    │   ├── VoucherInput.tsx            ← Klippekort/gavekort
-    │   └── SwarmPanel.tsx              ← Agent-team panel
-    │
-    ├── lib/                            ← 19 modul-files (data + logic)
-    │   ├── mock.ts                     ← Master mock-data
-    │   ├── tenants.ts                  ← 2 tenants seed + types
-    │   ├── auth.ts                     ← Sessions + 4 demo-accounts
-    │   ├── api-keys.ts                 ← API-key management
-    │   ├── rate-limit.ts               ← IP + user sliding window
-    │   ├── bookings.ts                 ← Booking-model
-    │   ├── clients.ts                  ← 5 klient-profiler
-    │   ├── staff.ts                    ← Staff/rolle-management
-    │   ├── payments.ts                 ← PraxisOS Pay · 9 metoder
-    │   ├── vouchers.ts                 ← Klippekort + gavekort
-    │   ├── subsidies.ts                ← 9 DK-tilskudsordninger
-    │   ├── reporting.ts                ← EDI/MedCom/KOMBIT
-    │   ├── nemsms.ts                   ← NemSMS templates
-    │   ├── agents.ts                   ← 9 humaniserede AI-agenter
-    │   ├── mcp-tools.ts                ← 19 MCP-tools
-    │   ├── modules.ts                  ← 20 marketplace-moduler
-    │   ├── dk-data.ts                  ← 8 DK-datakilder
-    │   ├── scan.ts                     ← Fod-scan sensorer/biomarkører
-    │   └── supabase.ts                 ← DB-mode-switcher (mock/local/eu)
-    │
-    ├── supabase/migrations/
-    │   └── 0001_initial_schema.sql     ← 18 tabeller + RLS + triggers
-    │
-    └── scripts/
-        └── generate_forarbejde_docx.py ← Python docx-generator
+├── app/                               ← 60 pages + 15 API routes
+│   ├── page.tsx                       ← / landing
+│   ├── pricing/ · signup/ · about/
+│   ├── not-found.tsx · error.tsx
+│   ├── (internal)/                    ← Klinik-admin UI
+│   │   ├── layout.tsx · page.tsx (→ /review)
+│   │   ├── review/ · dashboard/ · kalender/
+│   │   ├── klienter/[id]/ · bookings/[id]/
+│   │   ├── scribe/ · agent/ · chat/
+│   │   ├── scan/start/ · felt/ · indstillinger/
+│   │   └── admin/                     ← 28 admin-sider inkl. /health
+│   ├── t/[tenant]/                    ← Tenant-frontend (brandet)
+│   ├── login/                         ← Auth (standard · mitid · passkey · reset)
+│   ├── r/[id]/                        ← Patient-reservation
+│   ├── demo/bypilar-website/
+│   ├── api/
+│   │   ├── signup/route.ts            ← Tenant-signup (mock + klar til Supabase)
+│   │   ├── auth/login|logout/
+│   │   ├── cvr/lookup/ · dawa/autocomplete/
+│   │   ├── events/ · mcp/v1/
+│   │   └── v1/[tenant]/…              ← Public tenant API
+│   └── embed/v1/[tenant]/             ← JS-embed-snippet
+│
+├── components/                        ← 14 delte UI-komponenter
+├── lib/                               ← 19 modul-files (data + logic)
+├── supabase/migrations/
+│   └── 0001_initial_schema.sql        ← 18 tabeller + RLS + triggers
+└── scripts/
+    └── generate_forarbejde_docx.py    ← genererer Word-checklist (gitignored output)
 ```
+
+> Eksterne research-docs (`01-…md` … `04-…md`) og `PraxisOS-Forarbejde.docx` ligger **uden for** dette repo (lokalt hos owner / sendt separat).
 
 ---
 
@@ -324,7 +224,7 @@ bookings:           0 rows  (TBD)
 
 ---
 
-## 5 · Routes (60 endpoints)
+## 5 · Routes (60 pages + 15 API ≈ 75 endpoints)
 
 ### 5.1 · Public marketing (4)
 - `/` · landing med hero, værdier, modul-grid, CTA
@@ -393,9 +293,10 @@ bookings:           0 rows  (TBD)
 ### 5.7 · Demo (1)
 - `/demo/bypilar-website` · embed-demo
 
-### 5.8 · API endpoints (14)
+### 5.8 · API endpoints (15)
 | Path | Method | Hvad |
 |------|--------|------|
+| `/api/signup` | POST | Opret tenant + owner (mock in-memory; Supabase når env sat) |
 | `/api/auth/login` | POST | Email/password |
 | `/api/auth/logout` | POST | Session-clear |
 | `/api/cvr/lookup` | GET | Proxy til cvrapi.dk · 7-dages cache |
@@ -422,7 +323,7 @@ bookings:           0 rows  (TBD)
 - **`scan.ts`** (139 LOC) — Foot-scan data · sensorer · biomarkers · `FEATURE_CAD_EXPORT=false`
 
 ### Auth & adgang
-- **`auth.ts`** (88 LOC) — Sessions · 4 demo-accounts (pilar, sofie, nadia, emil)
+- **`auth.ts`** — Sessions · 5 demo-accounts (pilar, sofie, nadia, emil reception, emil support)
 - **`api-keys.ts`** (165 LOC) — API-key prefix · hashed_secret · scopes
 - **`rate-limit.ts`** (132 LOC) — IP + user sliding-window med exp backoff
 - **`staff.ts`** (62 LOC) — Staff/rolle-management
@@ -513,10 +414,11 @@ bookings:           0 rows  (TBD)
 ### 8.2 · Demo-accounts (mock-mode · `lib/auth.ts`)
 | Email | Tenant | Rolle | Adgangskode |
 |-------|--------|-------|-------------|
-| pilar@bypilar.dk | bypilar | owner | (any) |
-| sofie@bypilar.dk | bypilar | practitioner | (any) |
-| nadia@nordlys.dk | nordlys | owner | (any) |
-| emil@support.praxis.app | (all) | support | (any) |
+| pilar@bypilar.dk | bypilar | owner | `demo` |
+| sofie@bypilar.dk | bypilar (+ nordlys) | practitioner | `demo` |
+| nadia@nordlys.dk | nordlys | owner | `demo` |
+| emil@bypilar.dk | bypilar | reception | `demo` |
+| emil@support.praxis.app | bypilar + nordlys | support | `demo` |
 
 ### 8.3 · Roller (DB-niveau)
 - `owner` · fuld tenant-adgang
@@ -684,7 +586,7 @@ Plus per-brug:
 2. **Kontakt** · navn · email · mobil (MitID-bekræftelse i prod)
 3. **Plan** · Starter/Practice/Practice+AI · review
 
-I prod kalder steget POST `/api/signup` (TODO · Sprint 1) der opretter tenant i Supabase + sender MitID-invite.
+Kalder POST `/api/signup` der opretter tenant + owner i mock-mode. Supabase service_role-insert er næste skridt når env-vars er sat.
 
 ---
 
@@ -744,34 +646,39 @@ Trial-mekanismen er central. By Pilar betaler **0 kr** indtil PraxisOS er commer
 | Custom domain | ingen endnu |
 | Latest deployment | `dpl_BVbkqaHCWDRcKdU3tNHfmemEDT2P` · READY |
 | Build time | ~23 sek |
-| Routes | 49 (4 dynamic · 45 static-prerendered) |
+| Routes | ~75 (60 pages + 15 API; ~53 static-prerendered) |
 
-**Bemærk**: GitHub-autodeploys er BLOCKED fordi commit-author `ReNew-DK` mangler GitHub-Vercel-link. Vi deployer via CLI indtil løst (`vercel deploy --prod --yes`).
+**Bemærk**: GitHub er forbundet til Vercel-projektet [`praxis-os`](https://vercel.com/michaels-projects-78cbfa56/praxis-os) — push til `main` trigger autodeploy. Manuel CLI (`vercel deploy --prod --yes`) er kun fallback.
 
 ### 15.3 · GitHub
 | Item | Value |
 |------|-------|
 | Repo | `Broser-ai/PraxisOS` (privat) |
 | Branch | `main` |
-| Latest commit | `9248ae8` (fix: defensive PRAXIS_DB parsing) |
-| Commits | 4 (Initial, author-fix, vercel.json, defensive-fix) |
-| Files | 132 |
+| Latest commit | se `git log -1` på `main` / PR-branch |
+| Commits | se `git log --oneline` |
+| Source files | ~132 (uden node_modules) |
 | Owner | Broser-ai (GitHub) |
 | Linked til Supabase | ✓ Yes (auto-deploy ikke aktivt endnu) |
 
 ### 15.4 · Env-vars (Vercel Production)
-**Status: tomme · skal sættes manuelt** (CLI hænger på `--value` flag).
+**Status: sat** (2026-07-31) · Production + Preview.
 
 ```
 PRAXIS_DB                       = supabase-eu
 NEXT_PUBLIC_SUPABASE_URL        = https://jajdtvduzkitjzcazcng.supabase.co
-NEXT_PUBLIC_SUPABASE_ANON_KEY   = eyJhbG...v5HVICFOg6bkxvh4DuWvo8r-kQOYePMQmS4wPy7vLys
-SUPABASE_SERVICE_ROLE_KEY       = eyJhbG...fhyoPGQqL4nYO5ok3m7UOw6TiGzWtowdvgZUqT5Kay0
+SUPABASE_URL                    = https://jajdtvduzkitjzcazcng.supabase.co
+NEXT_PUBLIC_SUPABASE_ANON_KEY   = (sat · sensitive)
+SUPABASE_ANON_KEY               = (sat · sensitive)
+SUPABASE_SERVICE_ROLE_KEY       = (sat · sensitive)
 NEXT_PUBLIC_BASE_URL            = https://praxis-os-mu.vercel.app
 NEXT_PUBLIC_APP_REGION          = eu-west-1
 ```
 
-**Sættes manuelt** på: https://vercel.com/michaels-projects-78cbfa56/praxis-os/settings/environment-variables
+Dashboard: https://vercel.com/michaels-projects-78cbfa56/praxis-os/settings/environment-variables
+
+> Bemærk: Appen kører stadig mock-data-paths i kode indtil `@supabase/supabase-js` er wired.
+> Env-vars er på plads, så næste skridt er rigtig client i `lib/supabase.ts`.
 
 ---
 
@@ -779,7 +686,7 @@ NEXT_PUBLIC_APP_REGION          = eu-west-1
 
 ### 16.1 · Local dev
 ```bash
-cd C:\Users\Ambro2\praxisos\prototype
+cd PraxisOS
 npm install                    # one-time
 npm run dev -- -H 127.0.0.1 -p 3002
 # åbn http://127.0.0.1:3002/
@@ -788,7 +695,7 @@ npm run dev -- -H 127.0.0.1 -p 3002
 ### 16.2 · Build (verify)
 ```bash
 npm run build
-# Forventet: ✓ Compiled · TypeScript pass · 49 routes
+# Forventet: ✓ Compiled · TypeScript pass · ~75 routes
 ```
 
 ### 16.3 · Deploy til Vercel
@@ -797,7 +704,7 @@ npm run build
 git push origin main           # trigger auto-deploy
 
 # Eller manuel via CLI
-cd C:\Users\Ambro2\praxisos\prototype
+cd PraxisOS
 vercel deploy --prod --yes
 ```
 
@@ -898,27 +805,26 @@ Manipulation kan opdages ved at re-køre kæden.
 
 | # | Issue | Severity | Fix |
 |---|-------|----------|-----|
-| 1 | GitHub-autodeploy BLOCKED · GitHub-account ikke linket til Vercel | medium | User klikker `Connect` på https://vercel.com/account/login-connections |
-| 2 | Env-vars tomme i Vercel · `vercel env add --value` CLI hænger | medium | Manuel via UI · 90 sek |
-| 3 | Produktion kører i mock-mode (PRAXIS_DB=mock-fallback fordi env-var tom) | medium | Fixes med #2 |
-| 4 | `/api/signup` POST-handler er stub · opretter ikke rigtig tenant | high | Sprint 1 |
-| 5 | Stripe Connect ikke koblet · ingen rigtig billing | high | Sprint 2 |
-| 6 | MitID-flow er mock · Idura broker ikke aktiveret | high | Sprint efter Idura-onboarding |
-| 7 | Email-pipeline mangler · ingen booking-bekræftelser sendes | high | Sprint 2 + Bird.com |
-| 8 | Atlas (kode-gen agent) er kun stub | low | Sprint 4 |
-| 9 | Backup-strategi ikke konfigureret | medium | Aktivér PITR i Supabase Pro |
-| 10 | CI/CD pipeline mangler | low | GitHub Actions setup |
+| 1 | Env-vars sat, men kode bruger stadig mock-storage (ingen `@supabase/supabase-js` endnu) | medium | Sprint 1 · wire client |
+| 2 | `/api/signup` opretter mock-tenant · mangler ægte Supabase-insert | medium | Sprint 1 (service_role) |
+| 4 | Stripe Connect ikke koblet · ingen rigtig billing | high | Sprint 2 |
+| 5 | MitID-flow er mock · Idura broker ikke aktiveret | high | Sprint efter Idura-onboarding |
+| 6 | Email-pipeline mangler · ingen booking-bekræftelser sendes | high | Sprint 2 + Bird.com |
+| 7 | Atlas (kode-gen agent) er kun stub | low | Sprint 4 |
+| 8 | Backup-strategi ikke konfigureret | medium | Aktivér PITR i Supabase Pro |
+| 9 | CI/CD pipeline mangler (ud over Vercel Git-integration) | low | GitHub Actions setup |
 
 ---
 
 ## 20 · Next Steps · Roadmap
 
-### Sprint 1 · Nuværende (1-2 dage)
-- [ ] **Brugeren**: sæt 6 env-vars i Vercel · redeploy
-- [ ] **Brugeren**: link GitHub-account til Vercel-konto
-- [ ] `/api/signup` POST-handler → opretter rigtig tenant via service_role
+### Sprint 1 · Nuværende
+- [x] **Env-vars sat i Vercel** (Production + Preview) · redeployet
+- [x] GitHub ↔ Vercel forbundet ([`praxis-os`](https://vercel.com/michaels-projects-78cbfa56/praxis-os))
+- [x] `/api/signup` POST-handler (mock in-memory · wired fra `/signup`)
+- [ ] `/api/signup` → ægte Supabase-insert via service_role
 - [ ] `lib/supabase.ts` server-client (real fetch · ikke mock)
-- [ ] First fresh deploy fra GitHub auto-trigger
+- [ ] Merge til `main` → autodeploy via Vercel Git-integration
 
 ### Sprint 2 · Faktura + billing (3-4 dage)
 - [ ] Stripe Connect Custom setup
@@ -1007,16 +913,19 @@ Når 5+ betalende kunder lander, dækker subscription-revenue (5 × 595 kr = 2.9
 
 1. **`HANDOVER.md`** ← (du læser den nu)
 2. **`PRAXISOS-BRIEF.md`** · kort system-brief
-3. **`prototype/PRODUCTION.md`** · go-live runbook
-4. **`prototype/README.md`** · lokal dev guide
-5. **`prototype/PraxisOS-Forarbejde.docx`** · ekstern onboarding-checklist
-6. **`prototype/.env.example`** · env-template
-7. **`prototype/supabase/migrations/0001_initial_schema.sql`** · DB-skema
-8. **`prototype/lib/tenants.ts`** · tenant-model + 2 seeds
-9. **`prototype/lib/agents.ts`** · 9 humaniserede AI-agenter
-10. **`prototype/lib/modules.ts`** · 20 moduler i marketplace
-11. **`prototype/lib/payments.ts`** · PraxisOS Pay config
-12. **`prototype/lib/subsidies.ts`** · 9 DK-tilskudsordninger
+3. **`CODE-MAP.md`** · fil-for-fil oversigt
+4. **`PRODUCTION.md`** · go-live runbook
+5. **`README.md`** · lokal dev guide
+6. **`.env.example`** · env-template
+7. **`supabase/migrations/0001_initial_schema.sql`** · DB-skema
+8. **`lib/tenants.ts`** · tenant-model + seeds + `registerTenant`
+9. **`lib/agents.ts`** · 9 humaniserede AI-agenter
+10. **`lib/modules.ts`** · 20 moduler i marketplace
+11. **`lib/payments.ts`** · PraxisOS Pay config
+12. **`lib/subsidies.ts`** · 9 DK-tilskudsordninger
+13. **`app/api/signup/route.ts`** · tenant-signup API
+
+> `PraxisOS-Forarbejde.docx` genereres via `scripts/generate_forarbejde_docx.py` og er gitignored.
 
 ---
 
@@ -1028,7 +937,6 @@ git clone git@github.com:Broser-ai/PraxisOS.git
 cd PraxisOS
 
 # 2. Install
-cd prototype
 npm install
 
 # 3. Env
@@ -1040,7 +948,7 @@ npm run dev -- -H 127.0.0.1 -p 3002
 
 # 5. Åbn
 # http://127.0.0.1:3002/
-# Login: pilar@bypilar.dk + (any password)
+# Login: pilar@bypilar.dk / demo
 ```
 
 Læs så `HANDOVER.md` (denne fil) end-to-end · ca. 15 min.
@@ -1056,5 +964,5 @@ Læs så `HANDOVER.md` (denne fil) end-to-end · ca. 15 min.
 
 ---
 
-*Genereret 2026-06-16 · PraxisOS prototype · ma@keap.me*
-*Hvis ting har ændret sig efter denne dato · check git log siden 9248ae8 commit.*
+*Opdateret 2026-07-31 · PraxisOS · ma@keap.me*
+*Check `git log` for ændringer efter denne dato.*

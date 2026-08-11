@@ -3,7 +3,7 @@
 export const clinic = {
   name: "Nordlys Klinik",
   plan: "PraxisOS · Pro",
-  region: "EU · Frankfurt (eu-central-1)",
+  region: "EU · Ireland (eu-west-1) · Vercel edge fra1",
 };
 
 export const practitioner = {

@@ -445,7 +445,7 @@ p.alignment = WD_ALIGN_PARAGRAPH.CENTER
 # ------------------------------------------------------------
 # Gem
 # ------------------------------------------------------------
-out = Path("C:/Users/Ambro2/praxisos/prototype/PraxisOS-Forarbejde.docx")
+out = Path(__file__).resolve().parent.parent / "PraxisOS-Forarbejde.docx"
 doc.save(out)
 print(f"Skrevet: {out}")
 print(f"Størrelse: {out.stat().st_size:,} bytes")

@@ -66,13 +66,13 @@ export default async function TenantHome({ params }: { params: Promise<{ tenant:
         </p>
         <div className="scrollbar-thin mt-3 overflow-x-auto rounded-[10px] bg-ink text-paper">
           <pre className="mono p-4 text-[12px] leading-relaxed"><code>{`# Hent ydelser
-curl https://localhost:3001/api/v1/${t.slug}/services
+curl http://127.0.0.1:3002/api/v1/${t.slug}/services
 
 # Hent ledige tider
-curl "https://localhost:3001/api/v1/${t.slug}/availability?service=${t.services[0].id}&days=5"
+curl "http://127.0.0.1:3002/api/v1/${t.slug}/availability?service=${t.services[0].id}&days=5"
 
 # Opret booking
-curl -X POST https://localhost:3001/api/v1/${t.slug}/bookings \\
+curl -X POST http://127.0.0.1:3002/api/v1/${t.slug}/bookings \\
   -H "content-type: application/json" \\
   -H "idempotency-key: $(uuidgen)" \\
   -d '{

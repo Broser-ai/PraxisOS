@@ -4,7 +4,7 @@ import { DB_MODE, currentConfig } from "@/lib/supabase";
 type Status = "live" | "stub" | "pending" | "down";
 
 const INTEGRATIONS: { name: string; modul: string; status: Status; note: string; href?: string }[] = [
-  { name: "Next.js · App Router", modul: "next 16.2.7", status: "live", note: "49 routes · build ✓" },
+  { name: "Next.js · App Router", modul: "next 16.2.12", status: "live", note: "60 pages + 15 API · build ✓" },
   { name: "Database · Postgres", modul: `Supabase · ${DB_MODE}`, status: DB_MODE === "mock" ? "stub" : "live", note: currentConfig.region, href: "/admin/database" },
   { name: "Row-Level Security", modul: "16/18 tables", status: "live", note: "tenant_isolation enforced" },
   { name: "MitID OIDC", modul: "Signaturgruppen broker", status: "stub", note: "afventer trust-aftale", href: "/login/mitid?mode=patient" },
@@ -12,11 +12,15 @@ const INTEGRATIONS: { name: string; modul: string; status: Status; note: string;
   { name: "CVR · Erhvervsstyrelsen", modul: "cvrapi.dk + cache", status: "live", note: "1000 lookups/dag · 7 dages cache", href: "/admin/dk-data" },
   { name: "Sundhed.dk · FMK", modul: "NSP-bro", status: "pending", note: "trustaftale · 6 uger", href: "/admin/sundhed-dk" },
   { name: "MedCom · EDI", modul: "VANS-routing", status: "stub", note: "EAN + VANS-aftale", href: "/admin/medcom" },
-  { name: "NemSMS", modul: "KOMBIT", status: "stub", note: "sender-id afventer", href: "/admin/nemsms" },
+  { name: "Bird.com SMS", modul: "lib/bird + /admin/bird", status: "live", note: "self-host · kræver BIRD_API_KEY", href: "/admin/bird" },
+  { name: "NemSMS", modul: "KOMBIT", status: "stub", note: "parkér · Bird i stedet", href: "/admin/nemsms" },
   { name: "Sygesikringen danmark", modul: "EDIFACT D04A", status: "stub", note: "webservice-aftale" },
   { name: "PraxisOS Pay", modul: "egen-built", status: "live", note: "9 metoder · PraxisRisk + Trust 2", href: "/admin/payments" },
-  { name: "AI · Aria/Niels/Sigrid", modul: "9 humaniserede agenter", status: "live", note: "mock-svar · OpenAI key for prod", href: "/admin/agents" },
-  { name: "MCP-server", modul: "JSON-RPC 2.0", status: "live", note: "19 tools eksponeret", href: "/admin/mcp" },
+  { name: "AI · Agent-automation", modul: "runtime + worker + workflows", status: "live", note: "LLM valgfri · /admin/agents/automation", href: "/admin/agents/automation" },
+  { name: "Nexus · 4D fod-scan", modul: "ARIA + S-Agent i Docker", status: "live", note: "MonoMSK · /scan · ingen separat proces", href: "/scan" },
+  { name: "Journal · behandlingsrecord", modul: "lib/journal + /journal", status: "live", note: "SOAP pr. booking · Niels-udkast · signatur", href: "/journal" },
+  { name: "AI · Aria/Niels/Sigrid", modul: "9 humaniserede agenter", status: "live", note: "heuristik + tools · OpenAI optional", href: "/admin/agents" },
+  { name: "MCP-server", modul: "JSON-RPC 2.0", status: "live", note: "rigtige tool-handlers", href: "/admin/mcp" },
   { name: "Modul-marketplace", modul: "20 moduler · 7 kategorier", status: "live", note: "aktivering ✓", href: "/admin/marketplace" },
 ];
 
@@ -45,7 +49,7 @@ export default function HealthPage() {
         <Stat label="Live integrationer" value={live.toString()} color="var(--color-signal)" />
         <Stat label="Stub · klar til kobling" value={INTEGRATIONS.filter((i) => i.status === "stub").length.toString()} color="var(--color-amber)" />
         <Stat label="Pending · afventer aftale" value={INTEGRATIONS.filter((i) => i.status === "pending").length.toString()} />
-        <Stat label="Build-status" value="✓ Compiled" color="var(--color-signal)" sub="49 routes · TypeScript OK" />
+        <Stat label="Build-status" value="✓ Compiled" color="var(--color-signal)" sub="75 routes · TypeScript OK" />
       </div>
 
       {/* Integrations */}

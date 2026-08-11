@@ -46,5 +46,8 @@ Thumbs.db
 # Screenshots (lokale tests)
 screenshots/
 
+# Felix worktrees
+.praxis-worktrees/
+
 # Word-doc · sendes separat til ma@keap.me
 PraxisOS-Forarbejde.docx
