@@ -1,6 +1,7 @@
 import { FootScan } from "@/components/FootScan";
 import { FootMesh3D } from "@/components/FootMesh3D";
 import { SwarmPanel } from "@/components/SwarmPanel";
+import { NexusScanPanel } from "@/components/NexusScanPanel";
 import { sensorBridge, footMetrics, biomarkers, codeLog, FEATURE_CAD_EXPORT } from "@/lib/scan";
 
 export default function FodScanPage() {
@@ -14,11 +15,11 @@ export default function FodScanPage() {
               <span className="absolute inline-flex h-full w-full animate-ping rounded-full bg-signal opacity-75" />
               <span className="relative inline-flex h-1.5 w-1.5 rounded-full bg-signal" />
             </span>
-            Physical AI · Fod-scanning · sub-mm topologi
+            Physical AI · Fod-scanning · DelPilar Nexus
           </div>
           <h1 className="display mt-2 text-[32px] font-semibold leading-none">Fod-scan</h1>
           <p className="mt-2 text-[13.5px] text-muted">
-            Mette L. · Session #3 · 3-agent swarm · plantar pressure + termisk + vaskulær
+            Mette L. · S-Agent + ARIA · MonoMSK 4D · plantar pressure + termisk + vaskulær
           </p>
         </div>
         <div className="flex items-center gap-2">
@@ -44,6 +45,10 @@ export default function FodScanPage() {
             </div>
           </div>
         ))}
+      </div>
+
+      <div className="rise mt-5" style={{ animationDelay: "0.05s" }}>
+        <NexusScanPanel patientId="mette" />
       </div>
 
       <div className="mt-3 grid grid-cols-1 gap-3 lg:grid-cols-[1.4fr_1fr]">
