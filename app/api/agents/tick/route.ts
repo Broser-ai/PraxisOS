@@ -1,5 +1,6 @@
 import { NextResponse } from "next/server";
 import { tickAutomation, ensureWorkflowSubscription } from "@/lib/agents/workflows";
+import { nexusOnAgentTick } from "@/lib/nexus/runtime";
 
 export const runtime = "nodejs";
 
@@ -12,7 +13,7 @@ function authorize(req: Request): boolean {
   return header === secret;
 }
 
-/** Cron / worker heartbeat — runs all due scheduled workflows */
+/** Cron / worker heartbeat — runs all due scheduled workflows + Nexus (ARIA/LUNA) */
 export async function POST(req: Request) {
   ensureWorkflowSubscription();
   if (!authorize(req)) {
@@ -28,7 +29,8 @@ export async function POST(req: Request) {
     // empty body ok
   }
   const result = await tickAutomation({ tenant, force });
-  return NextResponse.json(result);
+  const nexus = await nexusOnAgentTick({ tenant, forceHarvest: force });
+  return NextResponse.json({ ...result, nexus });
 }
 
 export async function GET(req: Request) {
@@ -39,5 +41,6 @@ export async function GET(req: Request) {
   const url = new URL(req.url);
   const force = url.searchParams.get("force") === "1";
   const result = await tickAutomation({ force });
-  return NextResponse.json(result);
+  const nexus = await nexusOnAgentTick({ forceHarvest: force });
+  return NextResponse.json({ ...result, nexus });
 }

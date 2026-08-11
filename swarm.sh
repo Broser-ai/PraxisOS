@@ -1,75 +1,38 @@
 #!/usr/bin/env bash
-# PraxisOS · DelPilar Nexus swarm boot
-# Starter ARIA orchestrator-status + Next.js (eller agent-worker) parallelt.
+# PraxisOS · DelPilar Nexus er INDE i Docker-appen (ikke en separat proces).
+# Dette script er kun en genvej til den normale Hetzner-løsning.
 set -euo pipefail
 
 ROOT="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 cd "${ROOT}"
 
-PORT="${PORT:-${PRAXIS_HOST_PORT:-3000}}"
-export PORT
-export HOSTNAME="${HOSTNAME:-0.0.0.0}"
-
 echo ""
 echo "=========================================="
-echo "  PraxisOS · DelPilar Nexus swarm"
+echo "  PraxisOS · Nexus kører i løsningen"
 echo "=========================================="
 echo ""
+echo "Nexus (ARIA / NINA / FELIX / LUNA / S-Agent) starter automatisk"
+echo "sammen med praxisos_app + agent-worker. Ingen separat swarm."
+echo ""
+echo "  Scan-UI:   http://HOST:3010/scan"
+echo "  Scan-API:  POST /api/v1/scan/process"
+echo "  Worker:    kalder /api/agents/tick (booter Nexus)"
+echo ""
 
-if [[ ! -d node_modules ]]; then
-  echo "=> npm install..."
-  npm install
+if [[ "${1:-}" == "up" || "${1:-}" == "deploy" ]]; then
+  if [[ -f scripts/deploy-hetzner.sh ]]; then
+    exec bash scripts/deploy-hetzner.sh
+  fi
 fi
 
-# Quick ARIA boot (Node resolves TS via next/tsx if available, else compiled path)
-boot_aria() {
-  if command -v npx >/dev/null 2>&1; then
-    if npx --yes tsx -e "import { ariaOrchestrator } from './agents/ARIA-orchestrator.ts'; const b=await ariaOrchestrator.boot(); console.log(JSON.stringify(b));" 2>/dev/null; then
-      return 0
-    fi
-  fi
-  # Fallback: hit status endpoint once server is up
-  echo "ARIA CLI boot skipped (tsx unavailable) — uses /api/v1/scan/process when app is live"
-}
-
-PIDS=()
-cleanup() {
+if [[ -f docker-compose.praxis.yml && -f .env.production ]]; then
+  echo "=> Starter docker compose (praxisos + agent-worker)..."
+  docker compose -f docker-compose.praxis.yml --env-file .env.production up -d --build
   echo ""
-  echo "=> Stopper swarm..."
-  for pid in "${PIDS[@]:-}"; do
-    kill "${pid}" 2>/dev/null || true
-  done
-}
-trap cleanup EXIT INT TERM
-
-echo "=> Booter ARIA..."
-boot_aria || true
-
-if [[ "${1:-}" == "worker" ]]; then
-  echo "=> Starter agent-worker..."
-  npm run agent:worker &
-  PIDS+=($!)
+  echo "Færdig · åbn /scan i PraxisOS"
+  exit 0
 fi
 
-echo "=> Starter Next.js på ${HOSTNAME}:${PORT}..."
-if [[ -f .next/BUILD_ID ]]; then
-  npm run start -- -H "${HOSTNAME}" -p "${PORT}" &
-else
-  npm run dev -- -H "${HOSTNAME}" -p "${PORT}" &
-fi
-PIDS+=($!)
-
-# Wait for health, then warm ARIA via API
-for i in $(seq 1 40); do
-  if curl -sf "http://127.0.0.1:${PORT}/api/v1/scan/process" >/dev/null 2>&1; then
-    echo "=> Swarm live · http://${HOSTNAME}:${PORT}"
-    echo "   Scan API: POST /api/v1/scan/process"
-    echo "   Journal:  /journal · Bird: /admin/bird · Agents: /admin/agents/automation"
-    wait
-    exit 0
-  fi
-  sleep 0.5
-done
-
-echo "App startede, men health-check timed out — processerne kører stadig."
-wait
+echo "Kør på serveren:"
+echo "  cd /opt/PraxisOS && bash scripts/deploy-hetzner.sh"
+echo "Derefter: http://SERVER:3010/scan"

@@ -17,6 +17,7 @@ const INTEGRATIONS: { name: string; modul: string; status: Status; note: string;
   { name: "Sygesikringen danmark", modul: "EDIFACT D04A", status: "stub", note: "webservice-aftale" },
   { name: "PraxisOS Pay", modul: "egen-built", status: "live", note: "9 metoder · PraxisRisk + Trust 2", href: "/admin/payments" },
   { name: "AI · Agent-automation", modul: "runtime + worker + workflows", status: "live", note: "LLM valgfri · /admin/agents/automation", href: "/admin/agents/automation" },
+  { name: "Nexus · 4D fod-scan", modul: "ARIA + S-Agent i Docker", status: "live", note: "MonoMSK · /scan · ingen separat proces", href: "/scan" },
   { name: "Journal · behandlingsrecord", modul: "lib/journal + /journal", status: "live", note: "SOAP pr. booking · Niels-udkast · signatur", href: "/journal" },
   { name: "AI · Aria/Niels/Sigrid", modul: "9 humaniserede agenter", status: "live", note: "heuristik + tools · OpenAI optional", href: "/admin/agents" },
   { name: "MCP-server", modul: "JSON-RPC 2.0", status: "live", note: "rigtige tool-handlers", href: "/admin/mcp" },

@@ -169,13 +169,23 @@ export const WORKFLOWS: WorkflowDef[] = [
   {
     id: "wf_scribe_on_scan",
     name: "Scan → SOAP",
-    description: "Når scan er færdig: Niels laver SOAP-udkast.",
+    description: "Når Nexus/S-Agent scan er færdig: Niels laver SOAP-udkast.",
     agents: ["niels"],
     schedule: "on_event",
-    eventTypes: ["scan.completed", "ai.scribe_drafted"],
+    eventTypes: ["scan.completed", "swarm.scan.completed", "ai.scribe_drafted"],
     enabled: true,
     prompt: ({ event }) =>
       `Scan/scribe trigger: ${JSON.stringify(event?.data ?? {})}. Lav SOAP-udkast der kræver behandler-godkendelse.`,
+  },
+  {
+    id: "wf_nexus_daily",
+    name: "Nexus · klinisk swarm",
+    description: "ARIA/LUNA kører inde i PraxisOS (samme Docker) — ingen separat swarm-proces.",
+    agents: ["atlas", "niels"],
+    schedule: "daily",
+    enabled: true,
+    prompt: ({ tenant }) =>
+      `Nexus self-check for ${tenant}. Bekræft at fod-scan (/scan) og /api/v1/scan/process er tilgængelige. Opsummer seneste swarm.scan.* events hvis nogen.`,
   },
   {
     id: "wf_platform_daily",

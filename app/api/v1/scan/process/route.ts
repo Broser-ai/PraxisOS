@@ -1,5 +1,6 @@
 import { NextResponse } from "next/server";
 import { ariaOrchestrator } from "@/agents/ARIA-orchestrator";
+import { ensureNexusBooted } from "@/lib/nexus/runtime";
 
 export const runtime = "nodejs";
 export const dynamic = "force-dynamic";
@@ -11,7 +12,7 @@ type Body = {
   patientId?: string;
 };
 
-/** Trigger S-Agent alpha scan and notify ARIA orchestrator */
+/** Trigger S-Agent alpha scan inside PraxisOS (ARIA orchestrator) */
 export async function POST(req: Request) {
   let body: Body;
   try {
@@ -19,6 +20,9 @@ export async function POST(req: Request) {
   } catch {
     return NextResponse.json({ error: "invalid_json" }, { status: 400 });
   }
+
+  const tenantId = body.tenantId ?? "bypilar";
+  await ensureNexusBooted(tenantId);
 
   const imageUrl =
     body.imageUrl?.trim() ||
@@ -29,7 +33,7 @@ export async function POST(req: Request) {
     type: "scan",
     imageUrl,
     imageBase64: body.imageBase64,
-    tenantId: body.tenantId ?? "bypilar",
+    tenantId,
     patientId: body.patientId ?? "demo-patient",
   });
 
@@ -49,6 +53,7 @@ export async function POST(req: Request) {
 }
 
 export async function GET() {
+  const boot = await ensureNexusBooted("bypilar");
   const status = await ariaOrchestrator.dispatch({ type: "status" });
-  return NextResponse.json(status);
+  return NextResponse.json({ ...status, nexus: boot });
 }

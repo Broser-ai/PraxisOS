@@ -4,22 +4,22 @@ const STEPS = [
   {
     n: "01",
     title: "Server",
-    body: "Hetzner kører Docker: PraxisOS-app + agent-worker. Alt hostes hos dig.",
+    body: "Hetzner kører Docker: PraxisOS-app + agent-worker. Alt — inkl. Nexus-scan — hostes hos dig.",
   },
   {
     n: "02",
     title: "Bird SMS",
-    body: "SMS-kanal på +45 26 32 52 20. Nøgle sættes i .env.production.",
+    body: "SMS-kanal på +45 26 32 52 20. Nøgle sættes via /admin/bird (ingen rebuild).",
   },
   {
     n: "03",
-    title: "AI-agenter",
-    body: "12 workflows kører automatisk (booking, tilskud, recall, compliance…). OPENAI_API_KEY er valgfri.",
+    title: "AI + Nexus",
+    body: "Agenter + 4D fod-scan kører i samme app. Worker booter ARIA/LUNA automatisk hvert tick.",
   },
   {
     n: "04",
     title: "Test",
-    body: "Åbn /admin/agents/automation og tryk «Kør alle workflows». Test SMS under /admin/bird.",
+    body: "Åbn /scan og tryk «Kør Alpha-scan». Test SMS under /admin/bird. Workflows under /admin/agents/automation.",
   },
 ];
 
@@ -32,18 +32,19 @@ export default function SetupPage() {
           bypilar på egen server
         </h1>
         <p className="mt-4 max-w-[48ch] text-[16px] leading-relaxed text-muted">
-          Klinik-system + Bird SMS + automatiske AI-agenter. Ét Docker-setup på din Hetzner.
+          Klinik-system + Bird SMS + AI-agenter + 4D fod-scan. Ét Docker-setup — intet at køre
+          ved siden af.
         </p>
 
         <div className="mt-8 flex flex-wrap gap-3">
-          <Link href="/admin/agents/automation" className="btn btn-primary">
+          <Link href="/scan" className="btn btn-primary">
+            Fod-scan · Nexus
+          </Link>
+          <Link href="/admin/agents/automation" className="btn btn-ghost">
             Agent-automation
           </Link>
           <Link href="/admin/bird" className="btn btn-ghost">
             Bird SMS
-          </Link>
-          <Link href="/dashboard" className="btn btn-ghost">
-            Klinik
           </Link>
         </div>
 
@@ -62,8 +63,8 @@ export default function SetupPage() {
           <pre className="mt-3 overflow-x-auto rounded-[10px] bg-ink px-4 py-3 mono text-[12px] leading-relaxed text-paper">
 {`ssh root@167.233.171.184
 cd /opt/PraxisOS
-# rediger .env.production · BIRD_API_KEY (+ valgfri OPENAI_API_KEY)
-bash scripts/deploy-hetzner.sh`}
+bash scripts/deploy-hetzner.sh
+# Åbn http://SERVER:3010/scan`}
           </pre>
         </section>
       </div>
