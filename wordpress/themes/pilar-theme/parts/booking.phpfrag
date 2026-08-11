@@ -1,0 +1,24 @@
+<main style="padding-top:130px;min-height:70vh">
+  <div class="container booking-section">
+    <p class="label" style="margin-bottom:12px">Online Booking</p>
+    <h2 class="heading" style="font-size:clamp(28px,3.5vw,44px);margin-bottom:16px">Book din behandling</h2>
+    <p style="font-size:15px;color:var(--muted);margin-bottom:40px;line-height:1.7">
+      Vælg behandling, dato og tid herunder. Du modtager automatisk bekræftelse på e-mail og SMS-påmindelse 24 timer før.
+    </p>
+
+    <div class="booking-embed">
+              <iframe src="https://bypilar.planway.com/book" style="width:100%;min-height:700px;border:none" title="Book behandling hos PILAR"></iframe>
+          </div>
+  </div>
+</main>
+
+<!-- Newsletter -->
+<section class="newsletter">
+  <div class="newsletter-inner">
+    <p class="label" style="margin-bottom:16px">Nyhedsbrev</p>
+    <h3>Tips, tilbud & <em>inspiration</em></h3>
+    <!-- Mailchimp form - erstat action URL med din Mailchimp form action -->
+    <div class="newsletter-form">
+      [mc4wp_form id="newsletter"]    </div>
+  </div>
+</section>

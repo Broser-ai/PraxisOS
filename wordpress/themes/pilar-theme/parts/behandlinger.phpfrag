@@ -1,0 +1,120 @@
+<main style="padding-top:130px;min-height:70vh">
+  <div class="container" style="max-width:860px">
+    <p class="label" style="margin-bottom:12px">Behandlinger</p>
+    <h2 class="heading" style="font-size:clamp(32px,4vw,50px);margin-bottom:40px">Hvad kan vi gøre <em>for dig?</em></h2>
+
+    <div class="treatments-tabs">
+      <button class="treatments-tab active" onclick="switchTab('negle',this)">Negle & Gel-Lak</button>
+      <button class="treatments-tab" onclick="switchTab('fod',this)">Fodpleje</button>
+    </div>
+
+    <div id="tab-negle">
+              <a class="treatment-row" href="https://bypilar.planway.com">
+          <div style="flex:1">
+            <div class="treatment-tags">
+              <span class="treatment-name">Gel-lak Hænder</span>
+                            <span class="mobile-tag" style="font-size:9px;letter-spacing:1px;text-transform:uppercase;color:var(--rose);font-weight:600">🚗 Udekørende</span>            </div>
+            <p class="treatment-desc">Klassisk gel-lak med op til 3 ugers holdbarhed</p>
+          </div>
+          <div style="text-align:right;margin-left:24px"><div class="treatment-price">395 kr</div><div class="treatment-time">45 min</div></div>
+          <span class="treatment-arrow" style="margin-left:20px;color:var(--gray)">→</span>
+        </a>
+              <a class="treatment-row" href="https://bypilar.planway.com">
+          <div style="flex:1">
+            <div class="treatment-tags">
+              <span class="treatment-name">Gel-lak Tæer</span>
+                            <span class="mobile-tag" style="font-size:9px;letter-spacing:1px;text-transform:uppercase;color:var(--rose);font-weight:600">🚗 Udekørende</span>            </div>
+            <p class="treatment-desc">Perfekt pedicure med langvarig gel-lak</p>
+          </div>
+          <div style="text-align:right;margin-left:24px"><div class="treatment-price">345 kr</div><div class="treatment-time">35 min</div></div>
+          <span class="treatment-arrow" style="margin-left:20px;color:var(--gray)">→</span>
+        </a>
+              <a class="treatment-row" href="https://bypilar.planway.com">
+          <div style="flex:1">
+            <div class="treatment-tags">
+              <span class="treatment-name">Nail Art</span>
+              <span class="tag">Populær</span>                          </div>
+            <p class="treatment-desc">Kreativt design — fra minimalistisk til statement</p>
+          </div>
+          <div style="text-align:right;margin-left:24px"><div class="treatment-price">545 kr</div><div class="treatment-time">60 min</div></div>
+          <span class="treatment-arrow" style="margin-left:20px;color:var(--gray)">→</span>
+        </a>
+              <a class="treatment-row" href="https://bypilar.planway.com">
+          <div style="flex:1">
+            <div class="treatment-tags">
+              <span class="treatment-name">Kombi Hænder + Tæer</span>
+                            <span class="mobile-tag" style="font-size:9px;letter-spacing:1px;text-transform:uppercase;color:var(--rose);font-weight:600">🚗 Udekørende</span>            </div>
+            <p class="treatment-desc">Komplet gel-lak på både hænder og tæer</p>
+          </div>
+          <div style="text-align:right;margin-left:24px"><div class="treatment-price">645 kr</div><div class="treatment-time">75 min</div></div>
+          <span class="treatment-arrow" style="margin-left:20px;color:var(--gray)">→</span>
+        </a>
+              <a class="treatment-row" href="https://bypilar.planway.com">
+          <div style="flex:1">
+            <div class="treatment-tags">
+              <span class="treatment-name">Soak-Off + Ny Lak</span>
+                            <span class="mobile-tag" style="font-size:9px;letter-spacing:1px;text-transform:uppercase;color:var(--rose);font-weight:600">🚗 Udekørende</span>            </div>
+            <p class="treatment-desc">Skånsom fjernelse af gammel gel + ny påføring</p>
+          </div>
+          <div style="text-align:right;margin-left:24px"><div class="treatment-price">445 kr</div><div class="treatment-time">60 min</div></div>
+          <span class="treatment-arrow" style="margin-left:20px;color:var(--gray)">→</span>
+        </a>
+          </div>
+
+    <div id="tab-fod" style="display:none">
+              <a class="treatment-row" href="https://bypilar.planway.com">
+          <div style="flex:1">
+            <div class="treatment-tags">
+              <span class="treatment-name">Medicinsk Fodpleje</span>
+                            <span class="mobile-tag" style="font-size:9px;letter-spacing:1px;text-transform:uppercase;color:var(--rose);font-weight:600">🚗 Udekørende</span>            </div>
+            <p class="treatment-desc">Komplet behandling — negle, hård hud, ligtorne & revner</p>
+          </div>
+          <div style="text-align:right;margin-left:24px"><div class="treatment-price">495 kr</div><div class="treatment-time">45 min</div></div>
+          <span class="treatment-arrow" style="margin-left:20px;color:var(--gray)">→</span>
+        </a>
+              <a class="treatment-row" href="https://bypilar.planway.com">
+          <div style="flex:1">
+            <div class="treatment-tags">
+              <span class="treatment-name">Luksus Fodbehandling</span>
+              <span class="tag">Favorit</span>              <span class="mobile-tag" style="font-size:9px;letter-spacing:1px;text-transform:uppercase;color:var(--rose);font-weight:600">🚗 Udekørende</span>            </div>
+            <p class="treatment-desc">Peeling, maske, paraffinbad & dyb massage</p>
+          </div>
+          <div style="text-align:right;margin-left:24px"><div class="treatment-price">745 kr</div><div class="treatment-time">75 min</div></div>
+          <span class="treatment-arrow" style="margin-left:20px;color:var(--gray)">→</span>
+        </a>
+              <a class="treatment-row" href="https://bypilar.planway.com">
+          <div style="flex:1">
+            <div class="treatment-tags">
+              <span class="treatment-name">Diabetisk Fodpleje</span>
+                            <span class="mobile-tag" style="font-size:9px;letter-spacing:1px;text-transform:uppercase;color:var(--rose);font-weight:600">🚗 Udekørende</span>            </div>
+            <p class="treatment-desc">Specialiseret nænsom pleje for diabetikere</p>
+          </div>
+          <div style="text-align:right;margin-left:24px"><div class="treatment-price">595 kr</div><div class="treatment-time">60 min</div></div>
+          <span class="treatment-arrow" style="margin-left:20px;color:var(--gray)">→</span>
+        </a>
+              <a class="treatment-row" href="https://bypilar.planway.com">
+          <div style="flex:1">
+            <div class="treatment-tags">
+              <span class="treatment-name">Sportsfodpleje</span>
+                                        </div>
+            <p class="treatment-desc">Vabler, trykpunkter & sportsrelaterede skader</p>
+          </div>
+          <div style="text-align:right;margin-left:24px"><div class="treatment-price">545 kr</div><div class="treatment-time">50 min</div></div>
+          <span class="treatment-arrow" style="margin-left:20px;color:var(--gray)">→</span>
+        </a>
+          </div>
+  </div>
+</main>
+
+
+
+<!-- Newsletter -->
+<section class="newsletter">
+  <div class="newsletter-inner">
+    <p class="label" style="margin-bottom:16px">Nyhedsbrev</p>
+    <h3>Tips, tilbud & <em>inspiration</em></h3>
+    <!-- Mailchimp form - erstat action URL med din Mailchimp form action -->
+    <div class="newsletter-form">
+      [mc4wp_form id="newsletter"]    </div>
+  </div>
+</section>

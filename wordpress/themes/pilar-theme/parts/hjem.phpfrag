@@ -1,0 +1,89 @@
+<!-- Hero -->
+<section class="hero">
+  <div class="hero-deco1"></div>
+  <div class="hero-deco2"></div>
+  <div class="container hero-grid">
+    <div>
+      <p class="label" style="margin-bottom:28px">Negle · Fodpleje · Udekørende</p>
+      <h1 class="heading">Din tid til<br><em>pleje</em> og<br>forkælelse</h1>
+      <p class="hero-text">Professionel negle- og fodpleje under ét tag — eller direkte hos dig. Fra medicinsk behandling til kreativ nail art, alt udført med omhu.</p>
+      <div class="hero-buttons">
+        <a class="btn btn-primary" href="https://bypilar.planway.com">Book Tid</a>
+        <a class="btn btn-outline" href="/behandlinger/">Se Behandlinger</a>
+      </div>
+      <div class="hero-stats">
+        <div><div class="hero-stat-num">2.400+</div><div class="hero-stat-label">Kunder</div></div>
+        <div><div class="hero-stat-num">4.9 ★</div><div class="hero-stat-label">Bedømmelse</div></div>
+        <div><div class="hero-stat-num">7 år</div><div class="hero-stat-label">Erfaring</div></div>
+      </div>
+    </div>
+    <div class="hero-visual">
+      <div class="hero-card hero-card-tall"><div><div style="font-size:44px;margin-bottom:8px">💅</div><div class="hero-card-label">Negle & Nail Art</div></div></div>
+      <div class="hero-card hero-card-dark"><div><div style="font-size:28px;margin-bottom:8px">🏠</div><div class="hero-card-label">I Klinikken</div></div></div>
+      <div class="hero-card hero-card-rose"><div><div style="font-size:28px;margin-bottom:8px">🚗</div><div class="hero-card-label">Udekørende</div></div></div>
+    </div>
+  </div>
+</section>
+
+<!-- Popular treatments -->
+<section class="section section-white">
+  <div class="container">
+    <div style="display:flex;justify-content:space-between;align-items:flex-end;margin-bottom:48px">
+      <div>
+        <p class="label" style="margin-bottom:8px">Populære</p>
+        <h2 class="heading" style="font-size:clamp(28px,3vw,40px)">Mest bookede</h2>
+      </div>
+      <a class="btn btn-outline btn-small" href="/behandlinger/">Alle Behandlinger →</a>
+    </div>
+
+    <div class="popular-grid">
+              <a class="popular-card" href="https://bypilar.planway.com">
+                    <div class="popular-card-name">Gel-lak Hænder</div>
+          <div class="popular-card-meta">45 min · 395 kr</div>
+        </a>
+              <a class="popular-card" href="https://bypilar.planway.com">
+          <span class="tag">Populær</span>          <div class="popular-card-name">Nail Art</div>
+          <div class="popular-card-meta">60 min · 545 kr</div>
+        </a>
+              <a class="popular-card" href="https://bypilar.planway.com">
+                    <div class="popular-card-name">Medicinsk Fodpleje</div>
+          <div class="popular-card-meta">45 min · 495 kr</div>
+        </a>
+              <a class="popular-card" href="https://bypilar.planway.com">
+          <span class="tag">Favorit</span>          <div class="popular-card-name">Luksus Fodbehandling</div>
+          <div class="popular-card-meta">75 min · 745 kr</div>
+        </a>
+          </div>
+  </div>
+</section>
+
+<!-- Mobile CTA -->
+<section class="section">
+  <div class="container mobile-cta">
+    <div>
+      <p class="label" style="margin-bottom:12px">Udekørende Service</p>
+      <h2 class="heading" style="font-size:clamp(28px,3vw,40px);margin-bottom:16px">Vi kommer til <em>dig</em></h2>
+      <p style="font-size:15px;line-height:1.75;color:var(--muted);margin-bottom:28px">
+        Få professionel behandling i dit eget hjem, på plejehjemmet eller arbejdspladsen. Vi medbringer alt udstyr og sikrer en tryg oplevelse.
+      </p>
+      <a class="btn btn-outline" href="/udekoerende/">Læs Mere →</a>
+    </div>
+    <div class="mobile-cta-icons">
+      <div class="mobile-cta-icon"><span style="font-size:22px;color:var(--rose);display:block;margin-bottom:10px">🏠</span>Privat hjem</div>
+      <div class="mobile-cta-icon"><span style="font-size:22px;color:var(--rose);display:block;margin-bottom:10px">👤</span>Plejehjem</div>
+      <div class="mobile-cta-icon"><span style="font-size:22px;color:var(--rose);display:block;margin-bottom:10px">💼</span>Arbejdsplads</div>
+      <div class="mobile-cta-icon"><span style="font-size:22px;color:var(--rose);display:block;margin-bottom:10px">📅</span>Events</div>
+    </div>
+  </div>
+</section>
+
+<!-- Newsletter -->
+<section class="newsletter">
+  <div class="newsletter-inner">
+    <p class="label" style="margin-bottom:16px">Nyhedsbrev</p>
+    <h3>Tips, tilbud & <em>inspiration</em></h3>
+    <!-- Mailchimp form - erstat action URL med din Mailchimp form action -->
+    <div class="newsletter-form">
+      [mc4wp_form id="newsletter"]    </div>
+  </div>
+</section>

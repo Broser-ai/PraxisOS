@@ -49,7 +49,7 @@ export const accounts: Account[] = [
     avatarColor: "#2f4a7c",
   },
   {
-    id: "acc_ema",
+    id: "acc_emil_reception",
     email: "emil@bypilar.dk",
     password: "demo",
     name: "Emil Knudsen",
@@ -57,6 +57,19 @@ export const accounts: Account[] = [
     tenants: [{ slug: "bypilar", role: "reception" }],
     twoFAEnabled: false,
     avatarColor: "#ad7a26",
+  },
+  {
+    id: "acc_emil_support",
+    email: "emil@support.praxis.app",
+    password: "demo",
+    name: "Emil Support",
+    initials: "ES",
+    tenants: [
+      { slug: "bypilar", role: "support" },
+      { slug: "nordlys", role: "support" },
+    ],
+    twoFAEnabled: true,
+    avatarColor: "#1b1a17",
   },
 ];
 
@@ -66,6 +79,33 @@ export function findAccount(email: string, password: string): Account | undefine
 
 export function getAccountById(id: string): Account | undefined {
   return accounts.find((a) => a.id === id);
+}
+
+export function getAccountByEmail(email: string): Account | undefined {
+  return accounts.find((a) => a.email.toLowerCase() === email.toLowerCase());
+}
+
+/** Opretter owner-konto til ny tenant (mock-mode). Password = "demo" indtil MitID-invite. */
+export function registerOwnerAccount(input: {
+  email: string;
+  name: string;
+  tenantSlug: string;
+}): Account | { error: string } {
+  if (getAccountByEmail(input.email)) return { error: "email_taken" };
+  const parts = input.name.trim().split(/\s+/);
+  const initials = ((parts[0]?.[0] ?? "") + (parts[parts.length - 1]?.[0] ?? "")).toUpperCase() || "XX";
+  const account: Account = {
+    id: "acc_" + Math.random().toString(36).slice(2, 10),
+    email: input.email.toLowerCase(),
+    password: "demo",
+    name: input.name.trim(),
+    initials,
+    tenants: [{ slug: input.tenantSlug, role: "owner" }],
+    twoFAEnabled: false,
+    avatarColor: "#8a6a3d",
+  };
+  accounts.push(account);
+  return account;
 }
 
 export const ROLE_LABEL: Record<Role, string> = {
