@@ -6,15 +6,18 @@ import { isBirdConfigured } from "@/lib/bird";
 import { eventCount } from "@/lib/event-bus";
 import { AGENTS } from "@/lib/agents";
 import { ensureWorkflowSubscription } from "@/lib/agents/workflows";
+import { ensureNexusBooted } from "@/lib/nexus/runtime";
 
 export const runtime = "nodejs";
 
 export async function GET() {
   ensureWorkflowSubscription();
   const stats = getAutomationStats();
+  const nexus = await ensureNexusBooted("bypilar");
   return NextResponse.json({
     ok: true,
     automation: stats,
+    nexus,
     llm: { configured: isLlmConfigured(), model: llmModel() },
     bird: { configured: isBirdConfigured() },
     agents: AGENTS.map((a) => ({ id: a.id, name: a.name, role: a.role, status: a.status })),
