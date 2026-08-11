@@ -76,7 +76,7 @@ export const biomarkers = [
   { name: "Vaskulær flow · ankel", value: "Normal", trend: "Stabil", status: "ok" },
   { name: "Mikrocirkulation · forfod", value: "Reduceret −9%", trend: "−9%", status: "warn" },
   { name: "Termisk afvigelse · MTP 5", value: "+1.4°C", trend: "Mild inflammation", status: "warn" },
-  { name: "Hud-elasticitet · plantar", value: "0.82", trend: "+0.04 vs. baseline", status: "ok" },
+  { name: "Plantar elasticitet", value: "0.82", trend: "+0.04 vs. baseline", status: "ok" },
   { name: "Subkutan ødem-index", value: "0.12", trend: "Lav", status: "ok" },
 ];
 

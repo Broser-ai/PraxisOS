@@ -1,15 +1,15 @@
 // Mock data for the PraxisOS prototype. No backend — purely illustrative.
 
 export const clinic = {
-  name: "Nordlys Klinik",
-  plan: "PraxisOS · Pro",
-  region: "EU · Frankfurt (eu-central-1)",
+  name: "by Pilar",
+  plan: "PraxisOS · Fodpleje",
+  region: "EU · Hetzner · app.bypilar.dk",
 };
 
 export const practitioner = {
-  name: "Dr. Sofie Krarup",
-  role: "Hudlæge & æstetisk behandler",
-  initials: "SK",
+  name: "Pilar Hernández",
+  role: "Fodterapeut · negle & fodpleje",
+  initials: "PH",
 };
 
 export type Appointment = {
@@ -26,11 +26,11 @@ export type Appointment = {
 };
 
 export const today: Appointment[] = [
-  { id: "a1", time: "08:30", end: "09:00", client: "Mette Lindqvist", initials: "ML", type: "Hudanalyse · opfølgning", modality: "Klinik", status: "Ankommet", noShowRisk: 6, color: "var(--color-accent)" },
-  { id: "a2", time: "09:15", end: "10:00", client: "Jonas Brandt", initials: "JB", type: "Botox · konsultation", modality: "Klinik", status: "Bekræftet", noShowRisk: 12, color: "var(--color-clay)" },
-  { id: "a3", time: "10:30", end: "11:00", client: "Amira Haddad", initials: "AH", type: "Acne-forløb · session 4", modality: "Video", status: "Bekræftet", noShowRisk: 41, color: "var(--color-signal)" },
-  { id: "a4", time: "11:30", end: "12:15", client: "Per Sørensen", initials: "PS", type: "Sår-kontrol", modality: "Hjemmebesøg", status: "Afventer", noShowRisk: 68, color: "var(--color-amber)" },
-  { id: "a5", time: "13:30", end: "14:15", client: "Clara Winther", initials: "CW", type: "Filler · genbehandling", modality: "Klinik", status: "Bekræftet", noShowRisk: 9, color: "var(--color-accent)" },
+  { id: "a1", time: "08:30", end: "09:00", client: "Mette Lindqvist", initials: "ML", type: "Fod-scan · opfølgning", modality: "Klinik", status: "Ankommet", noShowRisk: 6, color: "var(--color-accent)" },
+  { id: "a2", time: "09:15", end: "10:00", client: "Jonas Brandt", initials: "JB", type: "Medicinsk fodpleje", modality: "Klinik", status: "Bekræftet", noShowRisk: 12, color: "var(--color-clay)" },
+  { id: "a3", time: "10:30", end: "11:15", client: "Amira Haddad", initials: "AH", type: "Gel manicure", modality: "Klinik", status: "Bekræftet", noShowRisk: 41, color: "var(--color-signal)" },
+  { id: "a4", time: "11:30", end: "12:15", client: "Per Sørensen", initials: "PS", type: "Medicinsk fodpleje", modality: "Hjemmebesøg", status: "Afventer", noShowRisk: 68, color: "var(--color-amber)" },
+  { id: "a5", time: "13:30", end: "14:45", client: "Clara Winther", initials: "CW", type: "Luksus fodpleje", modality: "Klinik", status: "Bekræftet", noShowRisk: 9, color: "var(--color-accent)" },
 ];
 
 export const kpis = [
@@ -51,75 +51,75 @@ export type Client = {
 };
 
 export const clients: Client[] = [
-  { id: "mette", name: "Mette Lindqvist", initials: "ML", age: 42, tag: "Æstetik", lastVisit: "I dag", trend: "up" },
-  { id: "jonas", name: "Jonas Brandt", initials: "JB", age: 51, tag: "Æstetik", lastVisit: "I dag", trend: "flat" },
-  { id: "amira", name: "Amira Haddad", initials: "AH", age: 27, tag: "Acne-forløb", lastVisit: "I dag", trend: "up" },
-  { id: "per", name: "Per Sørensen", initials: "PS", age: 73, tag: "Sårpleje", lastVisit: "3 dage", trend: "down" },
-  { id: "clara", name: "Clara Winther", initials: "CW", age: 38, tag: "Filler", lastVisit: "6 uger", trend: "flat" },
+  { id: "mette", name: "Mette Lindqvist", initials: "ML", age: 42, tag: "Fodpleje", lastVisit: "I dag", trend: "up" },
+  { id: "jonas", name: "Jonas Brandt", initials: "JB", age: 51, tag: "Fodpleje", lastVisit: "I dag", trend: "flat" },
+  { id: "amira", name: "Amira Haddad", initials: "AH", age: 27, tag: "Negle", lastVisit: "I dag", trend: "up" },
+  { id: "per", name: "Per Sørensen", initials: "PS", age: 73, tag: "Fodpleje", lastVisit: "3 dage", trend: "down" },
+  { id: "clara", name: "Clara Winther", initials: "CW", age: 38, tag: "Fodpleje", lastVisit: "6 uger", trend: "flat" },
 ];
 
-// Skin/AR analysis time-series for one client
+// Fod-parametre (plantar / klinisk) — tidsserie for én klient
 export const skinParams = [
-  { key: "Pletter", now: 71, prev: 58 },
-  { key: "Rødme", now: 64, prev: 49 },
-  { key: "Tekstur", now: 80, prev: 72 },
-  { key: "Porer", now: 66, prev: 61 },
-  { key: "UV-skader", now: 75, prev: 70 },
-  { key: "Rynker", now: 83, prev: 81 },
+  { key: "Plantar tryk", now: 71, prev: 58 },
+  { key: "Hyperkeratose", now: 64, prev: 49 },
+  { key: "Negle-tilstand", now: 80, prev: 72 },
+  { key: "Cirkulation", now: 66, prev: 61 },
+  { key: "Mobilitet", now: 75, prev: 70 },
+  { key: "Smerte (VAS)", now: 83, prev: 81 },
 ];
 
 export const journalEntries = [
   {
     date: "07. jun 2026",
-    title: "Hudanalyse · AR-scan #5",
+    title: "Fod-scan · opfølgning #5",
     truSkinAge: 39,
     chronoAge: 42,
-    concerns: 14,
-    note: "Synlig forbedring i rødme (+15) og pletter (+13) siden forrige forløb. TruSkin Age nu 3 år under kronologisk alder. Anbefaler fortsat LED + retinol-protokol.",
+    concerns: 4,
+    note: "Synlig forbedring af plantar trykfordeling og mindre hyperkeratose plantart. Anbefaler fortsat medicinsk fodpleje + hjemmetræning.",
     aiDrafted: true,
   },
   {
     date: "24. maj 2026",
-    title: "Opfølgning · session 4",
+    title: "Medicinsk fodpleje · session 4",
     truSkinAge: 41,
     chronoAge: 42,
-    concerns: 14,
-    note: "Patienten rapporterer mindre irritation. Mild peeling som forventet. Justeret koncentration.",
+    concerns: 5,
+    note: "Patienten rapporterer mindre smerte ved gang. Let peeling som forventet efter fjernelse af hård hud.",
     aiDrafted: true,
   },
   {
     date: "02. maj 2026",
-    title: "Baseline-scan",
+    title: "Baseline fod-scan",
     truSkinAge: 45,
     chronoAge: 42,
-    concerns: 14,
-    note: "Indledende kortlægning. Forhøjet pigmentering i zone 3 og 5. Forløb planlagt over 8 uger.",
+    concerns: 6,
+    note: "Indledende kortlægning. Forhøjet tryk under 1. metatarsalhoved. Forløb planlagt over 8 uger.",
     aiDrafted: false,
   },
 ];
 
 // AI scribe transcript fragments (played back to simulate ambient capture)
 export const scribeTranscript = [
-  { who: "Behandler", text: "Hvordan har huden reageret siden sidst?" },
-  { who: "Patient", text: "Meget bedre — mindre rødme, men lidt tørhed om morgenen." },
-  { who: "Behandler", text: "Godt. Jeg kan se på scanningen at pigmenteringen i kinden er faldet pænt." },
-  { who: "Patient", text: "Ja, og jeg har brugt serummet hver aften." },
-  { who: "Behandler", text: "Vi fortsætter protokollen, men trapper retinol op til 0,5 procent." },
+  { who: "Behandler", text: "Hvordan har fødderne haft det siden sidst?" },
+  { who: "Patient", text: "Meget bedre — mindre smerte når jeg går, men stadig lidt ømt under forfoden." },
+  { who: "Behandler", text: "Godt. Scanningen viser, at trykket under storetåens led er faldet pænt." },
+  { who: "Patient", text: "Ja, og jeg har brugt indlægssålerne hver dag." },
+  { who: "Behandler", text: "Vi fortsætter medicinsk fodpleje og justerer indlægget en smule." },
 ];
 
 export const scribeNote = {
-  subjective: "Patienten rapporterer reduceret rødme og god compliance med aften-serum. Beskriver mild tørhed om morgenen.",
-  objective: "AR-scan viser fald i pigmentering, zone 3 (kind). Rødme +15 vs. baseline. Ingen tegn på irritation.",
-  assessment: "Positiv respons på igangværende protokol. Hudbarriere stabil.",
-  plan: "Fortsæt LED-protokol. Optrap retinol → 0,5%. Tilføj fugtcreme om morgenen. Genbesøg om 3 uger.",
-  codes: ["L70.0 Acne vulgaris", "Forløb: AEST-04"],
+  subjective: "Patienten rapporterer reduceret smerte ved gang og god compliance med indlægssåler. Beskriver mild ømhed plantart.",
+  objective: "Fod-scan viser forbedret plantar trykfordeling. Hyperkeratose reduceret. Ingen tegn på infektion.",
+  assessment: "Positiv respons på medicinsk fodpleje. Cirkulation tilfredsstillende.",
+  plan: "Fortsæt medicinsk fodpleje. Justér indlæg. Hjemmetræning. Genbesøg om 3 uger.",
+  codes: ["L84 Ligtorne og callositeter", "Forløb: FOD-04"],
 };
 
 // AI booking agent conversation seed
 export const agentSeed = [
-  { role: "agent", text: "Hej 👋 Jeg er Aria, klinikkens AI-assistent. Jeg kan booke, ombooke og svare på spørgsmål. Hvad kan jeg hjælpe med?" },
-  { role: "user", text: "Jeg vil gerne booke en hudanalyse, helst torsdag eftermiddag." },
-  { role: "agent", text: "Selvfølgelig. Dr. Krarup har ledigt **torsdag 12. juni kl. 14:00** og **15:30**. Begge er 45 min. Hvilken passer dig?" },
+  { role: "agent", text: "Hej — jeg er Aria, klinikkens AI-assistent hos by Pilar. Jeg kan booke fodpleje, fod-scan og negle. Hvad kan jeg hjælpe med?" },
+  { role: "user", text: "Jeg vil gerne booke medicinsk fodpleje, helst torsdag eftermiddag." },
+  { role: "agent", text: "Selvfølgelig. Pilar har ledigt **torsdag 12. juni kl. 14:00** og **15:30**. Begge er 45 min. Hvilken passer dig?" },
   { role: "user", text: "14:00 lyder godt." },
-  { role: "agent", text: "Perfekt — jeg har reserveret **torsdag 12. juni kl. 14:00**. Bekræft venligst med MitID, så sender jeg en kvittering og en påmindelse 24 timer før. 🔒" },
+  { role: "agent", text: "Perfekt — jeg har reserveret **medicinsk fodpleje · torsdag 12. juni kl. 14:00**. Du får SMS-påmindelse 24 timer før." },
 ];

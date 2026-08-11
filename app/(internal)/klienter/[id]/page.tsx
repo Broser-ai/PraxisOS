@@ -87,7 +87,7 @@ export default async function ClientDetail({ params }: { params: Promise<{ id: s
         <div className="mt-6 grid grid-cols-1 gap-3 lg:grid-cols-[400px_1fr]">
           <section className="card rise p-4" style={{ animationDelay: "0.1s" }}>
             <div className="mb-3 flex items-center justify-between">
-              <h2 className="display text-[16px] font-semibold">AR Hud-analyse</h2>
+              <h2 className="display text-[16px] font-semibold">AR Fod-analyse</h2>
               <span className="chip !border-signal/40 text-signal">+13% siden baseline</span>
             </div>
             <SkinScan />

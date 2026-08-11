@@ -4,13 +4,13 @@ const HOUR_H = 56;
 
 type Ev = { day: number; start: number; dur: number; title: string; sub: string; color: string; risk?: boolean };
 const events: Ev[] = [
-  { day: 0, start: 9, dur: 1, title: "Mette L.", sub: "Hudanalyse", color: "var(--color-accent)" },
-  { day: 0, start: 11, dur: 0.75, title: "Per S.", sub: "Sår-kontrol", color: "var(--color-amber)", risk: true },
-  { day: 1, start: 8.5, dur: 1, title: "Jonas B.", sub: "Botox", color: "var(--color-clay)" },
-  { day: 1, start: 13.5, dur: 0.75, title: "Clara W.", sub: "Filler", color: "var(--color-accent)" },
-  { day: 2, start: 10, dur: 1.5, title: "Forløb-dag", sub: "3 acne-sessioner", color: "var(--color-signal)" },
-  { day: 3, start: 9, dur: 1, title: "Amira H.", sub: "Acne · video", color: "var(--color-signal)" },
-  { day: 3, start: 14, dur: 0.75, title: "Ny patient", sub: "Konsultation", color: "var(--color-accent)" },
+  { day: 0, start: 9, dur: 1, title: "Mette L.", sub: "Fod-scan", color: "var(--color-accent)" },
+  { day: 0, start: 11, dur: 0.75, title: "Per S.", sub: "Medicinsk fodpleje", color: "var(--color-amber)", risk: true },
+  { day: 1, start: 8.5, dur: 1, title: "Jonas B.", sub: "Medicinsk fodpleje", color: "var(--color-clay)" },
+  { day: 1, start: 13.5, dur: 0.75, title: "Clara W.", sub: "Luksus fodpleje", color: "var(--color-accent)" },
+  { day: 2, start: 10, dur: 1.5, title: "Klinik-dag", sub: "3 fodpleje-sessioner", color: "var(--color-signal)" },
+  { day: 3, start: 9, dur: 1, title: "Amira H.", sub: "Gel manicure", color: "var(--color-signal)" },
+  { day: 3, start: 14, dur: 0.75, title: "Ny patient", sub: "Fodterapeut · konsultation", color: "var(--color-accent)" },
   { day: 4, start: 14, dur: 0.75, title: "Aria foreslår", sub: "Ledig — hold åben", color: "var(--color-faint)" },
 ];
 

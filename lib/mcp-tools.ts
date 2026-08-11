@@ -33,7 +33,7 @@ export const MCP_TOOLS: McpTool[] = [
       },
       required: ["tenant"],
     },
-    outputSample: { count: 9, bookings: [{ id: "bk_a1", clientName: "Mette L.", service: "Hudanalyse", startsAt: "2026-06-12T14:00:00" }] },
+    outputSample: { count: 9, bookings: [{ id: "bk_a1", clientName: "Mette L.", service: "Fod-scan", startsAt: "2026-06-12T14:00:00" }] },
   },
   {
     name: "create_booking",
@@ -97,7 +97,7 @@ export const MCP_TOOLS: McpTool[] = [
       properties: {
         tenant: { type: "string", description: "Tenant-slug" },
         search: { type: "string", description: "Søg på navn eller e-mail" },
-        tag: { type: "string", description: "Filter på kategori (Æstetik, Acne, Fodpleje, Sårpleje, Filler)" },
+        tag: { type: "string", description: "Filter på kategori (Fodpleje, Negle, Sårpleje, Konsultation)" },
       },
       required: ["tenant"],
     },

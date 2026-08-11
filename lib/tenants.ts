@@ -70,14 +70,14 @@ const ALL_MODULES: ModuleKey[] = [
 ];
 
 // -------------------------------------------------------------
-// SEED · Bypilar (Aarhus, negle + fodpleje) — pilot-kunde
+// SEED · Bypilar (Aarhus) — fodpleje / fodterapeut · pilot-kunde
 // -------------------------------------------------------------
 const bypilar: Tenant = {
   slug: "bypilar",
   legalName: "by Pilar",
   brand: {
     name: "by Pilar",
-    tagline: "Negle- og fodpleje · Aarhus",
+    tagline: "Fodpleje & fodterapeut · Aarhus",
     primary: "#1b1a17",
     secondary: "#7a6a55",
     paper: "#f5efe6",
@@ -111,11 +111,11 @@ const bypilar: Tenant = {
   },
   stats: { clients: 2400, rating: 4.9, yearsOperating: 7 },
   services: [
+    { id: "fod-med",    name: "Medicinsk fodpleje",  durationMin: 45, priceKr: 495, category: "Fod",   modality: ["Klinik", "Hjemmebesøg"], description: "Fodterapeutisk behandling — hård hud, ligtorne, nedgroede negle." },
+    { id: "fod-lux",    name: "Luksus fodpleje",     durationMin: 75, priceKr: 745, category: "Fod",   modality: ["Klinik", "Hjemmebesøg"], description: "Fuld fodbehandling + scrub, maske, lakering." },
+    { id: "fod-scan",   name: "Fod-scan · Physical AI", durationMin: 30, priceKr: 595, category: "Fod-scan", modality: ["Klinik"], description: "Sub-mm 3D-topologi · plantar pressure · klinisk analyse til fodterapeut." },
     { id: "gel-mani",   name: "Gel manicure",        durationMin: 45, priceKr: 395, category: "Negle", modality: ["Klinik"], description: "Klassisk gel-manicure, holder 3-4 uger." },
     { id: "nail-art",   name: "Nail art",            durationMin: 60, priceKr: 545, category: "Negle", modality: ["Klinik"], description: "Personligt design — vi tegner det du drømmer om." },
-    { id: "fod-med",    name: "Medicinsk fodpleje",  durationMin: 45, priceKr: 495, category: "Fod",   modality: ["Klinik", "Hjemmebesøg"], description: "Til hård hud, ligtorne, nedgroede negle." },
-    { id: "fod-lux",    name: "Luksus fodpleje",     durationMin: 75, priceKr: 745, category: "Fod",   modality: ["Klinik", "Hjemmebesøg"], description: "Fuld behandling + scrub, maske, lakering." },
-    { id: "fod-scan",   name: "Fod-scan · Physical AI", durationMin: 30, priceKr: 595, category: "Fod-scan", modality: ["Klinik"], description: "Sub-mm 3D-topologi · plantar pressure · klinisk analyse." },
   ],
 };
 
