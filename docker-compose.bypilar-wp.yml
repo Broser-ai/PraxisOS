@@ -42,6 +42,9 @@ services:
         define('PRAXISOS_BASE_URL', getenv('PRAXISOS_BASE_URL') ?: 'http://app.bypilar.dk');
         define('PRAXISOS_TENANT', 'bypilar');
       PRAXISOS_BASE_URL: ${PRAXISOS_BASE_URL:-http://app.bypilar.dk}
+    extra_hosts:
+      # Så WP-containeren kan nå PraxisOS på hosten (app.bypilar.dk → host gateway)
+      - "app.bypilar.dk:host-gateway"
     volumes:
       - bypilar_wp_data:/var/www/html
       - ./wordpress/mu-plugins:/var/www/html/wp-content/mu-plugins:ro
