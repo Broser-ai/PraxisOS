@@ -42,9 +42,8 @@ services:
         define('PRAXISOS_BASE_URL', getenv('PRAXISOS_BASE_URL') ?: 'http://app.bypilar.dk');
         define('PRAXISOS_TENANT', 'bypilar');
       PRAXISOS_BASE_URL: ${PRAXISOS_BASE_URL:-http://app.bypilar.dk}
-    extra_hosts:
-      # Så WP-containeren kan nå PraxisOS på hosten (app.bypilar.dk → host gateway)
-      - "app.bypilar.dk:host-gateway"
+      # Intern Docker-URL til server-side status (browser bruger stadig PRAXISOS_BASE_URL)
+      PRAXISOS_INTERNAL_URL: ${PRAXISOS_INTERNAL_URL:-http://praxisos_app:3000}
     volumes:
       - bypilar_wp_data:/var/www/html
       - ./wordpress/mu-plugins:/var/www/html/wp-content/mu-plugins:ro
@@ -90,3 +89,6 @@ networks:
   omni_net:
     external: true
     name: omni_net
+  praxisos_default:
+    external: true
+    name: praxisos_default

@@ -15,6 +15,10 @@ if (!defined('ABSPATH')) {
 if (!defined('PRAXISOS_BASE_URL')) {
     define('PRAXISOS_BASE_URL', getenv('PRAXISOS_BASE_URL') ?: 'http://app.bypilar.dk');
 }
+if (!defined('PRAXISOS_INTERNAL_URL')) {
+    $internal = getenv('PRAXISOS_INTERNAL_URL');
+    define('PRAXISOS_INTERNAL_URL', $internal !== false && $internal !== '' ? $internal : PRAXISOS_BASE_URL);
+}
 if (!defined('PRAXISOS_TENANT')) {
     define('PRAXISOS_TENANT', 'bypilar');
 }
@@ -86,13 +90,14 @@ add_action('rest_api_init', function () {
         'methods' => 'GET',
         'permission_callback' => '__return_true',
         'callback' => function () {
-            $url = rtrim(PRAXISOS_BASE_URL, '/') . '/api/agents/status';
+            $url = rtrim(PRAXISOS_INTERNAL_URL, '/') . '/api/agents/status';
             $res = wp_remote_get($url, ['timeout' => 8]);
             if (is_wp_error($res)) {
                 return new WP_REST_Response([
                     'ok' => false,
                     'error' => $res->get_error_message(),
                     'praxisos' => PRAXISOS_BASE_URL,
+                    'internal' => PRAXISOS_INTERNAL_URL,
                 ], 502);
             }
             $code = wp_remote_retrieve_response_code($res);
