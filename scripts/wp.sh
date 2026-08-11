@@ -9,7 +9,7 @@ ROOT="$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)"
 cd "${ROOT}"
 
 ENV_FILE="${ROOT}/.env.bypilar-wp"
-COMPOSE=(docker compose -p bypilar-wp -f docker-compose.bypilar-wp.yml)
+COMPOSE=(docker compose -f docker-compose.bypilar-wp.yml)
 if [[ -f "${ENV_FILE}" ]]; then
   COMPOSE+=(--env-file "${ENV_FILE}")
 fi

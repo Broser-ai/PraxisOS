@@ -1,0 +1,53 @@
+<footer class="site-footer">
+  <div class="container">
+    <div class="footer-grid">
+      <div>
+        <div style="display:flex;align-items:center;gap:12px;margin-bottom:12px">
+          <svg width="28" height="28" viewBox="0 0 48 48" fill="none"><circle cx="24" cy="24" r="22.5" stroke="#D4B5A0" stroke-width="1.2"/><text x="24" y="31" text-anchor="middle" font-family="Bodoni Moda, serif" font-size="26" fill="#D4B5A0">P</text></svg>          <div>
+            <div style="font-family:var(--display);font-size:18px;letter-spacing:5px;color:var(--cream)">PILAR</div>
+            <div style="font-size:8px;letter-spacing:3px;text-transform:uppercase;color:var(--gray)">Negle & Fodpleje</div>
+          </div>
+        </div>
+        <p class="footer-desc">Din tid til pleje og forkælelse. Negle, fodpleje & nail art i Aarhus — også udekørende.</p>
+      </div>
+
+      <div>
+        <div class="footer-heading">Sider</div>
+        <ul id="menu-footer-menu" class="footer-menu"><li id="menu-item-21" class="menu-item menu-item-type-post_type menu-item-object-page menu-item-home current-menu-item page_item page-item-9 current_page_item menu-item-21"><a href="/" aria-current="page">Hjem</a></li>
+<li id="menu-item-22" class="menu-item menu-item-type-post_type menu-item-object-page menu-item-22"><a href="/behandlinger/">Behandlinger</a></li>
+<li id="menu-item-23" class="menu-item menu-item-type-post_type menu-item-object-page menu-item-23"><a href="/udekoerende/">Udekørende</a></li>
+<li id="menu-item-24" class="menu-item menu-item-type-post_type menu-item-object-page menu-item-24"><a href="/booking/">Book Tid</a></li>
+<li id="menu-item-25" class="menu-item menu-item-type-post_type menu-item-object-page menu-item-25"><a href="/om-os/">Om Os</a></li>
+<li id="menu-item-26" class="menu-item menu-item-type-post_type menu-item-object-page menu-item-privacy-policy menu-item-26"><a rel="privacy-policy" href="/privatlivspolitik/">Privatlivspolitik</a></li>
+</ul>      </div>
+
+      <div>
+        <div class="footer-heading">Kontakt</div>
+        <div class="footer-contact">
+          📍 Aarhus<br>
+          📞 <a href="tel:+4593952041" style="color:var(--cream);opacity:0.6">+45 93 95 20 41</a><br>
+          ✉️ <a href="mailto:hej@bypilar.dk" style="color:var(--cream);opacity:0.6">hej@bypilar.dk</a><br>
+          📸 <a href="https://instagram.com/bypilar.studio" target="_blank" rel="noopener" style="color:var(--cream);opacity:0.6">@bypilar.studio</a>
+        </div>
+      </div>
+
+      <div>
+        <div class="footer-heading">Åbningstider</div>
+        <div class="footer-contact">
+          Man–Fre: 9–17<br>
+          Lør: 9–14<br>
+          Søn: Lukket
+        </div>
+        <div style="margin-top:16px;padding-top:12px;border-top:1px solid rgba(255,255,255,0.08)">
+          <div class="footer-heading">Udekørende</div>
+          <div class="footer-contact">Eft. aftale<br>Også aften & weekend</div>
+        </div>
+      </div>
+    </div>
+
+    <div class="footer-bottom">
+      <span>&copy; 2026 PILAR · Negle & Fodpleje</span>
+      <span><a href="/privatlivspolitik/" style="opacity:0.5">Privatlivspolitik</a> · CVR: 43947079</span>
+    </div>
+  </div>
+</footer>

@@ -40,6 +40,7 @@ services:
         define('WP_MEMORY_LIMIT', '256M');
         define('AUTOMATIC_UPDATER_DISABLED', true);
         define('PRAXISOS_BASE_URL', getenv('PRAXISOS_BASE_URL') ?: 'http://app.bypilar.dk');
+        define('PRAXISOS_INTERNAL_URL', getenv('PRAXISOS_INTERNAL_URL') ?: 'http://praxisos_app:3000');
         define('PRAXISOS_TENANT', 'bypilar');
       PRAXISOS_BASE_URL: ${PRAXISOS_BASE_URL:-http://app.bypilar.dk}
       # Intern Docker-URL til server-side status (browser bruger stadig PRAXISOS_BASE_URL)
@@ -47,6 +48,7 @@ services:
     volumes:
       - bypilar_wp_data:/var/www/html
       - ./wordpress/mu-plugins:/var/www/html/wp-content/mu-plugins:ro
+      - ./wordpress/themes/pilar-theme:/var/www/html/wp-content/themes/pilar-theme:ro
     labels:
       - "traefik.enable=true"
       - "traefik.http.routers.bypilar-wp.rule=Host(`bypilar.dk`) || Host(`www.bypilar.dk`)"
@@ -56,6 +58,7 @@ services:
     networks:
       - bypilar_wp_net
       - omni_net
+      - praxisos_default
 
   # WP-CLI one-shot helper (bruges via scripts/wp.sh)
   bypilar_wpcli:
@@ -74,6 +77,7 @@ services:
     volumes:
       - bypilar_wp_data:/var/www/html
       - ./wordpress/mu-plugins:/var/www/html/wp-content/mu-plugins:ro
+      - ./wordpress/themes/pilar-theme:/var/www/html/wp-content/themes/pilar-theme:ro
     networks:
       - bypilar_wp_net
     entrypoint: ["wp"]
