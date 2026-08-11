@@ -274,15 +274,15 @@ function composeReply(agent: AgentId, userText: string): { text: string; cards?:
     case "aria":
       if (lower.includes("book")) {
         return {
-          text: "Ja — jeg har kigget på Mettes kalender og Dr. Krarup har ledigt torsdag 14:00 og 15:30. Jeg foreslår 14:00 fordi det matcher Mettes mønster fra de sidste 4 sessioner. Bekræft jeg booker?",
-          cards: [{ type: "booking", data: { Klient: "Mette L.", Ydelse: "Hudanalyse", Tid: "tor 12. juni · 14:00", Tilskud: "−150 kr · Sygesikringen \"danmark\"" } }],
+          text: "Ja — jeg har kigget på Mettes kalender og Pilar har ledigt torsdag 14:00 og 15:30. Jeg foreslår 14:00 fordi det matcher Mettes mønster fra de sidste 4 fodpleje-sessioner. Bekræft jeg booker?",
+          cards: [{ type: "booking", data: { Klient: "Mette L.", Ydelse: "Medicinsk fodpleje", Tid: "tor 12. juni · 14:00", Behandler: "Fodterapeut · Pilar" } }],
         };
       }
-      return { text: "Jeg er klar — sig hvad du gerne vil have undersøgt, ombooket eller besvaret. Du kan også klikke direkte på en af de andre i teamet til venstre hvis du ved hvad du har brug for." };
+      return { text: "Jeg er klar — book fodpleje, fod-scan eller negle, eller spørg ind til journal og SMS. Du kan også klikke direkte på en af de andre i teamet til venstre." };
     case "niels":
       return {
-        text: "Jeg har lyttet med på dagens session. Her er udkastet:\n\nS: Patient rapporterer mindre rødme, god compliance med aftenserum, mild morgentørhed.\nO: AR-scan viser fald i pigmentering zone 3. Rødme +15 vs. baseline.\nA: Positiv respons. Hudbarriere stabil.\nP: Fortsæt LED. Optrap retinol → 0,5%. Fugtcreme om morgenen. Genbesøg 3 uger.\n\nForeslår ICD-10 L70.0. Godkend?",
-        cards: [{ type: "voucher", data: { Klient: "Mette L.", Note: "SOAP · session 5/8", Ord: 247, Forslag: "ICD L70.0" } }],
+        text: "Jeg har lyttet med på dagens session. Her er udkastet:\n\nS: Patient rapporterer mindre smerte ved gang, god compliance med indlæg, mild ømhed plantart.\nO: Fod-scan viser forbedret plantar trykfordeling. Hyperkeratose reduceret.\nA: Positiv respons på medicinsk fodpleje. Cirkulation tilfredsstillende.\nP: Fortsæt medicinsk fodpleje. Justér indlæg. Genbesøg 3 uger.\n\nForeslår ICD-10 L84. Godkend?",
+        cards: [{ type: "voucher", data: { Klient: "Mette L.", Note: "SOAP · fodpleje session 5/8", Ord: 247, Forslag: "ICD L84" } }],
       };
     case "sigrid":
       return {

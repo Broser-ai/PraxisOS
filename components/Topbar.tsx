@@ -75,7 +75,7 @@ const NAV = [
 
 const NOTIFICATIONS = [
   { id: "n1", icon: "🌙", title: "Aria håndterede 1 no-show-risiko", desc: "Per Sørensen bekræftet kl. 06:40", time: "1t siden", href: "/bookings/bk_a4", unread: true },
-  { id: "n2", icon: "📅", title: "Ny booking · embed", desc: "Mette L. bookede 'Hudanalyse'", time: "3t siden", href: "/bookings/bk_a1", unread: true },
+  { id: "n2", icon: "📅", title: "Ny booking · embed", desc: "Mette L. bookede 'Fod-scan'", time: "3t siden", href: "/bookings/bk_a1", unread: true },
   { id: "n3", icon: "🤖", title: "AI-scribe udkast klar", desc: "Mette Lindqvist · godkendelse afventer", time: "I dag 08:55", href: "/scribe", unread: true },
   { id: "n4", icon: "💸", title: "Faktura betalt", desc: "INV-2026-06 · 1.098 kr", time: "I går", href: "/admin/plan", unread: false },
   { id: "n5", icon: "⚙️", title: "API · ny version udrullet", desc: "v1.2.4 · rate-limit hævet til 1000 req/min", time: "2 dage", href: "/indstillinger", unread: false },

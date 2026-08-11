@@ -541,7 +541,7 @@ function StageDone() {
           ["Termisk", "MTP 5 · +1.4°C", "mild inflam.", "warn"],
           ["Vaskulær flow", "Normal · ankel", "stabil", "ok"],
           ["Mikrocirkulation", "Forfod · −9%", "reduceret dx", "warn"],
-          ["Hud-elasticitet", "0.82 (+0.04)", "forbedring", "ok"],
+          ["Plantar elasticitet", "0.82 (+0.04)", "forbedring", "ok"],
         ].map(([k, v, n, s]) => (
           <div key={k as string} className="rounded-[10px] border border-line bg-paper p-3">
             <div className="kicker !text-[9px]">{k}</div>

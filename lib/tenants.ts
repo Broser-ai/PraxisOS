@@ -70,14 +70,14 @@ const ALL_MODULES: ModuleKey[] = [
 ];
 
 // -------------------------------------------------------------
-// SEED · Bypilar (Aarhus, negle + fodpleje) — pilot-kunde
+// SEED · Bypilar (Aarhus) — fodpleje / fodterapeut · pilot-kunde
 // -------------------------------------------------------------
 const bypilar: Tenant = {
   slug: "bypilar",
   legalName: "by Pilar",
   brand: {
     name: "by Pilar",
-    tagline: "Negle- og fodpleje · Aarhus",
+    tagline: "Fodpleje & fodterapeut · Aarhus",
     primary: "#1b1a17",
     secondary: "#7a6a55",
     paper: "#f5efe6",
@@ -86,7 +86,7 @@ const bypilar: Tenant = {
     fontDisplay: "Fraunces",
     fontSans: "Hanken Grotesk",
   },
-  domains: ["bypilar.dk", "booking.bypilar.dk", "bypilar.praxis.app"],
+  domains: ["bypilar.dk", "www.bypilar.dk", "booking.bypilar.dk", "app.bypilar.dk", "praxis.bypilar.dk", "bypilar.praxis.app"],
   mode: "hybrid", // headless API til deres website + full admin
   locale: "da-DK",
   timezone: "Europe/Copenhagen",
@@ -111,11 +111,11 @@ const bypilar: Tenant = {
   },
   stats: { clients: 2400, rating: 4.9, yearsOperating: 7 },
   services: [
+    { id: "fod-med",    name: "Medicinsk fodpleje",  durationMin: 45, priceKr: 495, category: "Fod",   modality: ["Klinik", "Hjemmebesøg"], description: "Fodterapeutisk behandling — hård hud, ligtorne, nedgroede negle." },
+    { id: "fod-lux",    name: "Luksus fodpleje",     durationMin: 75, priceKr: 745, category: "Fod",   modality: ["Klinik", "Hjemmebesøg"], description: "Fuld fodbehandling + scrub, maske, lakering." },
+    { id: "fod-scan",   name: "Fod-scan · Physical AI", durationMin: 30, priceKr: 595, category: "Fod-scan", modality: ["Klinik"], description: "Sub-mm 3D-topologi · plantar pressure · klinisk analyse til fodterapeut." },
     { id: "gel-mani",   name: "Gel manicure",        durationMin: 45, priceKr: 395, category: "Negle", modality: ["Klinik"], description: "Klassisk gel-manicure, holder 3-4 uger." },
     { id: "nail-art",   name: "Nail art",            durationMin: 60, priceKr: 545, category: "Negle", modality: ["Klinik"], description: "Personligt design — vi tegner det du drømmer om." },
-    { id: "fod-med",    name: "Medicinsk fodpleje",  durationMin: 45, priceKr: 495, category: "Fod",   modality: ["Klinik", "Hjemmebesøg"], description: "Til hård hud, ligtorne, nedgroede negle." },
-    { id: "fod-lux",    name: "Luksus fodpleje",     durationMin: 75, priceKr: 745, category: "Fod",   modality: ["Klinik", "Hjemmebesøg"], description: "Fuld behandling + scrub, maske, lakering." },
-    { id: "fod-scan",   name: "Fod-scan · Physical AI", durationMin: 30, priceKr: 595, category: "Fod-scan", modality: ["Klinik"], description: "Sub-mm 3D-topologi · plantar pressure · klinisk analyse." },
   ],
 };
 
@@ -179,6 +179,87 @@ export function getTenant(slug: string): Tenant | undefined {
 export function getTenantByDomain(host: string): Tenant | undefined {
   const h = host.toLowerCase().split(":")[0];
   return TENANTS.find((t) => t.domains.some((d) => h === d || h.endsWith("." + d)));
+}
+
+export type SignupInput = {
+  slug: string;
+  legalName: string;
+  cvr: string;
+  address: string;
+  email: string;
+  phone: string;
+  contactName: string;
+  plan: "starter" | "practice" | "practice-ai" | string;
+};
+
+/** Opretter en tenant i mock-mode. I prod kalder /api/signup Supabase service_role i stedet. */
+export function registerTenant(input: SignupInput): Tenant | { error: string } {
+  const slug = input.slug.toLowerCase().replace(/[^a-z0-9-]/g, "").slice(0, 32);
+  if (!slug) return { error: "invalid_slug" };
+  if (getTenant(slug)) return { error: "slug_taken" };
+
+  const planLabel =
+    input.plan === "starter" ? "Starter · trial" :
+    input.plan === "practice-ai" ? "Practice + AI · trial" :
+    "Practice · trial";
+
+  const modules: ModuleKey[] =
+    input.plan === "starter"
+      ? ["booking", "payments", "messaging"]
+      : input.plan === "practice-ai"
+        ? ALL_MODULES.filter((m) =>
+            ["booking", "journal", "payments", "messaging", "ai_aria", "ai_scribe", "ai_noshow"].includes(m)
+          )
+        : ["booking", "journal", "payments", "messaging"];
+
+  const tenant: Tenant = {
+    slug,
+    legalName: input.legalName,
+    brand: {
+      name: input.legalName,
+      tagline: "Ny klinik på PraxisOS",
+      primary: "#1b1a17",
+      secondary: "#7a6a55",
+      paper: "#f5efe6",
+      ink: "#1b1a17",
+      accent: "#8a6a3d",
+      fontDisplay: "Fraunces",
+      fontSans: "Hanken Grotesk",
+    },
+    domains: [`${slug}.praxis.app`],
+    mode: "full",
+    locale: "da-DK",
+    timezone: "Europe/Copenhagen",
+    currency: "DKK",
+    // Tidsbegrænset trial styres via license.status — unlimited-trial (bypilar) sættes eksplicit.
+    license: {
+      plan: planLabel,
+      modules,
+      seats: input.plan === "starter" ? 1 : 3,
+      status: "trial",
+      expiresAt: new Date(Date.now() + 30 * 24 * 60 * 60 * 1000).toISOString().slice(0, 10),
+    },
+    contact: {
+      address: input.address || "Danmark",
+      phone: input.phone,
+      email: input.email,
+      cvr: input.cvr,
+    },
+    services: [
+      {
+        id: "konsultation",
+        name: "Konsultation",
+        durationMin: 30,
+        priceKr: 0,
+        category: "Konsultation",
+        modality: ["Klinik", "Video"],
+        description: "Første konsultation.",
+      },
+    ],
+  };
+
+  TENANTS.push(tenant);
+  return tenant;
 }
 
 // Module gate — bruges af UI og API til at vise 402/403 hvis ikke licenseret

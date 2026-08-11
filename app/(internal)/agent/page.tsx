@@ -5,7 +5,7 @@ import { agentSeed } from "@/lib/mock";
 
 type Msg = { role: string; text: string; card?: boolean };
 
-const suggestions = ["Book en hudanalyse torsdag", "Ombook Per til næste uge", "Hvad koster en filler?", "Send recall til inaktive"];
+const suggestions = ["Book medicinsk fodpleje torsdag", "Ombook Per til næste uge", "Hvad koster et fod-scan?", "Send recall til inaktive"];
 
 function render(text: string) {
   // tiny **bold** parser
