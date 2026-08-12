@@ -39,8 +39,9 @@ services:
       WORDPRESS_CONFIG_EXTRA: |
         define('WP_MEMORY_LIMIT', '256M');
         define('AUTOMATIC_UPDATER_DISABLED', true);
-        define('PRAXISOS_BASE_URL', getenv('PRAXISOS_BASE_URL') ?: 'http://app.bypilar.dk');
-        define('PRAXISOS_INTERNAL_URL', getenv('PRAXISOS_INTERNAL_URL') ?: 'http://praxisos_app:3000');
+        // Hardcoded: getenv() is unreliable under Apache in this image
+        define('PRAXISOS_BASE_URL', 'http://app.bypilar.dk');
+        define('PRAXISOS_INTERNAL_URL', 'http://praxisos_app:3000');
         define('PRAXISOS_TENANT', 'bypilar');
       PRAXISOS_BASE_URL: ${PRAXISOS_BASE_URL:-http://app.bypilar.dk}
       # Intern Docker-URL til server-side status (browser bruger stadig PRAXISOS_BASE_URL)

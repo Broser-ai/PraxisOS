@@ -64,6 +64,16 @@ export async function GET(
 }
 
 function origin(req: Request) {
+  const configured = (process.env.PRAXIS_PUBLIC_BASE_URL || process.env.NEXT_PUBLIC_BASE_URL || "")
+    .replace(/\/$/, "");
+  if (configured && !configured.includes("0.0.0.0") && !configured.includes("localhost")) {
+    return configured;
+  }
   const url = new URL(req.url);
-  return `${url.protocol}//${url.host}`;
+  const host = req.headers.get("x-forwarded-host") || req.headers.get("host") || url.host;
+  const proto = req.headers.get("x-forwarded-proto") || url.protocol.replace(":", "") || "http";
+  if (host && !host.startsWith("0.0.0.0") && !host.includes("praxisos")) {
+    return `${proto}://${host}`;
+  }
+  return "http://app.bypilar.dk";
 }
