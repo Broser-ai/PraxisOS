@@ -1,4 +1,5 @@
 import Link from "next/link";
+import { MarketingFooter, MarketingNav } from "@/components/MarketingNav";
 
 const PLANS = [
   {
@@ -15,7 +16,7 @@ const PLANS = [
     name: "Practice",
     price: "595 kr",
     period: "/md",
-    desc: "Til klinikker med 1-3 behandlere.",
+    desc: "Til fodplejeklinikker med 1-3 behandlere.",
     items: ["Alt i Starter", "3 staff-seats", "Ubegrænsede bookings", "MitID-login", "Klippekort & gavekort", "PraxisOS Pay 1,45%"],
     cta: "Vælg Practice",
     href: "/signup?plan=practice",
@@ -38,7 +39,7 @@ const PLANS = [
     desc: "White-label, headless, custom-SLA.",
     items: ["Alt i Practice + AI", "Eget domæne + brand", "Custom-SLA", "Dedikeret onboarding", "Indberetning til alle DK-myndigheder"],
     cta: "Kontakt os",
-    href: "mailto:ma@keap.me",
+    href: "mailto:ma@keap.me?subject=PraxisOS%20Enterprise",
     feature: false,
   },
 ];
@@ -46,21 +47,14 @@ const PLANS = [
 export default function PricingPage() {
   return (
     <div className="min-h-screen bg-paper">
-      <header className="border-b border-line">
-        <div className="mx-auto flex max-w-[1200px] items-center justify-between px-6 py-4">
-          <Link href="/" className="display text-[16px] font-semibold">PraxisOS</Link>
-          <nav className="flex items-center gap-5 text-[13px]">
-            <Link href="/pricing" className="font-medium">Priser</Link>
-            <Link href="/login" className="text-ink-soft hover:text-ink">Log ind</Link>
-            <Link href="/signup" className="rounded-[10px] bg-ink px-3.5 py-1.5 text-paper">Start gratis</Link>
-          </nav>
-        </div>
-      </header>
+      <MarketingNav active="pricing" />
 
       <section className="mx-auto max-w-[1200px] px-6 pt-16 pb-12 text-center">
-        <h1 className="display text-[44px] font-semibold">Priser der vokser med dig</h1>
+        <div className="kicker">B2B · licens</div>
+        <h1 className="display mt-3 text-[44px] font-semibold">Priser der vokser med dig</h1>
         <p className="mx-auto mt-4 max-w-[600px] text-[14px] text-ink-soft">
-          Alle planer indeholder DK-stack færdigt (MitID, MedCom, FMK, DAWA, CVR). Skift plan når som helst.
+          Licens til fodplejere og fodterapeuter. Alle planer indeholder DK-stack (MitID, MedCom, DAWA, CVR).
+          Se også <Link href="/funktioner" className="text-clay hover:underline">funktioner</Link>.
         </p>
       </section>
 
@@ -108,6 +102,8 @@ export default function PricingPage() {
           Pilot-kunder · trial-klinikker betaler 0 kr i deres pilot-periode. Spørg om vilkår på ma@keap.me.
         </div>
       </section>
+
+      <MarketingFooter />
     </div>
   );
 }
