@@ -1,408 +1,521 @@
-// Offentlig B2B-katalog · fodplejere der køber PraxisOS-licens
-// Layout inspireret af terapeutbooking.dk/funktioner (faner + kort).
+// Offentlig B2B-katalog · spejler det der allerede findes i PraxisOS
+// (sidebar, /review, lib/modules.ts) — ikke ønsketænkning.
 
 export type B2bCategoryId =
-  | "kerne"
+  | "klinik"
   | "klient"
   | "betaling"
-  | "tilbud"
-  | "team"
-  | "sikkerhed"
-  | "sundhed"
+  | "klinisk"
   | "ai"
-  | "integrationer";
+  | "compliance"
+  | "drift"
+  | "platform";
 
 export type B2bCategory = {
   id: B2bCategoryId;
   label: string;
 };
 
+/** Status ift. produktet i repo’et i dag */
+export type B2bStatus = "live" | "prototype";
+
 export type B2bFeature = {
   slug: string;
   categoryId: B2bCategoryId;
   title: string;
   summary: string;
-  /** Detaljeside */
   body: string[];
   bullets: string[];
+  /** Sti i PraxisOS staff/tenant-UI — det der allerede er bygget */
+  demoHref: string;
+  status: B2bStatus;
+  /** Modul-id fra lib/modules.ts når det findes */
+  moduleId?: string;
   planHint?: string;
 };
 
 export const B2B_CATEGORIES: B2bCategory[] = [
-  { id: "kerne", label: "Kernefunktionalitet" },
-  { id: "klient", label: "Klient & kalender" },
-  { id: "betaling", label: "Regnskab & betaling" },
-  { id: "tilbud", label: "Klienttilbud" },
-  { id: "team", label: "Flere behandlere" },
-  { id: "sikkerhed", label: "Sikkerhed" },
-  { id: "sundhed", label: "Sundhedsvæsen & forsikring" },
-  { id: "ai", label: "AI & automation" },
-  { id: "integrationer", label: "Integrationer" },
+  { id: "klinik", label: "Klinikdrift" },
+  { id: "klient", label: "Klient & booking" },
+  { id: "betaling", label: "Betaling & klippekort" },
+  { id: "klinisk", label: "Klinisk & fod-scan" },
+  { id: "ai", label: "AI-agenter" },
+  { id: "compliance", label: "DK · compliance" },
+  { id: "drift", label: "Drift & licens" },
+  { id: "platform", label: "API & integration" },
 ];
 
+/**
+ * Kort = rigtige skærme/moduler Michael allerede kan klikke i /review.
+ * Hold listen ærlig: det er det, der er i produktet — ikke en kopi af konkurrentens wishlist.
+ */
 export const B2B_FEATURES: B2bFeature[] = [
-  // —— Kerne ——
+  // —— Klinikdrift (staff UI) ——
   {
-    slug: "online-booking",
-    categoryId: "kerne",
-    title: "Online booking",
-    summary: "Lad dine klienter booke en tid direkte i din kalender — på din egen hjemmeside.",
+    slug: "overblik",
+    categoryId: "klinik",
+    title: "Overblik",
+    summary: "Dagens klinik i ét view — bookinger, belægning og næste handlinger.",
     body: [
-      "Klienter vælger behandling, behandler og tid uden at ringe. PraxisOS synkroniserer med din klinikkalender og viser kun ledige slots.",
-      "Du kan indlejre booking på din klinik-hjemmeside, så kunderne ser dit brand — ikke vores.",
+      "Staff-dashboardet samler dagens flow, så du ikke hopper mellem systemer.",
+      "Findes allerede under Overblik i PraxisOS.",
     ],
-    bullets: [
-      "Embed på egen hjemmeside",
-      "Behandlinger, tillæg og varighed",
-      "SMS- og e-mail-påmindelser",
-      "Venteliste ved fulde dage",
-    ],
+    bullets: ["Dagsplan", "Status på aftaler", "Hurtige genveje", "Staff-UI"],
+    demoHref: "/dashboard",
+    status: "live",
     planHint: "Inkl. i Practice",
   },
   {
-    slug: "journaler",
-    categoryId: "kerne",
-    title: "Journaler",
-    summary: "Opret klientjournaler med tekst, billeder, filer og samtykke — bygget til sundhedsdata.",
+    slug: "kalender",
+    categoryId: "klinik",
+    title: "Kalender",
+    summary: "Klinikkalender til behandlere — dag/uge og bookinger i samme flow.",
     body: [
-      "Journalen følger klienten på tværs af besøg. Du får skabeloner til fodpleje, foto-dokumentation og fuld audit.",
+      "Kalenderen er kerne i klinikdriften: tider, behandlere og aftaler ét sted.",
+      "Allerede live i PraxisOS under Kalender.",
     ],
-    bullets: ["SOAP / fritekst", "Foto & filer", "GDPR Art. 9-samtykke", "E-signering"],
+    bullets: ["Behandler-kalender", "Bookinger synlige", "Koplet til online booking", "Staff-UI"],
+    demoHref: "/kalender",
+    status: "live",
+    moduleId: "core-booking",
     planHint: "Inkl. i Practice",
   },
   {
-    slug: "email-sms",
-    categoryId: "kerne",
-    title: "E-mail og SMS",
-    summary: "Påmindelser, bekræftelser og opfølgning — tilpasset din klinik.",
+    slug: "klienter",
+    categoryId: "klinik",
+    title: "Klienter & journal",
+    summary: "Klientkartotek med journal, samtykke og historik — bygget til sundhedsdata.",
     body: [
-      "Automatiske beskeder før og efter behandling. Brug NemSMS til kritiske beskeder, eller almindelig SMS/e-mail til marketing.",
+      "Klientlisten og journalsiden er allerede i produktet. Herfra går du videre til AR/CV-journal og forløb.",
     ],
-    bullets: ["Bookingbekræftelse", "Påmindelse før tid", "No-show opfølgning", "Skabeloner du selv redigerer"],
-    planHint: "Inkl. · forbrug på SMS",
-  },
-  {
-    slug: "online-betaling",
-    categoryId: "kerne",
-    title: "Online betaling",
-    summary: "Modtag betaling ved booking eller i klinikken — MobilePay, kort og mere.",
-    body: [
-      "Klienter kan betale online ved booking, eller du tager betaling i klinikken. Settlement til NemKonto.",
-    ],
-    bullets: ["MobilePay & kort", "Auth-only / capture ved fremmøde", "Refund ved aflysning", "Daglig settlement"],
-    planHint: "Inkl. · tx-gebyr",
-  },
-  {
-    slug: "fakturering",
-    categoryId: "kerne",
-    title: "Fakturering",
-    summary: "Nem administration af betaling fra klienter — og senere forsikring/ydelser.",
-    body: [
-      "Hold styr på betalte, ubetalte og delvist betalte ydelser. Klar til eksport til dit regnskabssystem.",
-    ],
-    bullets: ["Klientbetalinger", "Klippekort-forbrug", "Eksport til bogføring", "Oversigt per periode"],
+    bullets: ["Klient-DB", "Journal", "GDPR Art. 9-klar", "Søgning & historik"],
+    demoHref: "/klienter",
+    status: "live",
+    moduleId: "core-clients",
     planHint: "Inkl. i Practice",
   },
   {
-    slug: "statistik",
-    categoryId: "kerne",
-    title: "Statistik",
-    summary: "Nemt overblik over din klinik i tal — belægning, omsætning og no-shows.",
+    slug: "bookings",
+    categoryId: "klinik",
+    title: "Bookings",
+    summary: "Liste over aftaler — status, detaljer og opfølgning.",
     body: [
-      "Se hvordan ugen går: bookede tider, aflysninger, populære behandlinger og omsætning.",
+      "Bookings-modulet viser alle aftaler på tværs af dagen. Koblet til kalender, betaling og journal.",
     ],
-    bullets: ["Belægning", "Omsætning", "No-show rate", "Top-behandlinger"],
+    bullets: ["Aftaleliste", "Detaljeside pr. booking", "Status", "Kobling til klient"],
+    demoHref: "/bookings",
+    status: "live",
+    moduleId: "core-booking",
     planHint: "Inkl. i Practice",
+  },
+  {
+    slug: "ydelser",
+    categoryId: "klinik",
+    title: "Ydelses-katalog",
+    summary: "Rediger behandlinger, priser og varighed pr. klinik (tenant).",
+    body: [
+      "Hver klinik har sit eget katalog — som by Pilar allerede kører med fodbehandlinger, mani og tillæg.",
+    ],
+    bullets: ["Priser & varighed", "Tillægsydelser", "Per tenant", "API-synk til booking"],
+    demoHref: "/admin/services",
+    status: "live",
+    planHint: "Inkl. i Practice",
+  },
+  {
+    slug: "behandlere",
+    categoryId: "klinik",
+    title: "Behandlere & roller",
+    summary: "Staff-management — flere behandlere, roller og vagter.",
+    body: [
+      "Opret behandlere med rettigheder. Klar til klinikker med mere end én stol.",
+    ],
+    bullets: ["Flere logins", "Roller", "Vagter", "Per-seat licens"],
+    demoHref: "/admin/staff",
+    status: "live",
+    planHint: "Per behandler",
   },
 
-  // —— Klient & kalender ——
+  // —— Klient & booking (customer-facing) ——
   {
-    slug: "aftalestatus",
+    slug: "online-booking",
     categoryId: "klient",
-    title: "Aftalestatus",
-    summary: "Sæt status på aftaler — ankommet, udeblevet, aflyst — så overblikket er klart.",
-    body: ["Marker fremmøde og no-show direkte i kalenderen. Status driver påmindelser og statistik."],
-    bullets: ["Ankommet / udeblevet", "Aflyst af klient / klinik", "Synlig i dagsplan", "Driver no-show-tal"],
+    title: "Online booking",
+    summary: "Klienter booker direkte — white-label under dit brand eller embed på dit site.",
+    body: [
+      "To modes findes allerede: hostet tenant-frontend (/t/din-klinik) og headless embed på egen hjemmeside.",
+      "by Pilar kører det i produktion.",
+    ],
+    bullets: ["Hostet booking-side", "Embed-widget", "White-label brand", "Ledige tider via API"],
+    demoHref: "/t/bypilar/book",
+    status: "live",
+    moduleId: "core-booking",
+    planHint: "Inkl. i Practice",
   },
   {
-    slug: "ekstra-felter",
+    slug: "website-embed",
     categoryId: "klient",
-    title: "Ekstra felter",
-    summary: "Tilføj egne felter til klienter og booking — tilpasset din fodplejepraksis.",
-    body: ["Samle de oplysninger du faktisk bruger: diabetes, medicin, særlige hensyn, skostørrelse m.m."],
-    bullets: ["Klientfelter", "Bookingfelter", "Synlige i journal", "Valgfrie / påkrævede"],
+    title: "Embed på eget site",
+    summary: "Én script-linje på din hjemmeside — PraxisOS som backend, dit brand udadtil.",
+    body: [
+      "Mode A i review: mock af klinik-site med PraxisOS-embed. Samme model som WordPress på bypilar.dk.",
+    ],
+    bullets: ["Script-embed", "Modal booking", "Dit design", "REST bagved"],
+    demoHref: "/demo/bypilar-website",
+    status: "live",
+    planHint: "Inkl. i Practice",
   },
   {
-    slug: "klient-tags",
+    slug: "patient-portal",
     categoryId: "klient",
-    title: "Klient-tags",
-    summary: "Organisér klienter med tags til overblik og målrettet kommunikation.",
-    body: ["Tag fx «plejehjem», «diabetes», «VIP» eller «hjemmebesøg» — filtrér og skriv til segmenter."],
-    bullets: ["Fri tagging", "Filtrér i klientliste", "Segmenteret SMS/e-mail", "Hurtig søgning"],
+    title: "Patient-portal · Min side",
+    summary: "Klient ser næste tid, journal og kontakt — MitID-klar login.",
+    body: [
+      "Portal under tenant-brand. Patienten logger ind og ser egne data — ikke klinik-admin.",
+    ],
+    bullets: ["Næste aftale", "Journal-adgang", "MitID-flow", "White-label"],
+    demoHref: "/t/bypilar/portal",
+    status: "live",
+    moduleId: "compliance-mitid",
+    planHint: "Inkl. i Practice",
   },
   {
-    slug: "venteliste",
+    slug: "white-label",
     categoryId: "klient",
-    title: "Venteliste",
-    summary: "Lad klienter stå på venteliste og få tilbudt tider ved aflysninger.",
-    body: ["Når en tid bliver ledig, kan PraxisOS tilbyde den videre — færre huller i kalenderen."],
-    bullets: ["Tilmelding ved fuld dag", "Auto-tilbud ved aflysning", "Prioritet efter oprettelse", "SMS-besked"],
-  },
-  {
-    slug: "tillægsydelser",
-    categoryId: "klient",
-    title: "Tillægsydelser",
-    summary: "Tilføj tillæg til primær behandling — fx lak, aftagning eller ekstra tid.",
-    body: ["Klienter vælger tillæg i booking-flowet. Pris og varighed lægges automatisk oveni."],
-    bullets: ["Koblet til hovedydelse", "Pris + varighed", "Synlig i faktura", "Nem prisstyring"],
-  },
-  {
-    slug: "sporgeskemaer",
-    categoryId: "klient",
-    title: "Spørgeskemaer",
-    summary: "Send spørgeskema før eller efter behandling — automatisk eller manuelt.",
-    body: ["Indhent helbredsoplysninger før første besøg, eller saml feedback efter behandlingen."],
-    bullets: ["Skabeloner", "Automatisk udsendelse", "Svar i klientkort", "Statistik over svar"],
+    title: "White-label multi-tenant",
+    summary: "Samme kodebase, mange klinikker — hvert brand får egen frontend.",
+    body: [
+      "Dokumenteret i review med bypilar + Nordlys. Du køber licens; dine kunder ser aldrig PraxisOS-navnet.",
+    ],
+    bullets: ["Flere tenants", "Eget brand", "Fælles platform", "License-matrix"],
+    demoHref: "/t/nordlys",
+    status: "live",
+    planHint: "Practice / Clinic",
   },
 
   // —— Betaling ——
   {
-    slug: "abonnementer",
+    slug: "praxisos-pay",
     categoryId: "betaling",
-    title: "Abonnementer",
-    summary: "Sæt ugentlige, månedlige eller årlige abonnementer op med automatisk betaling.",
-    body: ["Ideelt til faste klienter og medlemskab. Automatisk fornyelse og oversigt over aktive abonnementer."],
-    bullets: ["Fast interval", "Auto-betaling", "Pause / opsig", "Oversigt i klinikken"],
-    planHint: "Tilkøb",
-  },
-  {
-    slug: "ratebetaling",
-    categoryId: "betaling",
-    title: "Ratebetaling",
-    summary: "Send automatisk ratebetalinger til klienter når en større ydelse oprettes.",
-    body: ["Fordel større beløb over flere rater — praktisk ved længere forløb eller pakker."],
-    bullets: ["Flere rater", "Automatiske opkrævninger", "Status per rate", "Påmindelse ved restance"],
-    planHint: "Tilkøb",
-  },
-  {
-    slug: "rapporter",
-    categoryId: "betaling",
-    title: "Rapporter",
-    summary: "Modtag daglige, ugentlige eller månedlige oversigtstal til bogføring.",
-    body: ["Eksporter omsætning, betalinger og klippekort-forbrug til dit regnskab."],
-    bullets: ["Periode-rapporter", "CSV / eksport", "Per behandler", "Per ydelse"],
-  },
-  {
-    slug: "kontakter-betalere",
-    categoryId: "betaling",
-    title: "Kontakter og betalere",
-    summary: "Administrér og fakturér sundhedskontakter og forsikringer — når integrationen er aktiv.",
+    title: "PraxisOS Pay",
+    summary: "Egen betalingsmotor — MobilePay, kort, risk/trust og settlement.",
     body: [
-      "Hold styr på hvem der betaler: klient, pårørende eller forsikring. Klar til «danmark» og lignende flows.",
+      "Betaling er et første-klasses modul i PraxisOS — ikke bare en Stripe-knap. Risk-scoring og MitID step-up er med i designet.",
     ],
-    bullets: ["Flere betalere", "Forsikringskontakt", "Samlet oversigt", "Kobling til ydelser"],
+    bullets: ["Online & i klinik", "Risk · Trust", "Settlement", "Refunds"],
+    demoHref: "/admin/payments",
+    status: "live",
+    moduleId: "core-payments",
+    planHint: "Inkl. · tx-gebyr",
   },
-
-  // —— Tilbud ——
   {
-    slug: "klippekort",
-    categoryId: "tilbud",
-    title: "Klippekort",
-    summary: "Tilbyd klippekort med automatisk indløsning, oversigt og fuld fleksibilitet.",
+    slug: "klippekort-gavekort",
+    categoryId: "betaling",
+    title: "Klippekort & gavekort",
+    summary: "Sælg og indløs klippekort/gavekort — katalog, balance og kunde-flow.",
     body: [
-      "Sælg klippekort til fodbehandlinger. Klienter indløser ved booking eller i klinikken — du ser restklip hele tiden.",
+      "Admin-katalog plus kunde-sider under tenant (klippekort/gavekort). by Pilar bruger det allerede.",
     ],
-    bullets: ["Salg online & i klinik", "Auto-indløsning", "Restklip synligt", "Udløbsdato valgfri"],
+    bullets: ["Voucher-katalog", "Balance-tracking", "Online køb", "Indløsning ved booking"],
+    demoHref: "/admin/vouchers",
+    status: "live",
+    moduleId: "growth-vouchers",
     planHint: "Inkl. i Practice",
   },
   {
-    slug: "gavekort",
-    categoryId: "tilbud",
-    title: "Gavekort",
-    summary: "Design og sælg gavekort — fuldt overblik over aktive og indløste.",
-    body: ["Klienter køber gavekort online. Modtager får kode eller link — du styrer beløb og gyldighed."],
-    bullets: ["Online køb", "Valgfrit beløb", "Indløsning i booking", "Status aktiv/brugt"],
-    planHint: "Inkl. i Practice",
-  },
-  {
-    slug: "rabatkoder",
-    categoryId: "tilbud",
-    title: "Rabatkoder",
-    summary: "Opret rabatkoder som beløb eller procent — med valgfri udløbsdato.",
-    body: ["Brug koder til kampagner, samarbejdspartnere eller genbooking."],
-    bullets: ["Fast beløb / procent", "Udløbsdato", "Brugsgrænse", "Sporing per kode"],
-  },
-  {
-    slug: "foedselsdagsnotifikationer",
-    categoryId: "tilbud",
-    title: "Fødselsdagsnotifikationer",
-    summary: "Tilpas kommunikation eller tilbud på klienters fødselsdag — også automatisk.",
-    body: ["Automatisk hilsen eller rabatkode på fødselsdagen. Holder relationen varm uden manuelt arbejde."],
-    bullets: ["Auto-udsendelse", "Skabelon-tekst", "Valgfri rabat", "Opt-out respekteres"],
-  },
-
-  // —— Team ——
-  {
-    slug: "medarbejdere",
-    categoryId: "team",
-    title: "Medarbejdere",
-    summary: "Opret flere behandlere i klinikken og angiv rettigheder per rolle.",
-    body: ["Hver behandler får egen kalender og login. Du styrer hvem der ser journal, betaling og indstillinger."],
-    bullets: ["Flere logins", "Roller & rettigheder", "Egen kalender", "Fælles klientbase"],
-    planHint: "Per behandler",
-  },
-  {
-    slug: "ressourcestyring",
-    categoryId: "team",
-    title: "Ressourcestyring",
-    summary: "Undgå dobbeltbookinger af rum og udstyr — bloker på tværs af kalendere.",
-    body: ["Book rum, stole eller scanner samtidigt med behandleren, så konflikter fanges før de opstår."],
-    bullets: ["Rum & udstyr", "Konflikt-advarsel", "Tværs af behandlere", "Synligt i kalender"],
-  },
-  {
-    slug: "hjemmebesoeg",
-    categoryId: "team",
-    title: "Hjemmebesøg / felt",
-    summary: "Kalender og rute til udekørende fodpleje hos privat, plejehjem og erhverv.",
-    body: ["Felt-kalender til hjemmebesøg. Adresse via DAWA, tid til transport og oversigt over dagens rute."],
-    bullets: ["Felt-kalender", "Adresseopslag", "Plejehjem / erhverv", "Separat fra klinikdage"],
-    planHint: "Tilkøb Felt",
-  },
-  {
-    slug: "indlejere",
-    categoryId: "team",
-    title: "Indlejere",
-    summary: "Opret indlejere med eget login, individuelle rettigheder og egne rapporter.",
-    body: ["Når du lejer en stol ud, kan indlejeren arbejde i eget setup uden at se hele klinikkens data."],
-    bullets: ["Eget login", "Afgrænset adgang", "Egne rapporter", "Fælles eller separat kalender"],
-    planHint: "Clinic-plan",
-  },
-
-  // —— Sikkerhed ——
-  {
-    slug: "mitid",
-    categoryId: "sikkerhed",
-    title: "MitID",
-    summary: "Sikker login og step-up ved følsomme handlinger — bygget til DK.",
-    body: ["Brug MitID til medarbejder-login og til ekstra bekræftelse ved kritiske betalinger eller journaladgang."],
-    bullets: ["Login", "Step-up", "Audit-spor", "DK-standard"],
-  },
-  {
-    slug: "gdpr-samtykke",
-    categoryId: "sikkerhed",
-    title: "GDPR & samtykke",
-    summary: "Samtykke, sletning og dokumentation — klar til tilsyn.",
-    body: ["Art. 9-samtykke til sundhedsdata, oversigt over samtykker og processer til indsigt/sletning."],
-    bullets: ["Art. 9", "Samtykke-log", "Ret til indsigt", "Slette-flow"],
-  },
-  {
-    slug: "audit-sikkerhed",
-    categoryId: "sikkerhed",
-    title: "Audit & adgang",
-    summary: "Se hvem der har læst eller ændret hvad — med rollebaseret adgang.",
-    body: ["Fuld audit-log på journal og klientdata. Kun de rigtige roller ser det rigtige."],
-    bullets: ["Audit-log", "Roller", "IP / tidspunkt", "Eksport ved behov"],
-  },
-
-  // —— Sundhed ——
-  {
-    slug: "sygesikring-danmark",
-    categoryId: "sundhed",
-    title: "Sygeforsikringen «danmark»",
-    summary: "Forbind til Sygeforsikringen «danmark» for automatisk indberetning — når din ydelse er dækket.",
+    slug: "plan-fakturering",
+    categoryId: "betaling",
+    title: "Plan & licensfakturering",
+    summary: "Styr clinic-licens, seats og fakturaer i control plane.",
     body: [
-      "PraxisOS er forberedt til indberetning til «danmark». Tilgængelighed afhænger af din autorisation og aftale.",
+      "Operatør-siden til planer — det B2B-laget sidder ovenpå når en fodplejer køber PraxisOS.",
     ],
-    bullets: ["Automatisk indberetning", "Status på krav", "Kobling til ydelse", "Rapportering"],
-    planHint: "Compliance-modul",
+    bullets: ["License tiers", "Seats", "Invoices", "Upgrade-flow"],
+    demoHref: "/admin/plan",
+    status: "live",
+    planHint: "Operatør",
   },
+
+  // —— Klinisk ——
   {
-    slug: "medcom",
-    categoryId: "sundhed",
-    title: "MedCom",
-    summary: "MedCom-korrespondance med sundhedsvæsenet — når din faggruppe er aktiveret.",
+    slug: "ai-scribe",
+    categoryId: "klinisk",
+    title: "AI Scribe · Niels",
+    summary: "Ambient samtale → SOAP-journal. Du godkender altid før det gemmes.",
     body: [
-      "Send og modtag MedCom-beskeder. Rullet ud progressivt efter faggruppe og aftale.",
+      "Niels-pipeline: audio → transkription → NER → SOAP → ICD-10. Allerede i staff-UI og som deep-dive.",
     ],
-    bullets: ["Korrespondance", "Sikker kanal", "Journal-kobling", "Statusspor"],
-    planHint: "Compliance-modul",
+    bullets: ["SOAP-udkast", "ICD-10-forslag", "Behandler-godkendelse", "EU-hostet flow"],
+    demoHref: "/scribe",
+    status: "live",
+    moduleId: "ai-niels",
+    planHint: "AI-plan / tilkøb",
   },
   {
-    slug: "sundhed-dk",
-    categoryId: "sundhed",
-    title: "Sundhed.dk",
-    summary: "Forberedelse til sundhed.dk-integration — data hvor patienten forventer det.",
-    body: ["Roadmap-modul til deling via nationale sundhedsplatforme, når krav og aftaler er på plads."],
-    bullets: ["National deling", "Patientoverblik", "Compliance-first", "Efter aftale"],
-    planHint: "Enterprise / aftale",
+    slug: "ar-journal",
+    categoryId: "klinisk",
+    title: "AR/CV-journal",
+    summary: "Foto-progression og klinisk dokumentation i klientjournalen.",
+    body: [
+      "AR/CV-journal er koblet på klientkortet — før/efter og kliniske målinger over tid.",
+    ],
+    bullets: ["Foto-progression", "Time-series", "Koblet til klient", "Klinik-modul"],
+    demoHref: "/klienter/mette",
+    status: "prototype",
+    moduleId: "clinical-ar-journal",
+    planHint: "Aesthetic / tilkøb",
+  },
+  {
+    slug: "fod-scan",
+    categoryId: "klinisk",
+    title: "Fod-scan · Physical AI",
+    summary: "3D / plantar pressure / biomarkers — bygget til fodpleje.",
+    body: [
+      "Fod-scan er et kerne-differentieringspunkt for PraxisOS til fodplejere. Rapport + live-scan findes i UI.",
+    ],
+    bullets: ["Scan-rapport", "Live capture", "Plantar pressure", "Klinik-differentiering"],
+    demoHref: "/scan",
+    status: "live",
+    moduleId: "clinical-foot-scan",
+    planHint: "Physical AI-modul",
   },
 
   // —— AI ——
   {
-    slug: "aria-reception",
+    slug: "aria-agent",
     categoryId: "ai",
-    title: "Aria · reception",
-    summary: "AI-receptionist der tager imod, booker og svarer — med klare grænser.",
-    body: ["Aria håndterer almindelige henvendelser og booking. Komplekse sager sendes til dig."],
-    bullets: ["Booking-hjælp", "FAQ", "Eskalering til dig", "Dansk stemme/tekst"],
+    title: "Aria · AI-receptionist",
+    summary: "Agent der tager imod, booker og eskalerer — chat/voice/SMS-klar.",
+    body: [
+      "Aria er en navngiven agent i teamet. Staff kan åbne AI-agent-skærmen og se flows.",
+    ],
+    bullets: ["Booking-hjælp", "Eskalering", "24/7-klar", "Humaniseret"],
+    demoHref: "/agent",
+    status: "live",
+    moduleId: "ai-aria",
     planHint: "AI-plan / tilkøb",
   },
   {
-    slug: "journal-scribe",
+    slug: "samlet-chat",
     categoryId: "ai",
-    title: "Journal-scribe",
-    summary: "AI der foreslår journaltekst efter behandling — du godkender altid.",
-    body: ["Spar tid på dokumentation. Scribe foreslår udkast; du retter og underskriver."],
-    bullets: ["Udkast fra note/optagelse", "Du godkender", "Skabeloner", "Audit på ændringer"],
-    planHint: "AI-plan / tilkøb",
+    title: "Samlet chat · team",
+    summary: "Skriv én besked — routet automatisk til den rette agent.",
+    body: [
+      "Chat-hubben samler Aria, Niels og de øvrige agenter, så klinikken ikke skal huske ni indgange.",
+    ],
+    bullets: ["Auto-routing", "Agent-team", "Staff-chat", "Én indgang"],
+    demoHref: "/chat",
+    status: "live",
+    planHint: "AI-plan",
   },
   {
-    slug: "no-show",
+    slug: "agent-team",
     categoryId: "ai",
-    title: "No-show agent",
-    summary: "Reducer udeblivelser med smarte påmindelser og genbooking.",
-    body: ["Agenten prioriterer risikable aftaler og foreslår opfølgning — uden at spamme alle."],
-    bullets: ["Risiko-scoring", "Målrettede reminders", "Genbooking", "Statistik"],
-    planHint: "AI-plan / tilkøb",
+    title: "Agent-team · 9 agenter",
+    summary: "Aria, Niels, Sigrid, Magnus, Frej, Vega, Bjørn, Liv, Atlas — med roller og grænser.",
+    body: [
+      "Control plane for hele agent-holdet: status, pipelines og aktivering via marketplace.",
+    ],
+    bullets: ["9 navngivne agenter", "Pipelines", "Marketplace-aktivering", "Human-in-the-loop"],
+    demoHref: "/admin/agents",
+    status: "live",
+    planHint: "AI / modulært",
   },
 
-  // —— Integrationer ——
+  // —— Compliance ——
   {
-    slug: "website-embed",
-    categoryId: "integrationer",
-    title: "Website & embed",
-    summary: "Booking, priser og klippekort på din egen hjemmeside — white-label.",
+    slug: "mitid",
+    categoryId: "compliance",
+    title: "MitID",
+    summary: "Login for patient og kliniker — NSIS-klar eID-fundament.",
     body: [
-      "Indlejring på WordPress eller anden site. Kunderne ser kun dit klinikbrand.",
+      "MitID-flows findes i login og portal. Del af DK-compliance-stakken.",
     ],
-    bullets: ["Embed-widget", "White-label", "WordPress-klar", "Dit domæne"],
+    bullets: ["Patient-login", "Kliniker-login", "CPR match-klar", "Step-up"],
+    demoHref: "/login/mitid",
+    status: "live",
+    moduleId: "compliance-mitid",
+    planHint: "Inkl. / compliance",
   },
   {
-    slug: "aabent-api",
-    categoryId: "integrationer",
-    title: "Åbent API",
-    summary: "Byg egne integrationer og udveksl data på tværs af systemer.",
+    slug: "nemsms",
+    categoryId: "compliance",
+    title: "NemSMS",
+    summary: "Officiel sundheds-SMS — påmindelser via godkendt afsender.",
     body: [
-      "REST/MCP-endpoints til booking, klienter og ydelser. Til klinikker og partnere der vil bygge ovenpå PraxisOS.",
+      "NemSMS-admin er på plads i control plane til kritiske borgermeddelelser.",
     ],
-    bullets: ["Booking & klienter", "API-nøgler", "Webhooks (roadmap)", "Dokumentation"],
+    bullets: ["Påmindelser", "KOMBIT-klar afsender", "Audit", "Klinik-konfig"],
+    demoHref: "/admin/nemsms",
+    status: "live",
+    moduleId: "compliance-nemsms",
+    planHint: "Compliance-modul",
+  },
+  {
+    slug: "tilskud",
+    categoryId: "compliance",
+    title: "Tilskud & «danmark»",
+    summary: "Tilskudsordninger, eligibility og indberetning — Sigrid-engine bagved.",
+    body: [
+      "Tilskudssiden + Sigrids 9-trins engine er bygget til sygesikring, kommunal støtte og forsikring.",
+    ],
+    bullets: ["Eligibility", "Sygesikring «danmark»", "Kommunal støtte", "Settlement-flow"],
+    demoHref: "/admin/subsidies",
+    status: "live",
+    moduleId: "compliance-subsidies",
+    planHint: "Compliance-modul",
+  },
+  {
+    slug: "indberetning",
+    categoryId: "compliance",
+    title: "Indberetning",
+    summary: "EDI · MedCom XML · KOMBIT — rapportering uden manuel dobbeltarbejde.",
+    body: [
+      "Indberetnings-UI ligger klar til de formater sundhedsvæsenet forventer.",
+    ],
+    bullets: ["EDI", "MedCom XML", "KOMBIT API", "Periode-rapporter"],
+    demoHref: "/admin/reporting",
+    status: "live",
+    planHint: "Compliance",
+  },
+  {
+    slug: "medcom",
+    categoryId: "compliance",
+    title: "MedCom",
+    summary: "Henvisninger, epikriser og afregning via Sundhedsdatanettet.",
+    body: [
+      "MedCom-modulet er i control plane — klar til faggrupper der er aktiveret.",
+    ],
+    bullets: ["Henvisninger", "Epikriser", "Afregning", "Sikker kanal"],
+    demoHref: "/admin/medcom",
+    status: "prototype",
+    moduleId: "compliance-medcom",
+    planHint: "Compliance-modul",
+  },
+  {
+    slug: "sundhed-dk",
+    categoryId: "compliance",
+    title: "Sundhed.dk + FMK",
+    summary: "Federation / SSO og FMK-bro — trustaftale-spor i produktet.",
+    body: [
+      "Sundhed.dk-siden dokumenterer federation og FMK. Status: i gang / aftaleafhængig.",
+    ],
+    bullets: ["SSO-klar", "FMK-bro", "Trustaftale", "National deling"],
+    demoHref: "/admin/sundhed-dk",
+    status: "prototype",
+    moduleId: "compliance-sundhed-dk",
+    planHint: "Enterprise / aftale",
+  },
+  {
+    slug: "sikkerhed",
+    categoryId: "compliance",
+    title: "Sikkerhed & adgang",
+    summary: "Sessioner, login-forsøg, audit-log og Frej compliance-engine.",
+    body: [
+      "Sikkerhedssiden + Frejs pipeline dækker PraxisRisk, Trust og anomaly — GDPR Art. 9-spor.",
+    ],
+    bullets: ["Audit-log", "Brute-force", "Sessioner", "Frej-engine"],
+    demoHref: "/admin/security",
+    status: "live",
+    moduleId: "ops-security",
+    planHint: "Inkl. i Practice",
+  },
+
+  // —— Drift ——
+  {
+    slug: "felt-service",
+    categoryId: "drift",
+    title: "Felt-service · hjemmebesøg",
+    summary: "Udekørende fodpleje — felt-kalender til privat, plejehjem og erhverv.",
+    body: [
+      "Felt-modulet er bygget til klinikker der kører ude. Adresse/DAWA indgår i DK-stakken.",
+    ],
+    bullets: ["Felt-kalender", "Hjemmebesøg", "Plejehjem / erhverv", "Separat fra klinikdag"],
+    demoHref: "/felt",
+    status: "live",
+    moduleId: "ops-field",
+    planHint: "Felt-modul",
+  },
+  {
+    slug: "tenants-licens",
+    categoryId: "drift",
+    title: "Tenants · license-matrix",
+    summary: "Operatør-view: aktive klinikker, låste moduler og upgrade-dialog.",
+    body: [
+      "Det er her B2B-salget lander teknisk: ny fodplejer = ny tenant + licens.",
+    ],
+    bullets: ["Multi-tenant", "Modul-lås", "Upgrade-dialog", "Control plane"],
+    demoHref: "/admin/tenants",
+    status: "live",
+    planHint: "Operatør",
+  },
+  {
+    slug: "marketplace",
+    categoryId: "drift",
+    title: "Modul-marketplace",
+    summary: "20+ moduler — klinikken vælger selv, med prøveperiode og aktiverings-wizard.",
+    body: [
+      "Marketplace gør PraxisOS modulært: køb kun det I bruger (AI, fod-scan, compliance …).",
+    ],
+    bullets: ["Modulær pris", "Prøveperiode", "Aktiverings-wizard", "Afhængigheder"],
+    demoHref: "/admin/marketplace",
+    status: "live",
+    planHint: "Modulært",
+  },
+
+  // —— Platform ——
+  {
+    slug: "universal-api",
+    categoryId: "platform",
+    title: "Universal API",
+    summary: "REST til services, availability, bookings, klienter — klar til eget site.",
+    body: [
+      "API-keys, endpoints og eksempler ligger under Universal API. Samme endpoints bypilar.dk bruger.",
+    ],
+    bullets: ["Services & availability", "Bookings", "API-keys", "Webhooks-klar"],
+    demoHref: "/admin/api",
+    status: "live",
+    moduleId: "platform-api",
     planHint: "Platform",
   },
   {
-    slug: "dawa-cvr",
-    categoryId: "integrationer",
-    title: "DAWA & CVR",
-    summary: "Adresseopslag og virksomhedsdata fra officielle DK-registre.",
-    body: ["Autoudfyld adresser ved hjemmebesøg og hent CVR-data ved oprettelse af klinik."],
-    bullets: ["DAWA autocomplete", "CVR-opslag", "Færre tastefejl", "Inkl. i platform"],
+    slug: "mcp-server",
+    categoryId: "platform",
+    title: "MCP-server",
+    summary: "Claude Code & Cursor kan styre PraxisOS — tools eksponeret.",
+    body: [
+      "MCP gør platformen agent-klar udadtil: udviklere og AI-værktøjer kan operere sikkert mod jeres API.",
+    ],
+    bullets: ["MCP tools", "Agent-klar", "Dev-integration", "Control plane"],
+    demoHref: "/admin/mcp",
+    status: "live",
+    moduleId: "platform-api",
+    planHint: "Platform",
   },
   {
-    slug: "kalender-sync",
-    categoryId: "integrationer",
-    title: "Kalender-sync",
-    summary: "Synkronisér med eksterne kalendere, så du undgår dobbeltbookinger.",
-    body: ["Hold PraxisOS og din øvrige kalender i sync — især nyttigt med flere behandlere."],
-    bullets: ["To-vejs sync (roadmap)", "Bloker optagede tider", "Per behandler", "Privatliv-respekt"],
+    slug: "dk-data",
+    categoryId: "platform",
+    title: "DK Data · DAWA / CVR / MitID",
+    summary: "Offentlige DK-kilder samlet — adresse, virksomhed, eID.",
+    body: [
+      "DK Data-siden samler de offentlige integrationer med juridisk grundlag — ikke et efterthought.",
+    ],
+    bullets: ["DAWA", "CVR", "MitID", "CPR-klar spor"],
+    demoHref: "/admin/dk-data",
+    status: "live",
+    planHint: "Inkl. i platform",
+  },
+  {
+    slug: "database-eu",
+    categoryId: "platform",
+    title: "Database · Supabase EU",
+    summary: "EU-data, RLS multi-tenant, migrations — klar til Postgres i produktion.",
+    body: [
+      "Data-region EU er en del af pitch’et til klinikker. Schema og RLS er på plads i produktet.",
+    ],
+    bullets: ["EU-region", "RLS multi-tenant", "Migrations", "pgvector-klar"],
+    demoHref: "/admin/database",
+    status: "live",
+    planHint: "Inkl.",
   },
 ];
 

@@ -41,7 +41,18 @@ export default async function FunktionDetailPage({ params }: Props) {
         <Link href="/funktioner" className="text-[13px] text-ink-soft hover:text-ink">
           ← Alle funktioner
         </Link>
-        <div className="kicker mt-6">{categoryLabel(feature.categoryId)}</div>
+        <div className="mt-6 flex flex-wrap items-center gap-2">
+          <div className="kicker">{categoryLabel(feature.categoryId)}</div>
+          <span
+            className={
+              feature.status === "live"
+                ? "rounded-[6px] bg-signal/15 px-2 py-0.5 text-[10px] font-medium text-signal"
+                : "rounded-[6px] bg-paper-2 px-2 py-0.5 text-[10px] font-medium text-muted"
+            }
+          >
+            {feature.status === "live" ? "I produktet" : "Prototype"}
+          </span>
+        </div>
         <h1 className="display mt-2 text-[40px] font-semibold leading-tight md:text-[46px]">
           {feature.title}
         </h1>
@@ -54,7 +65,7 @@ export default async function FunktionDetailPage({ params }: Props) {
 
         <div className="mt-10 space-y-4">
           {feature.body.map((p) => (
-            <p key={p.slice(0, 40)} className="text-[15px] leading-relaxed text-ink">
+            <p key={p.slice(0, 48)} className="text-[15px] leading-relaxed text-ink">
               {p}
             </p>
           ))}
@@ -71,17 +82,24 @@ export default async function FunktionDetailPage({ params }: Props) {
           ))}
         </ul>
 
+        <div className="mt-6 rounded-[12px] border border-line bg-paper-2/50 px-4 py-3 mono text-[12px] text-muted">
+          PraxisOS-sti: {feature.demoHref}
+        </div>
+
         <div className="mt-10 flex flex-wrap gap-3">
           <Link
-            href="/signup?plan=practice"
+            href={feature.demoHref}
             className="rounded-[12px] bg-ink px-5 py-3 text-[14px] font-medium text-paper hover:opacity-90"
+          >
+            Åbn i PraxisOS
+          </Link>
+          <Link
+            href="/signup?plan=practice"
+            className="rounded-[12px] border border-line px-5 py-3 text-[14px] hover:bg-paper-2"
           >
             Start gratis trial
           </Link>
-          <Link
-            href="/pricing"
-            className="rounded-[12px] border border-line px-5 py-3 text-[14px] hover:bg-paper-2"
-          >
+          <Link href="/pricing" className="rounded-[12px] border border-line px-5 py-3 text-[14px] hover:bg-paper-2">
             Se priser
           </Link>
         </div>
@@ -97,7 +115,7 @@ export default async function FunktionDetailPage({ params }: Props) {
                   className="rounded-[12px] border border-line bg-card p-4 transition-colors hover:border-ink/25"
                 >
                   <div className="display text-[15px] font-semibold">{r.title}</div>
-                  <p className="mt-1.5 text-[12.5px] leading-snug text-muted line-clamp-3">{r.summary}</p>
+                  <p className="mt-1.5 line-clamp-3 text-[12.5px] leading-snug text-muted">{r.summary}</p>
                 </Link>
               ))}
             </div>

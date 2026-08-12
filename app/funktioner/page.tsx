@@ -6,7 +6,7 @@ import { MarketingFooter, MarketingNav } from "@/components/MarketingNav";
 export const metadata: Metadata = {
   title: "Funktioner — PraxisOS til fodplejere",
   description:
-    "Booking, journal, klippekort, betaling, AI og DK-compliance. Se alle PraxisOS-funktioner til fodpleje-klinikker.",
+    "PraxisOS-funktioner der allerede er bygget: kalender, journal, klippekort, fod-scan, AI, MitID, MedCom og API — klar til B2B-licens.",
 };
 
 export default function FunktionerPage() {
@@ -26,10 +26,11 @@ export default function FunktionerPage() {
         <div className="relative mx-auto max-w-[1100px] px-6 pt-14 pb-12">
           <div className="kicker">PraxisOS · B2B licens</div>
           <h1 className="display mt-3 max-w-[820px] text-[40px] font-semibold leading-[1.08] md:text-[52px]">
-            Funktioner til din fodplejeklinik
+            Funktioner I allerede har bygget — klar til licens
           </h1>
           <p className="mt-4 max-w-[560px] text-[15px] leading-relaxed text-ink-soft">
-            Vælg licens og tilkøb — dine kunder ser kun dit brand. Bygget til booking, journal, klippekort og DK-krav.
+            Samme moduler som i PraxisOS-review: kalender, journal, klippekort, fod-scan, AI, MitID og API.
+            Andre fodplejere køber licens — deres kunder ser kun deres brand.
           </p>
           <div className="mt-7 flex flex-wrap gap-3">
             <Link
