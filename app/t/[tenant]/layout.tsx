@@ -41,11 +41,11 @@ export default async function TenantLayout({
             <nav className="hidden items-center gap-6 text-[13px] md:flex">
               <Link href={`/t/${t.slug}`} className="hover:underline">Ydelser</Link>
               <Link href={`/t/${t.slug}/book`} className="hover:underline">Book tid</Link>
+              <Link href={`/t/${t.slug}/shop`} className="hover:underline">Shop</Link>
               <Link href={`/t/${t.slug}/klippekort`} className="hover:underline">Klippekort</Link>
               <Link href={`/t/${t.slug}/gavekort`} className="hover:underline">Gavekort</Link>
               <Link href={`/t/${t.slug}/portal`} className="hover:underline">Min side</Link>
               <Link href={`/t/${t.slug}/onboarding`} className="hover:underline">Bliv kunde</Link>
-              <span className="mono text-[11px] text-faint">drevet af PraxisOS</span>
             </nav>
             <Link
               href={`/t/${t.slug}/book`}
