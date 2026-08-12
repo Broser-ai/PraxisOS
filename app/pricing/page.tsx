@@ -50,6 +50,7 @@ export default function PricingPage() {
         <div className="mx-auto flex max-w-[1200px] items-center justify-between px-6 py-4">
           <Link href="/" className="display text-[16px] font-semibold">PraxisOS</Link>
           <nav className="flex items-center gap-5 text-[13px]">
+            <Link href="/shop" className="text-ink-soft hover:text-ink">Shop</Link>
             <Link href="/pricing" className="font-medium">Priser</Link>
             <Link href="/login" className="text-ink-soft hover:text-ink">Log ind</Link>
             <Link href="/signup" className="rounded-[10px] bg-ink px-3.5 py-1.5 text-paper">Start gratis</Link>

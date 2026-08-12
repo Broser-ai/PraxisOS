@@ -18,7 +18,7 @@ export default async function TenantHome({ params }: { params: Promise<{ tenant:
         <p className="mt-4 max-w-[620px] text-[15px] text-muted">
           {t.stats?.clients?.toLocaleString("da-DK")}+ tilfredse kunder · {t.stats?.rating}★ · {t.stats?.yearsOperating} år i {t.contact.address.split(",")[0]}.
         </p>
-        <div className="mt-6 flex gap-2">
+        <div className="mt-6 flex flex-wrap gap-2">
           <Link
             href={`/t/${t.slug}/book`}
             className="rounded-[10px] px-5 py-2.5 text-[14px] font-medium"
@@ -26,13 +26,12 @@ export default async function TenantHome({ params }: { params: Promise<{ tenant:
           >
             Book tid
           </Link>
-          <a
-            href={`/api/v1/${t.slug}/services`}
-            target="_blank"
+          <Link
+            href={`/t/${t.slug}/shop`}
             className="rounded-[10px] border border-line px-5 py-2.5 text-[14px] font-medium"
           >
-            API · /v1/services
-          </a>
+            Shop · creme & udstyr
+          </Link>
         </div>
       </section>
 

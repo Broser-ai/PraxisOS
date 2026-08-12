@@ -16,6 +16,7 @@ export default function LandingPage() {
             <span className="display text-[16px] font-semibold">PraxisOS</span>
           </Link>
           <nav className="flex items-center gap-5 text-[13px]">
+            <Link href="/shop" className="text-ink-soft hover:text-ink">Shop</Link>
             <Link href="/pricing" className="text-ink-soft hover:text-ink">Priser</Link>
             <Link href="/about" className="text-ink-soft hover:text-ink">Om</Link>
             <Link href="/login" className="text-ink-soft hover:text-ink">Log ind</Link>

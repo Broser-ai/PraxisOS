@@ -20,6 +20,7 @@ const secondary = [
   { href: "/admin/tenants", label: "Tenants", icon: "M4 21V11l8-6 8 6v10M9 21v-7h6v7" },
   { href: "/admin/payments", label: "PraxisOS Pay", icon: "M3 8h18M3 8V6a2 2 0 012-2h14a2 2 0 012 2v2M3 8v10a2 2 0 002 2h14a2 2 0 002-2V8M7 14h2M13 14h4" },
   { href: "/admin/vouchers", label: "Klippekort/gavekort", icon: "M21 16V8a2 2 0 00-1-1.7l-7-4a2 2 0 00-2 0l-7 4A2 2 0 003 8v8a2 2 0 001 1.7l7 4a2 2 0 002 0l7-4A2 2 0 0021 16zM3.3 7l8.7 5 8.7-5M12 22V12" },
+  { href: "/admin/products", label: "Webshop-produkter", icon: "M6 6h15l-1.5 9h-12zM6 6l-2-3H2M9 21a1 1 0 100-2 1 1 0 000 2zM18 21a1 1 0 100-2 1 1 0 000 2z" },
   { href: "/admin/subsidies", label: "Tilskudsordninger", icon: "M12 1v22M17 5H9.5a3.5 3.5 0 000 7h5a3.5 3.5 0 010 7H6" },
   { href: "/admin/reporting", label: "Indberetning", icon: "M3 3v18h18M7 17l4-4 4 4 6-6" },
   { href: "/admin/api", label: "Universal API", icon: "M4 16l-3-3 3-3M20 8l3 3-3 3M14 4l-4 16" },

@@ -29,6 +29,7 @@ const admin = [
   { title: "Plan & fakturering", href: "/admin/plan", desc: "License + invoices" },
   { title: "PraxisOS Pay", href: "/admin/payments", desc: "Egen pay-engine · risk · trust · settlement" },
   { title: "Klippekort & gavekort", href: "/admin/vouchers", desc: "Voucher-katalog + balance-tracking" },
+  { title: "Webshop-produkter", href: "/admin/products", desc: "Creme · udstyr · B2B engros + forbruger" },
   { title: "Tilskudsordninger", href: "/admin/subsidies", desc: "Sygesikring, kommunal støtte, forsikring" },
   { title: "Indberetning", href: "/admin/reporting", desc: "EDI · MedCom XML · KOMBIT API" },
   { title: "Universal API", href: "/admin/api", desc: "API-keys, endpoints, webhooks, SDK-eksempler" },

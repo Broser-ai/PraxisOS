@@ -10,6 +10,8 @@ type Props = {
   paymentMode: "prepay" | "auth_only" | "in_clinic";
   onPaid: (method: PaymentMethod) => void;
   onBack: () => void;
+  /** Override charge timing label (fx webshop: "Trækkes ved køb") */
+  chargeLabel?: string;
 };
 
 function MethodIcon({ method }: { method: PaymentMethod }) {
@@ -36,7 +38,15 @@ function MethodIcon({ method }: { method: PaymentMethod }) {
   );
 }
 
-export function PaymentStep({ tenant, serviceName, amountKr, paymentMode, onPaid, onBack }: Props) {
+export function PaymentStep({
+  tenant,
+  serviceName,
+  amountKr,
+  paymentMode,
+  onPaid,
+  onBack,
+  chargeLabel,
+}: Props) {
   const cfg = TENANT_PAYMENT_CONFIG[tenant] ?? TENANT_PAYMENT_CONFIG.bypilar;
   const [selected, setSelected] = useState<PaymentMethod>(cfg.defaultMethod);
   const [card, setCard] = useState({ number: "", expiry: "", cvc: "" });
@@ -53,7 +63,7 @@ export function PaymentStep({ tenant, serviceName, amountKr, paymentMode, onPaid
   };
 
   const modeText = {
-    prepay:    { label: "Trækkes ved booking", color: "var(--color-accent)" },
+    prepay:    { label: chargeLabel ?? "Trækkes ved booking", color: "var(--color-accent)" },
     auth_only: { label: "Reserveres nu · trækkes ved fremmøde", color: "var(--color-signal)" },
     in_clinic: { label: "Betal i klinikken", color: "var(--color-muted)" },
   }[paymentMode];

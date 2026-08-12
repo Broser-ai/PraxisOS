@@ -80,6 +80,17 @@ export const TENANT_PAYMENT_CONFIG: Record<string, {
     payoutDelayDays: 2,
     riskThreshold: 35,
   },
+  praxisos: {
+    enabledMethods: ["mobilepay", "dankort", "card", "applepay"],
+    defaultMethod: "mobilepay",
+    paymentMode: "prepay",
+    currency: "DKK",
+    payLedgerId: "pay_ldg_praxisos_b2b",
+    feeRateBp: 0,
+    fixedFeeOere: 0,
+    payoutDelayDays: 2,
+    riskThreshold: 40,
+  },
   nordlys: {
     enabledMethods: ["mobilepay", "card", "applepay", "googlepay", "klarna"],
     defaultMethod: "card",
