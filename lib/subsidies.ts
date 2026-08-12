@@ -70,30 +70,29 @@ type SubsidyRule = {
 };
 
 export const subsidyRules: SubsidyRule[] = [
-  // Sygesikringen "danmark" — medicinsk fodpleje
-  { scheme: "danmark_g1", serviceId: "fod-med", serviceName: "Medicinsk fodpleje",   amountKr: 150, maxPerYearKr: 1800 },
-  { scheme: "danmark_g2", serviceId: "fod-med", serviceName: "Medicinsk fodpleje",   amountKr: 100, maxPerYearKr: 1200 },
-  { scheme: "danmark_g5", serviceId: "fod-med", serviceName: "Medicinsk fodpleje",   amountKr: 200, maxPerYearKr: 2400 },
+  // Sygesikringen "danmark" — almindelig / udvidet fodbehandling
+  { scheme: "danmark_g1", serviceId: "fod-std", serviceName: "Fodbehandling", amountKr: 150, maxPerYearKr: 1800 },
+  { scheme: "danmark_g2", serviceId: "fod-std", serviceName: "Fodbehandling", amountKr: 100, maxPerYearKr: 1200 },
+  { scheme: "danmark_g5", serviceId: "fod-std", serviceName: "Fodbehandling", amountKr: 200, maxPerYearKr: 2400 },
+  { scheme: "danmark_g1", serviceId: "fod-ext", serviceName: "Udvidet fodbehandling", amountKr: 150, maxPerYearKr: 1800 },
+  { scheme: "danmark_g2", serviceId: "fod-ext", serviceName: "Udvidet fodbehandling", amountKr: 100, maxPerYearKr: 1200 },
 
-  // Sygesikringen "danmark" — luksus fodpleje (lavere — kun den medicinske del refunderes)
-  { scheme: "danmark_g1", serviceId: "fod-lux", serviceName: "Luksus fodpleje",      amountKr: 150, maxPerYearKr: 1800 },
-  { scheme: "danmark_g2", serviceId: "fod-lux", serviceName: "Luksus fodpleje",      amountKr: 100, maxPerYearKr: 1200 },
-
-  // Sygesikringen "danmark" — fod-scan (Physical AI)
-  { scheme: "danmark_g1", serviceId: "fod-scan", serviceName: "Fod-scan · Physical AI", percentBp: 4000, maxPerYearKr: 1000 }, // 40% op til 1.000 kr
-  { scheme: "danmark_g2", serviceId: "fod-scan", serviceName: "Fod-scan · Physical AI", percentBp: 2500, maxPerYearKr: 600 },
+  // Sygesikringen "danmark" — luksus (kun den kliniske del refunderes ift. katalog)
+  { scheme: "danmark_g1", serviceId: "fod-lux", serviceName: "Luksus fodbehandling", amountKr: 150, maxPerYearKr: 1800 },
+  { scheme: "danmark_g2", serviceId: "fod-lux", serviceName: "Luksus fodbehandling", amountKr: 100, maxPerYearKr: 1200 },
 
   // Diabetes-tilskud — kommunalt, op til 6 fodbehandlinger/år
-  { scheme: "diabetes", serviceId: "fod-med", serviceName: "Medicinsk fodpleje",     percentBp: 10000, maxSessionsPerYear: 6, requiresDiagnosisCode: ["E10", "E11"] },
+  { scheme: "diabetes", serviceId: "fod-std", serviceName: "Fodbehandling", percentBp: 10000, maxSessionsPerYear: 6, requiresDiagnosisCode: ["E10", "E11"] },
+  { scheme: "diabetes", serviceId: "fod-ext", serviceName: "Udvidet fodbehandling", percentBp: 10000, maxSessionsPerYear: 6, requiresDiagnosisCode: ["E10", "E11"] },
 
   // Kronisk §7
-  { scheme: "kronisk_p7", serviceId: "fod-med", serviceName: "Medicinsk fodpleje",   percentBp: 10000, maxSessionsPerYear: 12, requiresReferral: true },
+  { scheme: "kronisk_p7", serviceId: "fod-std", serviceName: "Fodbehandling", percentBp: 10000, maxSessionsPerYear: 12, requiresReferral: true },
 
   // Helbredstillæg
-  { scheme: "helbredstillaeg", serviceId: "fod-med", serviceName: "Medicinsk fodpleje", percentBp: 8500, maxSessionsPerYear: 12, minAge: 65 },
+  { scheme: "helbredstillaeg", serviceId: "fod-std", serviceName: "Fodbehandling", percentBp: 8500, maxSessionsPerYear: 12, minAge: 65 },
 
-  // Privat behandlingsforsikring (typisk dækker 100% efter selvrisiko)
-  { scheme: "privat_forsikring", serviceId: "fod-med", serviceName: "Medicinsk fodpleje", percentBp: 10000 },
+  // Privat behandlingsforsikring
+  { scheme: "privat_forsikring", serviceId: "fod-std", serviceName: "Fodbehandling", percentBp: 10000 },
 ];
 
 // -----------------------------------------------------------------------------

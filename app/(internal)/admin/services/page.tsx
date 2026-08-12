@@ -44,18 +44,19 @@ export default function ServicesEditor() {
 
       {/* Liste */}
       <div className="card rise mt-3 overflow-hidden" style={{ animationDelay: "0.06s" }}>
-        <div className="hidden grid-cols-[1fr_120px_120px_140px_120px_80px] gap-4 border-b border-line bg-paper-2/50 px-5 py-2.5 lg:grid">
-          {["Navn", "Kategori", "Varighed", "Modality", "Pris", ""].map((h) => (
+        <div className="hidden grid-cols-[1fr_100px_100px_120px_120px_100px_80px] gap-4 border-b border-line bg-paper-2/50 px-5 py-2.5 lg:grid">
+          {["Navn", "Kategori", "Status", "Varighed", "Modality", "Pris", ""].map((h) => (
             <div key={h} className="kicker">{h}</div>
           ))}
         </div>
 
         {tenant.services.map((s) => {
           const isEditing = editing === s.id;
+          const active = s.active !== false;
           return (
             <div
               key={s.id}
-              className={`grid grid-cols-1 gap-3 border-t border-line px-5 py-3.5 first:border-t-0 lg:grid-cols-[1fr_120px_120px_140px_120px_80px] lg:items-center ${isEditing ? "bg-paper-2/60" : ""}`}
+              className={`grid grid-cols-1 gap-3 border-t border-line px-5 py-3.5 first:border-t-0 lg:grid-cols-[1fr_100px_100px_120px_120px_100px_80px] lg:items-center ${isEditing ? "bg-paper-2/60" : ""} ${!active ? "opacity-55" : ""}`}
             >
               <div>
                 {isEditing ? (
@@ -65,18 +66,28 @@ export default function ServicesEditor() {
                       className="w-full rounded-[8px] border border-line-2 bg-card px-2.5 py-1.5 text-[13px] font-medium outline-none focus:border-ink"
                     />
                     <input
-                      defaultValue={s.description}
+                      defaultValue={s.shortDescription ?? s.description}
                       className="mt-1.5 w-full rounded-[8px] border border-line-2 bg-card px-2.5 py-1.5 text-[11.5px] text-muted outline-none focus:border-ink"
                     />
                   </>
                 ) : (
                   <>
                     <div className="text-[14px] font-medium">{s.name}</div>
-                    <div className="text-[12px] text-muted">{s.description}</div>
+                    <div className="text-[12px] text-muted">{s.shortDescription ?? s.description}</div>
+                    {(s.addOns?.length ?? 0) > 0 && (
+                      <div className="mt-1 mono text-[10.5px] text-faint">
+                        Tilvalg: {s.addOns!.map((a) => a.name).join(" · ")}
+                      </div>
+                    )}
                   </>
                 )}
               </div>
               <div className="hidden lg:block"><span className="chip">{s.category}</span></div>
+              <div className="hidden lg:block">
+                <span className="chip" style={{ opacity: active ? 1 : 0.7 }}>
+                  {active ? "Aktiv" : "Inactive"}
+                </span>
+              </div>
               <div className="hidden lg:block">
                 {isEditing ? (
                   <input
@@ -84,7 +95,11 @@ export default function ServicesEditor() {
                     defaultValue={s.durationMin}
                     className="w-20 rounded-[8px] border border-line-2 bg-card px-2 py-1 mono text-[12px] outline-none focus:border-ink"
                   />
-                ) : <span className="mono text-[13px]">{s.durationMin} min</span>}
+                ) : (
+                  <span className="mono text-[13px]">
+                    {s.durationMin != null ? `${s.durationMin} min` : "Efter aftale"}
+                  </span>
+                )}
               </div>
               <div className="hidden lg:block">
                 <div className="flex flex-wrap gap-1">

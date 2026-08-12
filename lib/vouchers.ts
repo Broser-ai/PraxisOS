@@ -5,6 +5,8 @@
 //
 // Begge er "vouchers" med fælles audit-log + tokenisering, men har forskellige redemption-regler.
 
+import { BYPILAR_CLIP_PACKAGES } from "@/lib/bypilar-catalog";
+
 export type VoucherKind = "clip" | "gift";
 
 export type VoucherStatus = "active" | "depleted" | "expired" | "cancelled" | "refunded";
@@ -62,21 +64,21 @@ export const vouchers: Voucher[] = [
     kind: "clip",
     tenant: "bypilar",
     status: "active",
-    serviceId: "fod-med",
-    serviceName: "Medicinsk fodpleje",
-    sessionsTotal: 8,
-    sessionsRemaining: 5,
-    priceKr: 3168,       // 8 × 495 = 3960 → 20% rabat
-    faceValueKr: 3960,
-    discountPct: 20,
-    vatRateBp: 0,        // medicinsk fodpleje er momsfritaget (sundhedsydelse)
+    serviceId: "fod-std",
+    serviceName: "Almindelig fodbehandling",
+    sessionsTotal: 10,
+    sessionsRemaining: 7,
+    priceKr: 2700,
+    faceValueKr: 3000,
+    discountPct: 10,
+    vatRateBp: 2500,
     buyer: { name: "Mette Lindqvist", email: "mette.l@example.com" },
     issuedAt: iso(-90),
     expiresAt: iso(275), // 12 måneder
     redemptions: [
-      { at: iso(-85), bookingId: "bk_p1", serviceName: "Medicinsk fodpleje", sessionsUsed: 1 },
-      { at: iso(-58), bookingId: "bk_x1", serviceName: "Medicinsk fodpleje", sessionsUsed: 1 },
-      { at: iso(-30), bookingId: "bk_x2", serviceName: "Medicinsk fodpleje", sessionsUsed: 1 },
+      { at: iso(-85), bookingId: "bk_p1", serviceName: "Fodbehandling", sessionsUsed: 1 },
+      { at: iso(-58), bookingId: "bk_x1", serviceName: "Fodbehandling", sessionsUsed: 1 },
+      { at: iso(-30), bookingId: "bk_x2", serviceName: "Fodbehandling", sessionsUsed: 1 },
     ],
   },
   {
@@ -86,13 +88,13 @@ export const vouchers: Voucher[] = [
     tenant: "bypilar",
     status: "active",
     serviceId: "fod-lux",
-    serviceName: "Luksus fodpleje",
+    serviceName: "Luksus fodbehandling",
     sessionsTotal: 5,
     sessionsRemaining: 5,
-    priceKr: 3168,
-    faceValueKr: 3725,
-    discountPct: 15,
-    vatRateBp: 0,
+    priceKr: 2470,
+    faceValueKr: 2975,
+    discountPct: 17,
+    vatRateBp: 2500,
     buyer: { name: "Clara Winther", email: "clara.w@example.com" },
     issuedAt: iso(-10),
     expiresAt: iso(355),
@@ -116,8 +118,8 @@ export const vouchers: Voucher[] = [
     issuedAt: iso(-65),
     expiresAt: iso(1030), // 3 år iht. dansk lov
     redemptions: [
-      { at: iso(-12), bookingId: "bk_y1", serviceName: "Gel manicure", amountUsedOere: 39500 },
-      { at: iso(-12), bookingId: "bk_y1", serviceName: "Gel manicure · tip", amountUsedOere: 10500 },
+      { at: iso(-12), bookingId: "bk_y1", serviceName: "Manicure", amountUsedOere: 23900 },
+      { at: iso(-12), bookingId: "bk_y1", serviceName: "Manicure · tip", amountUsedOere: 26100 },
     ],
   },
   {
@@ -159,11 +161,7 @@ export type ClipPackage = {
 };
 
 export const clipPackages: ClipPackage[] = [
-  { id: "pkg_fod3", tenant: "bypilar", serviceId: "fod-med", serviceName: "Medicinsk fodpleje", sessions: 3, discountPct: 10, faceValueKr: 1485, priceKr: 1337, expiryMonths: 6 },
-  { id: "pkg_fod5", tenant: "bypilar", serviceId: "fod-med", serviceName: "Medicinsk fodpleje", sessions: 5, discountPct: 15, faceValueKr: 2475, priceKr: 2104, expiryMonths: 9 },
-  { id: "pkg_fod8", tenant: "bypilar", serviceId: "fod-med", serviceName: "Medicinsk fodpleje", sessions: 8, discountPct: 20, faceValueKr: 3960, priceKr: 3168, expiryMonths: 12, highlighted: true },
-  { id: "pkg_lux5", tenant: "bypilar", serviceId: "fod-lux", serviceName: "Luksus fodpleje", sessions: 5, discountPct: 15, faceValueKr: 3725, priceKr: 3166, expiryMonths: 12 },
-  { id: "pkg_mani5", tenant: "bypilar", serviceId: "gel-mani", serviceName: "Gel manicure", sessions: 5, discountPct: 10, faceValueKr: 1975, priceKr: 1778, expiryMonths: 6 },
+  ...BYPILAR_CLIP_PACKAGES,
 ];
 
 // -----------------------------------------------------------------------------
