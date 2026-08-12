@@ -1,8 +1,8 @@
 import { NextResponse } from "next/server";
-import { getTenant } from "@/lib/tenants";
+import { getActiveServices, getTenant } from "@/lib/tenants";
 
 // POST /api/v1/{tenant}/bookings
-// Body: { serviceId, startsAt, client: { name, email, phone }, modality, notes? }
+// Body: { serviceId, startsAt, client: { name, email, phone }, modality, notes?, addOnIds? }
 // Idempotency: header "Idempotency-Key" anbefales.
 //
 // Demo: gemmer ikke noget — returnerer en kvittering. Senere skrives til DB + sender bekræftelse via Aria.
@@ -20,8 +20,14 @@ export async function POST(
   const required = ["serviceId", "startsAt", "client"];
   for (const k of required) if (!body[k]) return NextResponse.json({ error: `missing_${k}` }, { status: 400 });
 
-  const service = t.services.find((s) => s.id === body.serviceId);
-  if (!service) return NextResponse.json({ error: "service_not_found" }, { status: 404 });
+  const service = getActiveServices(t).find((s) => s.id === body.serviceId);
+  if (!service) return NextResponse.json({ error: "service_not_found_or_inactive" }, { status: 404 });
+
+  const addOnIds: string[] = Array.isArray(body.addOnIds) ? body.addOnIds : [];
+  const chargedAddOns = (service.addOns ?? []).filter(
+    (a) => a.chargeable && a.priceKr != null && addOnIds.includes(a.id)
+  );
+  const addOnTotal = chargedAddOns.reduce((sum, a) => sum + (a.priceKr ?? 0), 0);
 
   const bookingId = "bk_" + Math.random().toString(36).slice(2, 11);
   const idempotencyKey = req.headers.get("idempotency-key") ?? bookingId;
@@ -29,7 +35,14 @@ export async function POST(
   return NextResponse.json({
     id: bookingId,
     tenant: t.slug,
-    service: { id: service.id, name: service.name, durationMin: service.durationMin },
+    service: {
+      id: service.id,
+      name: service.name,
+      durationMin: service.durationMin ?? null,
+      priceKr: service.priceKr,
+    },
+    addOns: chargedAddOns.map((a) => ({ id: a.id, name: a.name, priceKr: a.priceKr })),
+    priceKr: service.priceKr + addOnTotal,
     startsAt: body.startsAt,
     modality: body.modality ?? "Klinik",
     client: { name: body.client.name, email: body.client.email, phone: body.client.phone },

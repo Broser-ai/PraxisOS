@@ -34,20 +34,22 @@ export type Report = {
 // Hver myndighed har sit eget kode-univers
 export const SERVICE_CODE_MAP: Record<string, Record<string, string>> = {
   EDI_DANMARK: {
-    "fod-med":  "FP-101",   // fodpleje · medicinsk
-    "fod-lux":  "FP-102",
-    "fod-scan": "FP-201",   // diagnostisk · sub-mm topologi
+    "fod-std": "FP-101",
+    "fod-ext": "FP-102",
+    "fod-lux": "FP-103",
   },
   MEDCOM: {
-    "fod-med":  "11.91",
-    "fod-lux":  "11.92",
-    "fod-scan": "13.05",
+    "fod-std": "11.91",
+    "fod-ext": "11.92",
+    "fod-lux": "11.93",
   },
   KOMMUNAL_API: {
-    "fod-med":  "DIA-FOD",  // diabetes-fodpleje
+    "fod-std": "DIA-FOD",
+    "fod-ext": "DIA-FOD",
   },
   FORSIKRING_API: {
-    "fod-med":  "BEH-FODP-001",
+    "fod-std": "BEH-FODP-001",
+    "fod-ext": "BEH-FODP-002",
   },
   MANUEL: {},
 };

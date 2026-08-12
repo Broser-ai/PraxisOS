@@ -44,7 +44,7 @@ export const MCP_TOOLS: McpTool[] = [
       type: "object",
       properties: {
         tenant: { type: "string", description: "Tenant-slug" },
-        serviceId: { type: "string", description: "Ydelses-ID (fx 'fod-med')" },
+        serviceId: { type: "string", description: "Ydelses-ID (fx 'fod-std')" },
         startsAt: { type: "string", description: "ISO-8601 starttidspunkt" },
         clientName: { type: "string", description: "Klientens navn" },
         clientEmail: { type: "string", description: "Klientens e-mail" },

@@ -1,6 +1,8 @@
 // Tenant-fundamentet for multi-tenant PraxisOS.
 // Fil-baseret seed nu — swappes til Supabase i Fase 0/1.
 
+import { bypilarAllServices } from "@/lib/bypilar-catalog";
+
 export type Mode = "headless" | "full" | "hybrid";
 export type ModuleKey =
   | "booking"
@@ -53,14 +55,33 @@ export type Tenant = {
   stats?: { clients: number; rating: number; yearsOperating: number };
 };
 
+export type ServiceAddOn = {
+  id: string;
+  name: string;
+  /** Godkendt tillægspris. Udelades når pris ikke er godkendt. */
+  priceKr?: number;
+  durationMin?: number;
+  /** false = vises, men opkræves ikke (mangler godkendt pris / review). */
+  chargeable: boolean;
+  reviewNote?: string;
+};
+
 export type Service = {
   id: string;
   name: string;
-  durationMin: number;
-  priceKr: number;
+  /** Kort teaser til cards. Fallback: description. */
+  shortDescription?: string;
   description: string;
+  /** Udelades når varighed ikke er godkendt i kataloget (må ikke gættes). */
+  durationMin?: number;
+  priceKr: number;
   category: "Negle" | "Fod" | "Æstetik" | "Konsultation" | "Fod-scan";
   modality: ("Klinik" | "Hjemmebesøg" | "Video")[];
+  /** default true — inactive services skjules i offentlig API/booking. */
+  active?: boolean;
+  bookable?: boolean;
+  addOns?: ServiceAddOn[];
+  reviewNotes?: string[];
 };
 
 const ALL_MODULES: ModuleKey[] = [
@@ -70,14 +91,15 @@ const ALL_MODULES: ModuleKey[] = [
 ];
 
 // -------------------------------------------------------------
-// SEED · Bypilar (Aarhus, negle + fodpleje) — pilot-kunde
+// SEED · Bypilar (Aarhus) — fodpleje / fodterapeut · pilot-kunde
+// Katalog: lib/bypilar-catalog.ts (single source of truth)
 // -------------------------------------------------------------
 const bypilar: Tenant = {
   slug: "bypilar",
   legalName: "by Pilar",
   brand: {
     name: "by Pilar",
-    tagline: "Negle- og fodpleje · Aarhus",
+    tagline: "Fodpleje & fodterapeut · Aarhus",
     primary: "#1b1a17",
     secondary: "#7a6a55",
     paper: "#f5efe6",
@@ -86,7 +108,7 @@ const bypilar: Tenant = {
     fontDisplay: "Fraunces",
     fontSans: "Hanken Grotesk",
   },
-  domains: ["bypilar.dk", "booking.bypilar.dk", "bypilar.praxis.app"],
+  domains: ["bypilar.dk", "www.bypilar.dk", "booking.bypilar.dk", "app.bypilar.dk", "bypilar.praxis.app"],
   mode: "hybrid", // headless API til deres website + full admin
   locale: "da-DK",
   timezone: "Europe/Copenhagen",
@@ -110,14 +132,13 @@ const bypilar: Tenant = {
     cvr: "43947079",
   },
   stats: { clients: 2400, rating: 4.9, yearsOperating: 7 },
-  services: [
-    { id: "gel-mani",   name: "Gel manicure",        durationMin: 45, priceKr: 395, category: "Negle", modality: ["Klinik"], description: "Klassisk gel-manicure, holder 3-4 uger." },
-    { id: "nail-art",   name: "Nail art",            durationMin: 60, priceKr: 545, category: "Negle", modality: ["Klinik"], description: "Personligt design — vi tegner det du drømmer om." },
-    { id: "fod-med",    name: "Medicinsk fodpleje",  durationMin: 45, priceKr: 495, category: "Fod",   modality: ["Klinik", "Hjemmebesøg"], description: "Til hård hud, ligtorne, nedgroede negle." },
-    { id: "fod-lux",    name: "Luksus fodpleje",     durationMin: 75, priceKr: 745, category: "Fod",   modality: ["Klinik", "Hjemmebesøg"], description: "Fuld behandling + scrub, maske, lakering." },
-    { id: "fod-scan",   name: "Fod-scan · Physical AI", durationMin: 30, priceKr: 595, category: "Fod-scan", modality: ["Klinik"], description: "Sub-mm 3D-topologi · plantar pressure · klinisk analyse." },
-  ],
+  services: bypilarAllServices(),
 };
+
+/** Aktive offentlige services (booking/API/website). */
+export function getActiveServices(t: Tenant): Service[] {
+  return t.services.filter((s) => s.active !== false);
+}
 
 // -------------------------------------------------------------
 // SEED · Nordlys Klinik (vores fiktive demo-tenant)

@@ -1,5 +1,5 @@
 import { NextResponse } from "next/server";
-import { getTenant } from "@/lib/tenants";
+import { getActiveServices, getTenant } from "@/lib/tenants";
 
 // GET /api/v1/{tenant}/availability?service=ID&from=YYYY-MM-DD&days=7
 // Returnerer ledige tider — mock-generator, swappes til ægte kalender-engine senere.
@@ -15,7 +15,11 @@ export async function GET(
   const serviceId = url.searchParams.get("service");
   const days = Math.min(14, Math.max(1, Number(url.searchParams.get("days") ?? "5")));
   const fromParam = url.searchParams.get("from");
-  const service = t.services.find((s) => s.id === serviceId) ?? t.services[0];
+  const active = getActiveServices(t);
+  const service = active.find((s) => s.id === serviceId) ?? active[0];
+  if (!service) {
+    return NextResponse.json({ error: "no_active_services" }, { status: 404 });
+  }
 
   const from = fromParam ? new Date(fromParam) : new Date();
   const slots: { day: string; times: string[] }[] = [];

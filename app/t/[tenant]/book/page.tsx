@@ -8,9 +8,24 @@ import { VoucherInput, type VoucherSummary } from "@/components/VoucherInput";
 import { AddressAutocomplete, type DanishAddress } from "@/components/AddressAutocomplete";
 import { TENANT_PAYMENT_CONFIG, PAYMENT_METHOD_LABEL, type PaymentMethod } from "@/lib/payments";
 
+type ServiceAddOn = {
+  id: string;
+  name: string;
+  price: number | null;
+  chargeable: boolean;
+};
 type Service = {
-  id: string; name: string; description: string; durationMin: number; price: number;
-  currency: string; category: string; modality: string[];
+  id: string;
+  name: string;
+  shortDescription?: string;
+  description: string;
+  durationMin: number | null;
+  price: number;
+  currency: string;
+  category: string;
+  modality: string[];
+  addOns?: ServiceAddOn[];
+  bookable?: boolean;
 };
 type Slots = { day: string; times: string[] }[];
 type Step = 1 | 2 | 3 | 4 | 5;
@@ -37,6 +52,7 @@ function BookPageInner({ params }: { params: Promise<{ tenant: string }> }) {
 
   const [services, setServices] = useState<Service[]>([]);
   const [serviceId, setServiceId] = useState<string | null>(sp.get("service"));
+  const [selectedAddOns, setSelectedAddOns] = useState<string[]>([]);
   const [slots, setSlots] = useState<Slots>([]);
   const [pick, setPick] = useState<{ day: string; time: string } | null>(null);
   const [client, setClient] = useState({ name: "", email: "", phone: "" });
@@ -96,11 +112,15 @@ function BookPageInner({ params }: { params: Promise<{ tenant: string }> }) {
   }, [client.email, tenant, serviceId]);
 
   const service = services.find((s) => s.id === serviceId);
+  const addOnTotal = (service?.addOns ?? [])
+    .filter((a) => a.chargeable && a.price != null && selectedAddOns.includes(a.id))
+    .reduce((sum, a) => sum + (a.price ?? 0), 0);
+  const basePrice = (service?.price ?? 0) + addOnTotal;
   const subsidyKr = lookup.subsidies?.find((s) => s.scheme === selectedScheme && s.eligible)?.subsidyKr ?? 0;
   const voucherAmountKr = appliedVoucher?.kind === "clip"
-    ? (service?.price ?? 0)
-    : Math.min(appliedVoucher?.balanceKr ?? 0, (service?.price ?? 0) - subsidyKr);
-  const amountToPay = Math.max(0, (service?.price ?? 0) - subsidyKr - voucherAmountKr);
+    ? basePrice
+    : Math.min(appliedVoucher?.balanceKr ?? 0, basePrice - subsidyKr);
+  const amountToPay = Math.max(0, basePrice - subsidyKr - voucherAmountKr);
   const skipPayment = paymentCfg.paymentMode === "in_clinic" || amountToPay === 0;
 
   const finalize = async (method?: PaymentMethod) => {
@@ -116,6 +136,7 @@ function BookPageInner({ params }: { params: Promise<{ tenant: string }> }) {
         startsAt: `${pick.day}T${pick.time}:00+02:00`,
         modality,
         client,
+        addOnIds: selectedAddOns,
         subsidy: selectedScheme ? { scheme: selectedScheme, amountKr: subsidyKr } : null,
         voucher: appliedVoucher ? { code: appliedVoucher.code, amountKr: voucherAmountKr } : null,
         payment: method ? { method, pspRef, mode: paymentCfg.paymentMode, amountKr: amountToPay } : null,
@@ -168,14 +189,16 @@ function BookPageInner({ params }: { params: Promise<{ tenant: string }> }) {
             {services.map((s) => (
               <button
                 key={s.id}
-                onClick={() => { setServiceId(s.id); setStep(2); }}
+                onClick={() => { setServiceId(s.id); setSelectedAddOns([]); setStep(2); }}
                 className="text-left rounded-[12px] border border-line bg-white/40 p-4 transition-all hover:border-ink"
               >
                 <div className="kicker">{s.category}</div>
                 <div className="display mt-1.5 text-[17px] font-semibold">{s.name}</div>
-                <div className="mt-1 text-[12.5px] text-muted">{s.description}</div>
+                <div className="mt-1 text-[12.5px] text-muted">{s.shortDescription ?? s.description}</div>
                 <div className="mt-3 flex items-center justify-between">
-                  <span className="mono text-[11.5px] text-muted">{s.durationMin} min</span>
+                  <span className="mono text-[11.5px] text-muted">
+                    {s.durationMin != null ? `${s.durationMin} min` : "Varighed efter aftale"}
+                  </span>
                   <span className="display text-[16px] font-semibold">{s.price} kr</span>
                 </div>
               </button>
@@ -190,10 +213,48 @@ function BookPageInner({ params }: { params: Promise<{ tenant: string }> }) {
           <div className="flex items-center justify-between">
             <div>
               <div className="kicker">{service.category}</div>
-              <h1 className="display mt-1 text-[24px] font-semibold">{service.name} · {service.durationMin} min · {service.price} kr</h1>
+              <h1 className="display mt-1 text-[24px] font-semibold">
+                {service.name}
+                {" · "}
+                {service.durationMin != null ? `${service.durationMin} min` : "efter aftale"}
+                {" · "}
+                {basePrice} kr
+              </h1>
+              <p className="mt-1 max-w-[520px] text-[13px] text-muted">{service.description}</p>
             </div>
             <button onClick={() => setStep(1)} className="text-[12px] underline">Skift ydelse</button>
           </div>
+
+          {(service.addOns?.length ?? 0) > 0 && (
+            <div className="mt-4 rounded-[12px] border border-line bg-white/40 p-4">
+              <div className="kicker">Tilvalg</div>
+              <div className="mt-2 flex flex-col gap-2">
+                {service.addOns!.map((a) => {
+                  const checked = selectedAddOns.includes(a.id);
+                  const labelPrice = a.chargeable && a.price != null ? `+${a.price} kr` : "uden ekstra gebyr";
+                  return (
+                    <label key={a.id} className="flex cursor-pointer items-center justify-between gap-3 text-[13px]">
+                      <span className="flex items-center gap-2">
+                        <input
+                          type="checkbox"
+                          checked={checked}
+                          disabled={!a.chargeable && a.price == null}
+                          onChange={() => {
+                            if (!a.chargeable) return;
+                            setSelectedAddOns((prev) =>
+                              checked ? prev.filter((id) => id !== a.id) : [...prev, a.id]
+                            );
+                          }}
+                        />
+                        {a.name}
+                      </span>
+                      <span className="mono text-[11.5px] text-muted">{labelPrice}</span>
+                    </label>
+                  );
+                })}
+              </div>
+            </div>
+          )}
 
           {service.modality.length > 1 && (
             <div className="mt-4 flex items-center gap-1.5">
@@ -431,7 +492,7 @@ function BookPageInner({ params }: { params: Promise<{ tenant: string }> }) {
               <div className="mt-1">
                 Officiel sundheds-SMS afsendt fra <b>BY PILAR</b> til {client.phone || "+45 ** ** ** **"}.
                 <span className="block mt-0.5 text-[10.5px] text-faint mono">
-                  praxis_nsms_{confirm.id.replace("bk_", "")} · 0,50 kr · leveret 12:42:08
+                  Bekræftelse sendt · leveret
                 </span>
               </div>
             </div>
@@ -457,7 +518,7 @@ function BookPageInner({ params }: { params: Promise<{ tenant: string }> }) {
               <div className="border-t border-line bg-paper-2/40 px-5 py-3 text-[11px] text-faint">
                 <span className="kicker !text-[9px]">Betalingsmetode</span>
                 <div className="mt-0.5 text-ink">
-                  {PAYMENT_METHOD_LABEL[paymentResult.method]} · ref {paymentResult.pspRef} · PraxisTrust verificeret
+                  {PAYMENT_METHOD_LABEL[paymentResult.method]} · ref {paymentResult.pspRef} · betaling verificeret
                 </div>
               </div>
             )}
