@@ -3,7 +3,7 @@
     <p class="label" style="margin-bottom:12px">Online Booking</p>
     <h2 class="heading" style="font-size:clamp(28px,3.5vw,44px);margin-bottom:16px">Book din behandling</h2>
     <p style="font-size:15px;color:var(--muted);margin-bottom:40px;line-height:1.7">
-      Vælg behandling, dato og tid herunder via PraxisOS. Du modtager automatisk bekræftelse på e-mail og SMS-påmindelse 24 timer før.
+      Vælg behandling, dato og tid herunder. Du booker direkte hos by Pilar og modtager automatisk bekræftelse på e-mail og SMS-påmindelse 24 timer før.
     </p>
 
     <div class="booking-embed" style="margin-bottom:28px">
@@ -12,9 +12,9 @@
         <a class="btn btn-outline" href="/behandlinger/" style="margin-left:8px">Se priser</a>
       </p>
       <iframe
-        src="http://app.bypilar.dk/t/bypilar/book?embed=1"
+        src="https://app.bypilar.dk/t/bypilar/book?embed=1"
         style="width:100%;min-height:720px;border:1px solid var(--grayL);border-radius:12px;background:#fff"
-        title="Book behandling hos by Pilar · PraxisOS"
+        title="Book behandling hos by Pilar"
         loading="lazy"
       ></iframe>
     </div>

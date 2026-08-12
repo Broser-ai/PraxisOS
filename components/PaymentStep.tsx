@@ -14,7 +14,7 @@ type Props = {
 
 function MethodIcon({ method }: { method: PaymentMethod }) {
   const color = PAYMENT_METHOD_ICON[method];
-  // Stiliserede logo-glyphs · PraxisOS Pay native komponent
+  // Stiliserede logo-glyphs · betaling
   const glyph: Record<PaymentMethod, string> = {
     mobilepay: "M",
     dankort:   "D",
@@ -79,12 +79,12 @@ export function PaymentStep({ tenant, serviceName, amountKr, paymentMode, onPaid
         </h2>
         <p className="mt-2 text-[13px] text-muted">
           {step === "3ds"
-            ? "PraxisTrust step-up · vi har sendt en notifikation til din MitID-app."
-            : "PraxisOS Pay behandler betalingen · få sekunder."}
+            ? "Bekræft med MitID · vi har sendt en notifikation til din MitID-app."
+            : "Vi behandler din betaling · få sekunder."}
         </p>
         <div className="mt-6 inline-flex items-center gap-1.5 mono text-[10.5px] text-faint">
           <span className="h-1.5 w-1.5 rounded-full bg-signal live-dot" />
-          praxis-pay · EU-resident · krypteret kommunikation
+          Sikker betaling · EU · krypteret
         </div>
       </div>
     );
@@ -206,14 +206,12 @@ export function PaymentStep({ tenant, serviceName, amountKr, paymentMode, onPaid
       <div className="mt-5 flex flex-wrap items-center gap-3 text-[11px] text-faint">
         <span className="flex items-center gap-1">
           <svg width="11" height="11" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round"><path d="M12 2l8 4v6c0 5-3.5 8-8 10-4.5-2-8-5-8-10V6z"/></svg>
-          PraxisTrust · MitID step-up
+          MitID-verificeret
         </span>
         <span>·</span>
-        <span>EU-hostet · GDPR Art. 9</span>
+        <span>Sikker betaling · GDPR</span>
         <span>·</span>
         <span>PCI-DSS Level 1</span>
-        <span>·</span>
-        <span>PraxisRisk aktiv</span>
       </div>
 
       <div className="mt-6 flex gap-2">

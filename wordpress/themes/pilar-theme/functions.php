@@ -34,7 +34,7 @@ add_action('wp_head', function () {
     $icon = get_template_directory_uri() . '/img/favicon.svg';
     echo '<link rel="icon" type="image/svg+xml" href="' . esc_url($icon) . '">' . "\n";
     if (is_front_page()) {
-        echo '<meta name="description" content="Fodpleje og fodterapeut i Aarhus — book online via PraxisOS.">' . "\n";
+        echo '<meta name="description" content="Fodpleje og fodterapeut i Aarhus — book online hos by Pilar.">' . "\n";
     }
 }, 1);
 

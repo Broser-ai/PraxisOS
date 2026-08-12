@@ -492,7 +492,7 @@ function BookPageInner({ params }: { params: Promise<{ tenant: string }> }) {
               <div className="mt-1">
                 Officiel sundheds-SMS afsendt fra <b>BY PILAR</b> til {client.phone || "+45 ** ** ** **"}.
                 <span className="block mt-0.5 text-[10.5px] text-faint mono">
-                  praxis_nsms_{confirm.id.replace("bk_", "")} · 0,50 kr · leveret 12:42:08
+                  Bekræftelse sendt · leveret
                 </span>
               </div>
             </div>
@@ -518,7 +518,7 @@ function BookPageInner({ params }: { params: Promise<{ tenant: string }> }) {
               <div className="border-t border-line bg-paper-2/40 px-5 py-3 text-[11px] text-faint">
                 <span className="kicker !text-[9px]">Betalingsmetode</span>
                 <div className="mt-0.5 text-ink">
-                  {PAYMENT_METHOD_LABEL[paymentResult.method]} · ref {paymentResult.pspRef} · PraxisTrust verificeret
+                  {PAYMENT_METHOD_LABEL[paymentResult.method]} · ref {paymentResult.pspRef} · betaling verificeret
                 </div>
               </div>
             )}

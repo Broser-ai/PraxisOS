@@ -24,11 +24,12 @@ export async function GET(
   const origin = `${url.protocol}//${url.host}`;
   const accent = t.brand.accent;
 
-  const js = `// PraxisOS embed v1 · tenant=${t.slug}
+  const js = `// Booking embed · ${t.brand.name} (${t.slug})
 (function () {
   if (window.__praxisLoaded) return; window.__praxisLoaded = true;
   var ORIGIN = ${JSON.stringify(origin)};
   var TENANT = ${JSON.stringify(t.slug)};
+  var BRAND = ${JSON.stringify(t.brand.name)};
   var ACCENT = ${JSON.stringify(accent)};
 
   // ---- inject minimal CSS ----
@@ -87,15 +88,15 @@ export async function GET(
     open(svc, mode);
   });
 
-  // ---- "drevet af"-badge (kan slås fra med data-praxis-no-badge på <html>) ----
-  if (!document.documentElement.hasAttribute('data-praxis-no-badge')) {
+  // ---- brand-badge (valgfri via data-praxis-brand-badge på <html>) ----
+  if (document.documentElement.hasAttribute('data-praxis-brand-badge')) {
     var badge = document.createElement('div'); badge.className = 'prx-badge';
-    badge.textContent = '⚡ drevet af PraxisOS';
+    badge.textContent = 'Book hos ' + BRAND;
     document.body && document.body.appendChild(badge);
   }
 
-  // ---- public API ----
-  window.PraxisOS = { open: open, close: close, tenant: TENANT, origin: ORIGIN };
+  // ---- public API (PraxisOS beholdes som alias for eksisterende integrationer) ----
+  window.PraxisOS = { open: open, close: close, tenant: TENANT, brand: BRAND, origin: ORIGIN };
 
   // ---- post-message handshake fra iframen ----
   window.addEventListener('message', function (e) {

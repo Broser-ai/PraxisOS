@@ -64,7 +64,7 @@ add_action('wp_enqueue_scripts', function () {
         'praxisos-embed',
         $base . '/embed/v1/' . rawurlencode($tenant),
         [],
-        '1.1.0',
+        '1.2.0',
         true
     );
 });
@@ -92,9 +92,9 @@ add_shortcode('praxis_book', function ($atts) {
 add_shortcode('praxis_services', function () {
     $data = praxisos_fetch_json('/api/v1/' . rawurlencode(PRAXISOS_TENANT) . '/services');
     if (is_wp_error($data)) {
-        return '<p class="praxis-services-error" style="color:var(--muted)">Behandlinger kunne ikke hentes fra PraxisOS ('
+        return '<p class="praxis-services-error" style="color:var(--muted)">Behandlinger kunne ikke hentes lige nu ('
             . esc_html($data->get_error_message())
-            . '). Prøv igen senere.</p>';
+            . '). Prøv igen senere, eller ring til by Pilar.</p>';
     }
     $services = $data['services'] ?? [];
     if (!$services) {
@@ -178,7 +178,7 @@ add_shortcode('praxis_vouchers', function () {
         echo '</div>';
     }
     echo '</div>';
-    echo '<a class="btn btn-outline" href="' . esc_url($url) . '" target="_blank" rel="noopener">Køb klippekort i PraxisOS →</a>';
+    echo '<a class="btn btn-outline" href="' . esc_url($url) . '" target="_blank" rel="noopener">Køb klippekort hos by Pilar →</a>';
     echo '</section>';
     return (string) ob_get_clean();
 });
@@ -197,7 +197,7 @@ add_shortcode('praxis_scan_link', function ($atts) {
 add_shortcode('praxis_agents', function () {
     $base = rtrim(PRAXISOS_BASE_URL, '/');
     $html = '<div class="praxis-agents" data-praxis-agents="1">';
-    $html .= '<p><strong>by Pilar · PraxisOS</strong></p>';
+    $html .= '<p><strong>by Pilar</strong></p>';
     $html .= '<ul>';
     $html .= '<li><a href="' . esc_url($base . '/t/bypilar/book') . '" target="_blank" rel="noopener">Booking</a></li>';
     $html .= '<li><a href="' . esc_url($base . '/t/bypilar/klippekort') . '" target="_blank" rel="noopener">Klippekort</a></li>';

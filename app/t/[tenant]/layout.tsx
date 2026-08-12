@@ -1,6 +1,21 @@
+import type { Metadata } from "next";
 import { notFound } from "next/navigation";
 import Link from "next/link";
 import { getTenant } from "@/lib/tenants";
+
+export async function generateMetadata({
+  params,
+}: {
+  params: Promise<{ tenant: string }>;
+}): Promise<Metadata> {
+  const { tenant: slug } = await params;
+  const t = getTenant(slug);
+  if (!t) return { title: "Klinik" };
+  return {
+    title: `${t.brand.name} — ${t.brand.tagline}`,
+    description: `Book behandling hos ${t.brand.name}. ${t.brand.tagline}.`,
+  };
+}
 
 export default async function TenantLayout({
   children,
@@ -45,7 +60,6 @@ export default async function TenantLayout({
               <Link href={`/t/${t.slug}/gavekort`} className="hover:underline">Gavekort</Link>
               <Link href={`/t/${t.slug}/portal`} className="hover:underline">Min side</Link>
               <Link href={`/t/${t.slug}/onboarding`} className="hover:underline">Bliv kunde</Link>
-              <span className="mono text-[11px] text-faint">drevet af PraxisOS</span>
             </nav>
             <Link
               href={`/t/${t.slug}/book`}
