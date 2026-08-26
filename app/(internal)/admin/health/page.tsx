@@ -17,7 +17,7 @@ const INTEGRATIONS: { name: string; modul: string; status: Status; note: string;
   { name: "PraxisOS Pay", modul: "egen-built", status: "live", note: "9 metoder · PraxisRisk + Trust 2", href: "/admin/payments" },
   { name: "AI · Aria/Niels/Sigrid", modul: "9 humaniserede agenter", status: "live", note: "mock-svar · OpenAI key for prod", href: "/admin/agents" },
   { name: "MCP-server", modul: "JSON-RPC 2.0", status: "live", note: "19 tools eksponeret", href: "/admin/mcp" },
-  { name: "Modul-marketplace", modul: "20 moduler · 7 kategorier", status: "live", note: "aktivering ✓", href: "/admin/marketplace" },
+  { name: "Modul-tilvalg", modul: "Kerne + tilvalg", status: "live", note: "aktivering ✓", href: "/admin/marketplace" },
 ];
 
 export default function HealthPage() {

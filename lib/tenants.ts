@@ -355,6 +355,6 @@ export const MODULE_LABELS: Record<ModuleKey, string> = {
   ai_noshow: "No-show prediktor",
   ar_journal: "AR/CV journal",
   body_scan: "Physical AI · Fod-scan",
-  field_service: "Felt-service",
+  field_service: "Ruteplanlægning",
   marketplace: "App marketplace",
 };

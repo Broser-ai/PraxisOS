@@ -104,7 +104,7 @@ export const PLANS: LicensePlan[] = [
     ],
     features: [
       "Alt i Practice + AI",
-      "Felt-service / hjemmebesøg",
+      "Ruteplanlægning / hjemmebesøg",
       "AR/CV-journal",
       "8 staff-seats",
       "Fod-scan: pause (ikke aktiv)",

@@ -64,7 +64,7 @@ const staffModules = [
   { kicker: "Klinisk AI", title: "Samlet chat", href: "/chat" },
   { kicker: "Physical AI", title: "Fod-scan · rapport", href: "/scan" },
   { kicker: "Physical AI", title: "Fod-scan · live", href: "/scan/start" },
-  { kicker: "Drift", title: "Felt-service", href: "/felt" },
+  { kicker: "Drift", title: "Ruteplanlægning", href: "/felt" },
   { kicker: "Drift", title: "Indstillinger", href: "/indstillinger" },
 ];
 
@@ -80,30 +80,33 @@ const clinicSurfaces = [
 ];
 
 const admin = [
-  { title: "Tenants", href: "/admin/tenants", desc: "Multi-tenant control plane" },
-  { title: "Ny tenant", href: "/admin/new-tenant", desc: "Onboarding-wizard" },
+  { title: "Produktpakke · udkast", href: "/admin/packaging", desc: "Kerne · tilvalg · pause · Broser" },
+  { title: "Modul-tilvalg", href: "/admin/marketplace", desc: "Aktivér tilvalg pr. klinik" },
   { title: "Ydelses-katalog", href: "/admin/services", desc: "Rediger ydelser pr. tenant" },
   { title: "Behandlere", href: "/admin/staff", desc: "Staff, roller, vagter" },
   { title: "Plan & fakturering", href: "/admin/plan", desc: "License + invoices" },
   { title: "PraxisOS Pay", href: "/admin/payments", desc: "Pay-engine · risk · settlement" },
-  { title: "Klippekort & gavekort", href: "/admin/vouchers", desc: "Voucher-katalog" },
-  { title: "Tilskudsordninger", href: "/admin/subsidies", desc: "Sygesikring / kommunal / forsikring" },
+  { title: "Webshop · klippekort", href: "/admin/vouchers", desc: "Produkter + vouchers" },
+  { title: "Tilskudsordninger", href: "/admin/subsidies", desc: "Under indberetning" },
   { title: "Indberetning", href: "/admin/reporting", desc: "EDI · MedCom · KOMBIT" },
-  { title: "Universal API", href: "/admin/api", desc: "Keys, endpoints, webhooks" },
-  { title: "Sikkerhed & adgang", href: "/admin/security", desc: "Sessioner, audit, brute-force" },
   { title: "NemSMS", href: "/admin/nemsms", desc: "Officiel sundheds-SMS" },
-  { title: "Agent-team", href: "/admin/agents", desc: "9 humaniserede AI-agenter" },
-  { title: "Sundhed.dk", href: "/admin/sundhed-dk", desc: "SSO + FMK-bro" },
-  { title: "MedCom", href: "/admin/medcom", desc: "Henvisninger & epikriser" },
-  { title: "MCP-server", href: "/admin/mcp", desc: "Cursor/Claude tools" },
-  { title: "Niels pipeline", href: "/admin/agents/niels/pipeline", desc: "Audio → SOAP → ICD-10" },
-  { title: "Sigrid-engine", href: "/admin/agents/sigrid/engine", desc: "Tilskuds-pipeline" },
-  { title: "Frej-engine", href: "/admin/agents/frej/engine", desc: "Compliance-pipeline" },
-  { title: "Marketplace", href: "/admin/marketplace", desc: "Modulær prismodel" },
+  { title: "Agent-valg", href: "/admin/agents", desc: "Tilvalg under AI-agent" },
+  { title: "Indstillinger", href: "/indstillinger", desc: "Klinik-indstillinger" },
+];
+
+/** Kun Broser — ikke kundevendt */
+const broserAdmin = [
+  { title: "Tenants (Broser)", href: "/admin/tenants", desc: "Multi-klinik control plane · kun dig" },
+  { title: "Ny tenant (Broser)", href: "/admin/new-tenant", desc: "Onboarding-wizard · kun dig" },
+  { title: "Universal API", href: "/admin/api", desc: "Keys, endpoints — skjult for kunden" },
+  { title: "MCP-server", href: "/admin/mcp", desc: "Cursor/Claude — kun Broser" },
   { title: "DK Data", href: "/admin/dk-data", desc: "DAWA / MitID / CPR / CVR" },
+  { title: "MedCom", href: "/admin/medcom", desc: "Opsætning styres af Broser" },
+  { title: "Sundhed.dk", href: "/admin/sundhed-dk", desc: "Opsætning styres af Broser" },
   { title: "Database", href: "/admin/database", desc: "Supabase EU · RLS" },
+  { title: "Sikkerhed", href: "/admin/security", desc: "Sessioner, audit" },
   { title: "System-status", href: "/admin/health", desc: "Go-live checklist" },
-  { title: "Integration · bypilar", href: "/admin/integration/bypilar", desc: "Dev-docs til klinik" },
+  { title: "Integration · bypilar", href: "/admin/integration/bypilar", desc: "Dev-docs" },
 ];
 
 const b2bSales = [
@@ -290,10 +293,23 @@ export default function Review() {
       </div>
 
       <div className="mt-10">
-        <div className="kicker mb-3">Admin · control plane</div>
+        <div className="kicker mb-3">Admin · kundevendt</div>
         <div className="grid grid-cols-1 gap-2 md:grid-cols-3">
           {admin.map((a) => (
             <Link key={a.href} href={a.href} className="rounded-[12px] border border-line bg-card p-3.5 transition-colors hover:bg-paper-2">
+              <div className="text-[13.5px] font-semibold">{a.title}</div>
+              <div className="mt-0.5 text-[11.5px] text-muted">{a.desc}</div>
+              <div className="mt-1 mono text-[10px] text-faint">{a.href}</div>
+            </Link>
+          ))}
+        </div>
+      </div>
+
+      <div className="mt-10">
+        <div className="kicker mb-3">Broser · skjult for kunden</div>
+        <div className="grid grid-cols-1 gap-2 md:grid-cols-3">
+          {broserAdmin.map((a) => (
+            <Link key={a.href} href={a.href} className="rounded-[12px] border border-dashed border-line bg-card/70 p-3.5 transition-colors hover:bg-paper-2">
               <div className="text-[13.5px] font-semibold">{a.title}</div>
               <div className="mt-0.5 text-[11.5px] text-muted">{a.desc}</div>
               <div className="mt-1 mono text-[10px] text-faint">{a.href}</div>

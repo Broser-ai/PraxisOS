@@ -78,7 +78,7 @@ export const CORE_PACK: PackagingItem[] = [
       {
         id: "agent-bjorn",
         name: "Bjørn · felt",
-        summary: "Koordinering af hjemmebesøg (kræver Felt-service).",
+        summary: "Koordinering af hjemmebesøg (kræver Ruteplanlægning).",
         defaultOn: false,
       },
     ],
@@ -178,8 +178,8 @@ export const ADDON_PACK: PackagingItem[] = [
     note: "Kunden ser ét modul «Indberetning» og krydser underpunkter af. Broser håndterer API-opsætning.",
   },
   {
-    id: "felt-service",
-    name: "Felt-service",
+    id: "ruteplanlaegning",
+    name: "Ruteplanlægning",
     summary: "Hjemmebesøg · rute · offline mobil.",
     visibility: "addon",
     href: "/felt",
@@ -207,9 +207,16 @@ export const PAUSED_PACK: PackagingItem[] = [
 
 /**
  * Intern platform — aldrig synlig i kundens marketplace/signup.
- * Broser styrer API, MCP, database, connectors.
+ * Broser styrer API, MCP, database, connectors og tenants.
  */
 export const INTERNAL_PACK: PackagingItem[] = [
+  {
+    id: "platform-tenants",
+    name: "Tenants",
+    summary: "Multi-klinik control plane — kun dig (Broser). Kunden ser det ikke.",
+    visibility: "internal",
+    href: "/admin/tenants",
+  },
   {
     id: "platform-api",
     name: "Universal API",

@@ -19,10 +19,10 @@ export default function ModuleMarketplace() {
     <div className="mx-auto max-w-[1320px]">
       <div className="rise flex flex-wrap items-end justify-between gap-3">
         <div>
-          <Link href="/admin/tenants" className="kicker hover:underline">← Tenants</Link>
-          <h1 className="display mt-2 text-[32px] font-semibold leading-none">Module Marketplace</h1>
+          <Link href="/admin/tenants" className="kicker hover:underline">← Tenants (Broser)</Link>
+          <h1 className="display mt-2 text-[32px] font-semibold leading-none">Modul-tilvalg</h1>
           <p className="mt-2 max-w-[560px] text-[13.5px] text-muted">
-            Ældre katalog. Nyt kundevendt udkast:{" "}
+            Kundens tilvalg. Nyt pakke-udkast:{" "}
             <Link href="/admin/packaging" className="font-medium text-ink underline-offset-2 hover:underline">
               Produktpakke · udkast
             </Link>

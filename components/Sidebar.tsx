@@ -18,20 +18,20 @@ const nav = [
 /** Drift synlig for Broser. Kundevendt pakke ligger under /admin/packaging */
 const secondary = [
   { href: "/admin/packaging", label: "Produktpakke · udkast", icon: "M4 8h16M4 16h16M9 4v16M15 4v16" },
-  { href: "/admin/tenants", label: "Tenants", icon: "M4 21V11l8-6 8 6v10M9 21v-7h6v7" },
   { href: "/admin/payments", label: "PraxisOS Pay", icon: "M3 8h18M3 8V6a2 2 0 012-2h14a2 2 0 012 2v2M3 8v10a2 2 0 002 2h14a2 2 0 002-2V8M7 14h2M13 14h4" },
   { href: "/admin/vouchers", label: "Webshop · klippekort", icon: "M21 16V8a2 2 0 00-1-1.7l-7-4a2 2 0 00-2 0l-7 4A2 2 0 003 8v8a2 2 0 001 1.7l7 4a2 2 0 002 0l7-4A2 2 0 0021 16zM3.3 7l8.7 5 8.7-5M12 22V12" },
   { href: "/admin/nemsms", label: "NemSMS", icon: "M21 11.5a8.38 8.38 0 01-.9 3.8 8.5 8.5 0 01-7.6 4.7 8.38 8.38 0 01-3.8-.9L3 21l1.9-5.7a8.38 8.38 0 01-.9-3.8 8.5 8.5 0 014.7-7.6 8.38 8.38 0 013.8-.9h.5a8.48 8.48 0 018 8v.5z" },
   { href: "/admin/reporting", label: "Indberetning", icon: "M3 3v18h18M7 17l4-4 4 4 6-6" },
   { href: "/admin/subsidies", label: "Tilskud (under indberetning)", icon: "M12 1v22M17 5H9.5a3.5 3.5 0 000 7h5a3.5 3.5 0 010 7H6" },
   { href: "/admin/agents", label: "Agent-valg", icon: "M16 21v-2a4 4 0 00-4-4H6a4 4 0 00-4 4v2M9 11a4 4 0 100-8 4 4 0 000 8zM22 21v-2a4 4 0 00-3-3.9M16 3.1a4 4 0 010 7.8" },
-  { href: "/admin/marketplace", label: "Modul-marketplace", icon: "M4 8h16M4 16h16M9 4v16M15 4v16" },
-  { href: "/felt", label: "Felt-service", icon: "M3 7l9-4 9 4-9 4-9-4zM3 7v6l9 4 9-4V7" },
+  { href: "/admin/marketplace", label: "Modul-tilvalg", icon: "M4 8h16M4 16h16M9 4v16M15 4v16" },
+  { href: "/felt", label: "Ruteplanlægning", icon: "M3 7l9-4 9 4-9 4-9-4zM3 7v6l9 4 9-4V7" },
   { href: "/indstillinger", label: "Indstillinger", icon: "M12 9a3 3 0 100 6 3 3 0 000-6zM19 12a7 7 0 00-.1-1.3l2-1.6-2-3.4-2.4 1a7 7 0 00-2.2-1.3l-.4-2.6h-3.8l-.4 2.6a7 7 0 00-2.2 1.3l-2.4-1-2 3.4 2 1.6A7 7 0 005 12" },
 ];
 
 /** Kun Broser — ikke kundevendt navigation */
 const broserOnly = [
+  { href: "/admin/tenants", label: "Tenants (Broser)", icon: "M4 21V11l8-6 8 6v10M9 21v-7h6v7" },
   { href: "/admin/api", label: "API (Broser)", icon: "M4 16l-3-3 3-3M20 8l3 3-3 3M14 4l-4 16" },
   { href: "/admin/mcp", label: "MCP (Broser)", icon: "M12 2L2 7l10 5 10-5-10-5zM2 17l10 5 10-5M2 12l10 5 10-5" },
   { href: "/admin/dk-data", label: "DK Data (Broser)", icon: "M3 9l9-7 9 7v11a2 2 0 01-2 2H5a2 2 0 01-2-2zM9 22V12h6v10" },

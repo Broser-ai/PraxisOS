@@ -451,10 +451,10 @@ export const MODULES: Module[] = [
   // ---------- OPERATIONS ----------
   {
     id: "ops-field",
-    name: "Felt-service",
-    shortName: "Felt",
-    tagline: "Bjørn · offline-first mobil · ML-rute-optimering",
-    description: "Hjemmebesøg-modul med ML-baseret rute-optimering, offline-first mobil-app og tilgængeligheds-tjek (parkering, elevator, etage).",
+    name: "Ruteplanlægning",
+    shortName: "Rute",
+    tagline: "Hjemmebesøg · ML-rute · offline mobil",
+    description: "Ruteplanlægning til hjemmebesøg med ML-baseret rute-optimering, offline-first mobil-app og tilgængeligheds-tjek (parkering, elevator, etage).",
     category: "operations",
     tier: "practice",
     priceMonthly: 149,
@@ -589,7 +589,7 @@ export const CATEGORIES = [
   { id: "clinical",   label: "Klinisk",          desc: "AR/CV-journal · Physical AI",          color: "var(--color-signal)" },
   { id: "compliance", label: "DK · compliance",  desc: "MitID · NemSMS · MedCom · Sundhed.dk", color: "#0061af" },
   { id: "growth",     label: "Vækst",            desc: "Vouchers · marketing · recall",         color: "var(--color-accent)" },
-  { id: "operations", label: "Drift",            desc: "Felt-service · finans · sikkerhed",     color: "var(--color-amber)" },
+  { id: "operations", label: "Drift",            desc: "Ruteplanlægning · finans · sikkerhed",  color: "var(--color-amber)" },
   { id: "platform",   label: "Platform",         desc: "API · MCP · self-optimization",         color: "var(--color-faint)" },
 ] as const;
 

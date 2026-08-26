@@ -169,7 +169,7 @@ export default function PackagingDraftPage() {
     <div className="mx-auto max-w-[1100px]">
       <div className="rise">
         <Link href="/admin/marketplace" className="kicker hover:underline">
-          ← Marketplace
+          ← Modul-tilvalg
         </Link>
         <h1 className="display mt-2 text-[34px] font-semibold leading-[1.05]">
           Produktpakke · udkast
