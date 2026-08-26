@@ -237,7 +237,7 @@ export default function GavekortKoebPage({ params }: { params: Promise<{ tenant:
           </button>
 
           <div className="mt-3 text-center text-[10.5px] text-faint">
-            PraxisTrust · MitID step-up · krypteret betaling
+            MitID · krypteret betaling
           </div>
         </section>
       )}

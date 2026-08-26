@@ -281,7 +281,7 @@ export default async function PatientPortal({ params }: { params: Promise<{ tena
         <div className="mt-5 flex flex-col">
           {[
             { at: "8. jun 09:12", who: "Dr. Sofie Krarup", action: "Læste journal-entry #5", purpose: "Forberedelse til opfølgning", role: "Fodterapeut" },
-            { at: "8. jun 08:14", who: "PraxisOS Aria",    action: "Sendte SMS-påmindelse",  purpose: "Påmindelse 24t før booking", role: "AI-agent" },
+            { at: "8. jun 08:14", who: "Klinik-assistent", action: "Sendte SMS-påmindelse",  purpose: "Påmindelse 24t før booking", role: "AI-agent" },
             { at: "7. jun 14:55", who: "Dr. Sofie Krarup", action: "Tilføjede AR-scan",      purpose: "Session 5 · acne-forløb",   role: "Fodterapeut" },
             { at: "2. jun 11:30", who: "Pilar Mortensen",  action: "Læste journal",          purpose: "Daglig opfølgning",         role: "Ejer" },
             { at: "24. maj 10:00", who: "Dr. Sofie Krarup",action: "Skrev journal-entry #4", purpose: "Session 4 · behandling",    role: "Fodterapeut" },
