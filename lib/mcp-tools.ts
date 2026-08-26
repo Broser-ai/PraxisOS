@@ -200,16 +200,34 @@ export const MCP_TOOLS: McpTool[] = [
   // Journal & scan
   {
     name: "draft_soap_note",
-    description: "Niels: lyt til konsultations-lyd og generer SOAP-udkast. Returnerer S/O/A/P + foreslåede ICD-10-koder.",
+    description: "Niels: skriv SOAP-udkast til journalpost (knyttet til booking hvis angivet). Kræver behandler-godkendelse.",
     category: "journal",
     requiresScope: "write:journal",
     inputSchema: {
       type: "object",
       properties: {
-        sessionId: { type: "string", description: "Optagelses-session-ID" },
         clientId: { type: "string", description: "Klient-ID" },
+        bookingId: { type: "string", description: "Booking-ID (valgfri · knytter journal til behandling)" },
+        tenant: { type: "string", description: "Tenant-slug" },
+        transcript: { type: "string", description: "Konsultations-transcript eller fritekst" },
+        sessionId: { type: "string", description: "Optagelses-session-ID (valgfri)" },
       },
-      required: ["sessionId", "clientId"],
+      required: ["clientId"],
+    },
+  },
+  {
+    name: "list_journal",
+    description: "Liste journalposter for tenant/klient — behandlingsrecords med status.",
+    category: "journal",
+    requiresScope: "read:journal",
+    inputSchema: {
+      type: "object",
+      properties: {
+        tenant: { type: "string", description: "Tenant-slug" },
+        clientId: { type: "string", description: "Filtrer på klient" },
+        limit: { type: "number", description: "Maks antal (default 25)" },
+      },
+      required: ["tenant"],
     },
   },
   {

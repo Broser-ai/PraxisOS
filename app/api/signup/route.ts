@@ -1,8 +1,9 @@
 import { NextResponse } from "next/server";
 import { registerOwnerAccount } from "@/lib/auth";
-import { DB_MODE } from "@/lib/supabase";
-import { getTenant, registerTenant } from "@/lib/tenants";
+import { dataBackend, signupTenantInSupabase } from "@/lib/data/repo";
 import { getBackoffMs, recordAttempt } from "@/lib/rate-limit";
+import { isSupabaseConfigured } from "@/lib/supabase";
+import { getTenant, registerTenant } from "@/lib/tenants";
 
 type SignupBody = {
   cvr?: string;
@@ -16,17 +17,20 @@ type SignupBody = {
 };
 
 function slugify(s: string): string {
-  return s.toLowerCase().replace(/[^a-z0-9]+/g, "-").replace(/^-|-$/g, "").slice(0, 32);
+  return s
+    .toLowerCase()
+    .replace(/[^a-z0-9]+/g, "-")
+    .replace(/^-|-$/g, "")
+    .slice(0, 32);
 }
 
 /**
- * POST /api/signup
- * Opretter tenant + owner-konto.
- * - mock / supabase-local uden service_role: in-memory via lib/tenants + lib/auth
- * - supabase-eu med SUPABASE_SERVICE_ROLE_KEY: klar til rigtig insert (Sprint 1)
+ * POST /api/signup — creates tenant + owner account.
+ * Uses Supabase when service role is configured; otherwise durable memory.
  */
 export async function POST(req: Request) {
-  const ip = req.headers.get("x-forwarded-for")?.split(",")[0].trim() ?? "127.0.0.1";
+  const ip =
+    req.headers.get("x-forwarded-for")?.split(",")[0]?.trim() ?? "127.0.0.1";
 
   let body: SignupBody;
   try {
@@ -41,6 +45,8 @@ export async function POST(req: Request) {
   const cvr = body.cvr?.trim() ?? "";
   const slug = slugify(body.slug || legalName);
   const plan = body.plan || "practice";
+  const phone = body.phone?.trim() ?? "";
+  const address = body.address?.trim() ?? "";
 
   if (!legalName || !email || !contactName || !slug) {
     return NextResponse.json({ error: "missing_fields" }, { status: 400 });
@@ -56,7 +62,56 @@ export async function POST(req: Request) {
   if (backoff > 0) {
     return NextResponse.json(
       { error: "rate_limited", retryAfterMs: backoff },
-      { status: 429, headers: { "Retry-After": Math.ceil(backoff / 1000).toString() } }
+      {
+        status: 429,
+        headers: { "Retry-After": Math.ceil(backoff / 1000).toString() },
+      },
+    );
+  }
+
+  if (isSupabaseConfigured()) {
+    const result = await signupTenantInSupabase({
+      slug,
+      legalName,
+      cvr,
+      address,
+      email,
+      phone,
+      contactName,
+      plan,
+    });
+    if ("error" in result) {
+      recordAttempt(ip, email, false);
+      const status =
+        result.error === "slug_taken" || result.error === "email_taken"
+          ? 409
+          : 500;
+      return NextResponse.json({ error: result.error, slug }, { status });
+    }
+    // Also register in memory so brand/UI getTenant works in same process.
+    if (!getTenant(slug)) {
+      registerTenant({
+        slug,
+        legalName,
+        cvr,
+        address,
+        email,
+        phone,
+        contactName,
+        plan,
+      });
+      registerOwnerAccount({ email, name: contactName, tenantSlug: slug });
+    }
+    recordAttempt(ip, email, true);
+    return NextResponse.json(
+      {
+        success: true,
+        backend: dataBackend(),
+        tenant: { slug, id: result.tenantId },
+        owner: { id: result.userId, email, temporaryPassword: "demo" },
+        loginHint: "Log ind med email + password 'demo'",
+      },
+      { status: 201 },
     );
   }
 
@@ -65,70 +120,40 @@ export async function POST(req: Request) {
     return NextResponse.json({ error: "slug_taken", slug }, { status: 409 });
   }
 
-  // Prod-path: når service_role er sat, forventes rigtig Supabase-insert (endnu ikke wired).
-  const serviceRole = process.env.SUPABASE_SERVICE_ROLE_KEY?.trim();
-  if (DB_MODE === "supabase-eu" && serviceRole) {
-    // Placeholder indtil @supabase/supabase-js er koblet — falder tilbage til mock-registrering
-    // så signup ikke er helt død i prod før env er komplet.
-  }
-
   const tenantResult = registerTenant({
     slug,
     legalName,
     cvr,
-    address: body.address?.trim() ?? "",
+    address,
     email,
-    phone: body.phone?.trim() ?? "",
+    phone,
     contactName,
     plan,
   });
-
   if ("error" in tenantResult) {
     recordAttempt(ip, email, false);
-    return NextResponse.json({ error: tenantResult.error }, { status: 409 });
+    return NextResponse.json({ error: tenantResult.error }, { status: 400 });
   }
 
-  const accountResult = registerOwnerAccount({
+  const owner = registerOwnerAccount({
     email,
     name: contactName,
-    tenantSlug: tenantResult.slug,
+    tenantSlug: slug,
   });
-
-  if ("error" in accountResult) {
+  if ("error" in owner) {
     recordAttempt(ip, email, false);
-    return NextResponse.json({ error: accountResult.error }, { status: 409 });
+    return NextResponse.json({ error: owner.error }, { status: 409 });
   }
 
   recordAttempt(ip, email, true);
-
   return NextResponse.json(
     {
       success: true,
-      mode: DB_MODE,
-      tenant: {
-        slug: tenantResult.slug,
-        legalName: tenantResult.legalName,
-        plan: tenantResult.license.plan,
-        domain: `${tenantResult.slug}.praxis.app`,
-        status: tenantResult.license.status,
-        expiresAt: tenantResult.license.expiresAt,
-      },
-      account: {
-        id: accountResult.id,
-        email: accountResult.email,
-        name: accountResult.name,
-        role: "owner",
-      },
-      next: {
-        loginUrl: "/login",
-        onboardingUrl: `/t/${tenantResult.slug}/setup`,
-        setupUrl: `/t/${tenantResult.slug}/setup`,
-        demoPassword: DB_MODE === "mock" ? "demo" : undefined,
-        mitidInvite: DB_MODE === "mock"
-          ? "Mock: log ind med e-mail + adgangskode «demo»"
-          : "MitID-invite sendes når broker er aktiveret",
-      },
+      backend: dataBackend(),
+      tenant: { slug: tenantResult.slug, legalName: tenantResult.legalName },
+      owner: { id: owner.id, email: owner.email, temporaryPassword: "demo" },
+      loginHint: "Log ind med email + password 'demo'",
     },
-    { status: 201 }
+    { status: 201 },
   );
 }
