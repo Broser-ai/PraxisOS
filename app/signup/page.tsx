@@ -1,12 +1,14 @@
 "use client";
 
 import Link from "next/link";
-import { useRouter } from "next/navigation";
-import { useState } from "react";
+import { useRouter, useSearchParams } from "next/navigation";
+import { Suspense, useEffect, useState } from "react";
 import { CvrLookup } from "@/components/CvrLookup";
+import { formatPlanPrice, getPlan, PLANS } from "@/lib/plans";
 
-export default function SignupPage() {
+function SignupForm() {
   const router = useRouter();
+  const searchParams = useSearchParams();
   const [step, setStep] = useState<1 | 2 | 3>(1);
   const [submitting, setSubmitting] = useState(false);
   const [error, setError] = useState<string | null>(null);
@@ -20,6 +22,13 @@ export default function SignupPage() {
     slug: "",
     plan: "practice",
   });
+
+  useEffect(() => {
+    const plan = searchParams.get("plan");
+    if (plan && PLANS.some((p) => p.id === plan)) {
+      setData((d) => ({ ...d, plan }));
+    }
+  }, [searchParams]);
 
   const slugify = (s: string) =>
     s.toLowerCase().replace(/[^a-z0-9]+/g, "-").replace(/^-|-$/g, "").slice(0, 32);
@@ -46,7 +55,7 @@ export default function SignupPage() {
         setError(messages[json.error] ?? `Kunne ikke oprette klinik (${json.error ?? res.status}).`);
         return;
       }
-      router.push(json.next?.onboardingUrl ?? `/t/${data.slug}/onboarding`);
+      router.push(json.next?.setupUrl ?? `/t/${data.slug}/setup`);
     } catch {
       setError("Netværksfejl — prøv igen.");
     } finally {
@@ -58,13 +67,14 @@ export default function SignupPage() {
     <div className="min-h-screen bg-paper">
       <header className="border-b border-line">
         <div className="mx-auto flex max-w-[800px] items-center justify-between px-6 py-4">
-          <Link href="/" className="display text-[16px] font-semibold">PraxisOS</Link>
-          <span className="mono text-[11px] text-faint">trin {step}/3 · gratis · ingen kortoplysninger</span>
+          <Link href="/" className="display text-[16px] font-semibold">
+            PraxisOS
+          </Link>
+          <span className="mono text-[11px] text-faint">trin {step}/3 · B2B licens · 30 dages trial</span>
         </div>
       </header>
 
       <div className="mx-auto max-w-[640px] px-6 py-12">
-        {/* Progress */}
         <div className="mb-8 flex items-center gap-2">
           {[1, 2, 3].map((n) => (
             <div key={n} className={`h-1 flex-1 rounded-full ${n <= step ? "bg-ink" : "bg-paper-2"}`} />
@@ -74,10 +84,7 @@ export default function SignupPage() {
         {step === 1 && (
           <div>
             <h1 className="display text-[32px] font-semibold">Hvilken klinik?</h1>
-            <p className="mt-2 text-[13.5px] text-ink-soft">
-              Slå op i CVR-registret — vi forfylder resten.
-            </p>
-
+            <p className="mt-2 text-[13.5px] text-ink-soft">Slå op i CVR — vi forfylder resten.</p>
             <div className="mt-6">
               <CvrLookup
                 onResult={(c) => {
@@ -93,7 +100,6 @@ export default function SignupPage() {
                 }}
               />
             </div>
-
             {data.legalName && (
               <div className="mt-5 rounded-[12px] border border-line bg-card p-4">
                 <div className="kicker">Bekræft</div>
@@ -111,7 +117,6 @@ export default function SignupPage() {
                 </div>
               </div>
             )}
-
             <button
               disabled={!data.legalName || !data.slug}
               onClick={() => setStep(2)}
@@ -125,19 +130,16 @@ export default function SignupPage() {
         {step === 2 && (
           <div>
             <h1 className="display text-[32px] font-semibold">Hvem er kontaktperson?</h1>
-            <p className="mt-2 text-[13.5px] text-ink-soft">
-              Du bliver klinikkens admin og kan invitere flere bagefter.
-            </p>
+            <p className="mt-2 text-[13.5px] text-ink-soft">Du bliver klinikkens admin.</p>
             <div className="mt-6 flex flex-col gap-3">
               <Field label="Navn" value={data.contactName} onChange={(v) => setData({ ...data, contactName: v })} placeholder="Pilar Mortensen" />
-              <Field label="E-mail" value={data.email} onChange={(v) => setData({ ...data, email: v })} placeholder="hej@bypilar.dk" type="email" />
-              <Field label="Mobil" value={data.phone} onChange={(v) => setData({ ...data, phone: v })} placeholder="+45 93 95 20 41" />
-            </div>
-            <div className="mt-4 rounded-[10px] border border-line bg-paper-2/40 p-3 text-[11.5px] text-ink-soft">
-              I prod: vi sender MitID-bekræftelse til denne mobil og verificerer du er tegningsberettiget for CVR {data.cvr}.
+              <Field label="E-mail" value={data.email} onChange={(v) => setData({ ...data, email: v })} placeholder="hej@klinik.dk" type="email" />
+              <Field label="Mobil" value={data.phone} onChange={(v) => setData({ ...data, phone: v })} placeholder="+45 00 00 00 00" />
             </div>
             <div className="mt-6 flex gap-2">
-              <button onClick={() => setStep(1)} className="rounded-[10px] border border-line bg-card px-4 py-2.5 text-[13px]">← Tilbage</button>
+              <button onClick={() => setStep(1)} className="rounded-[10px] border border-line bg-card px-4 py-2.5 text-[13px]">
+                ← Tilbage
+              </button>
               <button
                 disabled={!data.contactName || !data.email}
                 onClick={() => setStep(3)}
@@ -151,17 +153,16 @@ export default function SignupPage() {
 
         {step === 3 && (
           <div>
-            <h1 className="display text-[32px] font-semibold">Vælg plan</h1>
-            <p className="mt-2 text-[13.5px] text-ink-soft">
-              30 dages gratis trial på alle planer. Skift eller opsig når som helst.
-            </p>
+            <h1 className="display text-[32px] font-semibold">Vælg licens</h1>
+            <p className="mt-2 text-[13.5px] text-ink-soft">30 dages gratis trial. Aktiver betaling i setup.</p>
             <div className="mt-6 flex flex-col gap-2">
-              {[
-                { id: "starter", name: "Starter", price: "0 kr/md", desc: "Til solister · 200 bookings/md" },
-                { id: "practice", name: "Practice", price: "595 kr/md", desc: "Klinikker 1-3 behandlere" },
-                { id: "practice-ai", name: "Practice + AI", price: "1.295 kr/md", desc: "Aria + Niels + Sigrid" },
-              ].map((p) => (
-                <label key={p.id} className={`flex cursor-pointer items-start gap-3 rounded-[10px] border bg-card p-4 ${data.plan === p.id ? "border-ink" : "border-line"}`}>
+              {PLANS.map((p) => (
+                <label
+                  key={p.id}
+                  className={`flex cursor-pointer items-start gap-3 rounded-[10px] border bg-card p-4 ${
+                    data.plan === p.id ? "border-ink" : "border-line"
+                  }`}
+                >
                   <input
                     type="radio"
                     checked={data.plan === p.id}
@@ -169,24 +170,27 @@ export default function SignupPage() {
                     className="mt-1"
                   />
                   <div className="flex-1">
-                    <div className="flex items-center justify-between">
+                    <div className="flex items-center justify-between gap-2">
                       <span className="text-[14px] font-semibold">{p.name}</span>
-                      <span className="mono text-[12px]">{p.price}</span>
+                      <span className="mono text-[12px]">
+                        {formatPlanPrice(p)}
+                        {p.periodLabel.replace("/md", "").trim() ? ` ${p.periodLabel}` : "/md"}
+                      </span>
                     </div>
-                    <div className="text-[12px] text-muted">{p.desc}</div>
+                    <div className="text-[12px] text-muted">{p.tagline}</div>
                   </div>
                 </label>
               ))}
             </div>
 
-            <div className="mt-6 rounded-[12px] border border-line bg-paper-2/40 p-4">
-              <div className="kicker">Klar til opsætning</div>
-              <div className="mt-2 text-[12.5px]">
-                <strong>{data.legalName}</strong> · CVR {data.cvr}<br />
-                Admin: {data.contactName} · {data.email}<br />
-                Tenant: <span className="mono">{data.slug}.praxis.app</span><br />
-                Plan: {data.plan}
-              </div>
+            <div className="mt-6 rounded-[12px] border border-line bg-paper-2/40 p-4 text-[12.5px]">
+              <strong>{data.legalName}</strong> · CVR {data.cvr}
+              <br />
+              Admin: {data.contactName} · {data.email}
+              <br />
+              Tenant: <span className="mono">{data.slug}.praxis.app</span>
+              <br />
+              Plan: {getPlan(data.plan).name}
             </div>
 
             {error && (
@@ -196,27 +200,44 @@ export default function SignupPage() {
             )}
 
             <div className="mt-6 flex gap-2">
-              <button onClick={() => setStep(2)} className="rounded-[10px] border border-line bg-card px-4 py-2.5 text-[13px]">← Tilbage</button>
+              <button onClick={() => setStep(2)} className="rounded-[10px] border border-line bg-card px-4 py-2.5 text-[13px]">
+                ← Tilbage
+              </button>
               <button
                 disabled={submitting}
                 onClick={submit}
                 className="flex-1 rounded-[10px] bg-ink px-4 py-2.5 text-[13.5px] font-medium text-paper disabled:opacity-40"
               >
-                {submitting ? "Opretter…" : "Opret klinik"}
+                {submitting ? "Opretter…" : "Opret klinik + start trial"}
               </button>
             </div>
           </div>
         )}
 
         <div className="mt-10 text-center text-[11px] text-faint">
-          Har du allerede en konto? <Link href="/login" className="text-clay hover:underline">Log ind</Link>
+          Har du allerede en konto?{" "}
+          <Link href="/login" className="text-clay hover:underline">
+            Log ind
+          </Link>
         </div>
       </div>
     </div>
   );
 }
 
-function Field({ label, value, onChange, placeholder, type = "text" }: { label: string; value: string; onChange: (v: string) => void; placeholder?: string; type?: string }) {
+function Field({
+  label,
+  value,
+  onChange,
+  placeholder,
+  type = "text",
+}: {
+  label: string;
+  value: string;
+  onChange: (v: string) => void;
+  placeholder?: string;
+  type?: string;
+}) {
   return (
     <div>
       <label className="kicker mb-1 block">{label}</label>
@@ -228,5 +249,13 @@ function Field({ label, value, onChange, placeholder, type = "text" }: { label: 
         className="w-full rounded-[10px] border border-line bg-card px-3.5 py-2.5 text-[13.5px] focus:outline-none focus:ring-1 focus:ring-ink"
       />
     </div>
+  );
+}
+
+export default function SignupPage() {
+  return (
+    <Suspense fallback={<div className="min-h-screen bg-paper p-10 text-muted">Indlæser…</div>}>
+      <SignupForm />
+    </Suspense>
   );
 }

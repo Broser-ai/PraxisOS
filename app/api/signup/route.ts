@@ -121,7 +121,8 @@ export async function POST(req: Request) {
       },
       next: {
         loginUrl: "/login",
-        onboardingUrl: `/t/${tenantResult.slug}/onboarding`,
+        onboardingUrl: `/t/${tenantResult.slug}/setup`,
+        setupUrl: `/t/${tenantResult.slug}/setup`,
         demoPassword: DB_MODE === "mock" ? "demo" : undefined,
         mitidInvite: DB_MODE === "mock"
           ? "Mock: log ind med e-mail + adgangskode «demo»"
