@@ -171,8 +171,8 @@ export class AlphaSpatiotemporalPipeline {
     }
 
     const models = [
-      process.env.ROBOFLOW_MODEL?.trim() || "diabetic_ulcers/1",
-      process.env.ROBOFLOW_MODEL_SECONDARY?.trim(),
+      process.env.ROBOFLOW_MODEL?.trim() || "foot-ulcer/1",
+      process.env.ROBOFLOW_MODEL_SECONDARY?.trim() || "wounds-detection/1",
     ].filter(Boolean) as string[];
 
     const all: MedicalFinding[] = [];

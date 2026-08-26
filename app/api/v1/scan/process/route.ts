@@ -148,7 +148,9 @@ export async function GET() {
       meshModel: process.env.REPLICATE_MESH_MODEL?.trim() || "firtoz/trellis",
       segmentModel:
         process.env.ROBOFLOW_SEGMENT_MODEL?.trim() || "foot-segmentation-ehn9q/1",
-      pathologyModel: process.env.ROBOFLOW_MODEL?.trim() || "diabetic_ulcers/1",
+      pathologyModel: process.env.ROBOFLOW_MODEL?.trim() || "foot-ulcer/1",
+      pathologyModelSecondary:
+        process.env.ROBOFLOW_MODEL_SECONDARY?.trim() || "wounds-detection/1",
     },
     liveReady: secrets.liveScanReady,
     blockers,
