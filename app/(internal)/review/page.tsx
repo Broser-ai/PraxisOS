@@ -141,6 +141,12 @@ export default function Review() {
             Åbn programmet →
           </Link>
           <Link
+            href="/admin/packaging"
+            className="rounded-[10px] border border-paper/30 px-4 py-2.5 text-[13px] font-medium text-paper hover:bg-paper/10"
+          >
+            Produktpakke · udkast
+          </Link>
+          <Link
             href="/funktioner"
             className="rounded-[10px] border border-paper/30 px-4 py-2.5 text-[13px] font-medium text-paper hover:bg-paper/10"
           >

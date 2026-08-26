@@ -2,12 +2,11 @@ import { NextResponse } from "next/server";
 import type { NextRequest } from "next/server";
 
 /**
- * Host-separation:
- * - app.bypilar.dk / bypilar.dk = KUN by Pilar-klinik (kunde-flade)
- * - PraxisOS B2B-salg (funktioner/priser/signup) må IKKE ligge under bypilar —
- *   byPilar er konkurrent til de klinikker, der køber PraxisOS.
- *
- * Platform-hosts (localhost, IP, fremtidig praxisos-domæne) får fuld B2B + admin.
+ * Host-separation på bypilar-hosts:
+ * - `/` = klinik (by Pilar) — ikke PraxisOS-salgsforside
+ * - `/review` = Michael’s master-hub til at tjekke ALT
+ * - Staff, admin, funktioner/priser/signup tilladt via hub
+ * - B2B engros `/shop` forbliver væk (konkurrent-host)
  */
 
 const BYPILAR_HOSTS = new Set([
@@ -15,15 +14,6 @@ const BYPILAR_HOSTS = new Set([
   "bypilar.dk",
   "www.bypilar.dk",
 ]);
-
-/** Paths der er PraxisOS B2B / platform-marketing — blokeres på bypilar-hosts */
-const PLATFORM_ONLY_PREFIXES = [
-  "/funktioner",
-  "/pricing",
-  "/signup",
-  "/about",
-  "/shop", // B2B engros — ikke under bypilar
-];
 
 function isBypilarHost(host: string): boolean {
   const h = host.toLowerCase().split(":")[0];
@@ -34,19 +24,14 @@ function isAllowedOnBypilar(pathname: string): boolean {
   if (pathname.startsWith("/_next") || pathname.startsWith("/favicon") || pathname === "/icon.svg") {
     return true;
   }
-  // Master review-hub + hele programmet (ejer-adgang via /review)
+  // Master review-hub + hele programmet
   if (pathname === "/review" || pathname.startsWith("/review/")) return true;
   if (pathname.startsWith("/admin")) return true;
   if (pathname.startsWith("/demo")) return true;
-  if (pathname.startsWith("/t/")) return true; // white-label tenants (bypilar + demo)
+  if (pathname.startsWith("/t/")) return true;
   if (pathname.startsWith("/embed/v1/")) return true;
-  if (pathname.startsWith("/api/v1/")) return true;
-  if (pathname.startsWith("/api/auth")) return true;
-  if (pathname.startsWith("/api/cvr") || pathname.startsWith("/api/dawa") || pathname.startsWith("/api/events") || pathname.startsWith("/api/mcp")) {
-    return true;
-  }
-  if (pathname.startsWith("/r/")) return true; // kvitteringer
-  // Klinik-staff
+  if (pathname.startsWith("/api/")) return true;
+  if (pathname.startsWith("/r/")) return true;
   const staff = [
     "/login",
     "/dashboard",
@@ -62,7 +47,6 @@ function isAllowedOnBypilar(pathname: string): boolean {
     "/journal",
   ];
   if (staff.some((p) => pathname === p || pathname.startsWith(p + "/"))) return true;
-  // B2B-sider tilladt via review-hub (forsiden `/` forbliver klinik)
   if (
     pathname === "/funktioner" ||
     pathname.startsWith("/funktioner/") ||
@@ -84,28 +68,23 @@ export function middleware(req: NextRequest) {
 
   const { pathname } = req.nextUrl;
 
-  // Forsiden på bypilar-host = klinik (ikke PraxisOS-salg)
+  // Forsiden = klinik (ikke PraxisOS B2B-landing)
   if (pathname === "/" || pathname === "") {
     const url = req.nextUrl.clone();
     url.pathname = "/t/bypilar";
     return NextResponse.redirect(url);
   }
 
-  // B2B engros-shop hører ikke under bypilar-host
+  // B2B engros hører ikke under bypilar-host
   if (pathname === "/shop" || pathname.startsWith("/shop/")) {
     const url = req.nextUrl.clone();
     url.pathname = "/t/bypilar";
     return NextResponse.redirect(url);
   }
 
-  // Bloker øvrig platform (tenants admin, signup API, marketplace salg osv.)
   if (!isAllowedOnBypilar(pathname)) {
-    // API signup/license er B2B — 404 på bypilar-host
-    if (pathname.startsWith("/api/signup") || pathname.startsWith("/api/license") || pathname.startsWith("/api/tenant")) {
-      return NextResponse.json({ error: "not_available_on_clinic_host" }, { status: 404 });
-    }
     const url = req.nextUrl.clone();
-    url.pathname = "/t/bypilar";
+    url.pathname = "/review";
     return NextResponse.redirect(url);
   }
 

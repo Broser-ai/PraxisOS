@@ -21,8 +21,12 @@ export default function ModuleMarketplace() {
         <div>
           <Link href="/admin/tenants" className="kicker hover:underline">← Tenants</Link>
           <h1 className="display mt-2 text-[32px] font-semibold leading-none">Module Marketplace</h1>
-          <p className="mt-2 text-[13.5px] text-muted">
-            Modulær platform · klinikken vælger præcis det de har brug for · alle moduler har 14-30 dages gratis prøve.
+          <p className="mt-2 max-w-[560px] text-[13.5px] text-muted">
+            Ældre katalog. Nyt kundevendt udkast:{" "}
+            <Link href="/admin/packaging" className="font-medium text-ink underline-offset-2 hover:underline">
+              Produktpakke · udkast
+            </Link>
+            {" "}— kerne obligatorisk, tilvalg, API skjult, fod-scan på pause.
           </p>
         </div>
         <div className="flex flex-col items-end gap-1">
