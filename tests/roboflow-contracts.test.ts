@@ -13,6 +13,15 @@ import {
   isKeypointObservable,
   safeParseRoboflowKeypoints,
 } from "@/contracts/roboflow-keypoints.schema";
+import {
+  DEL_PILAR_NEXUS_SHADOW_WORKFLOW,
+  ROBOFLOW_SHADOW_APPROVED_FOR_ACTIVE_ROUTING,
+  SHADOW_CANDIDATE_CLASSES,
+  SHADOW_LANDMARKS_DEPLOYABLE,
+  SHADOW_SEGMENTATION_CLASSES,
+  assertLandmarksNotDeployable,
+  isShadowOnlyRoutingAllowed,
+} from "@/lib/scanner/shadow-workflow";
 
 const fixtureDir = join(process.cwd(), "tests/fixtures/roboflow");
 
@@ -29,7 +38,7 @@ describe("roboflow contracts (strict Zod)", () => {
     if (!parsed.success) return;
     const p0 = parsed.data.predictions[0]!;
     expect(p0).toMatchObject({
-      class: "ulcer_dfu",
+      class: "candidate_open_wound",
       confidence: 0.81,
       x: 640,
       y: 520,
@@ -45,7 +54,7 @@ describe("roboflow contracts (strict Zod)", () => {
     const parsed = safeParseRoboflowDetection({
       predictions: [
         {
-          class: "callus",
+          class: "candidate_heel_fissure",
           confidence: 0.5,
           x: 1,
           y: 2,
@@ -88,5 +97,33 @@ describe("roboflow contracts (strict Zod)", () => {
     expect(safeParseRoboflowDetection(raw).success).toBe(false);
     expect(safeParseRoboflowSegmentation(raw).success).toBe(false);
     expect(safeParseRoboflowKeypoints(raw).success).toBe(false);
+  });
+});
+
+describe("del pilar nexus shadow workflow registry", () => {
+  it("keeps active routing off and landmarks non-deployable", () => {
+    expect(ROBOFLOW_SHADOW_APPROVED_FOR_ACTIVE_ROUTING).toBe(false);
+    expect(DEL_PILAR_NEXUS_SHADOW_WORKFLOW.workflow.deployment_state).toBe(
+      "shadow_only",
+    );
+    expect(DEL_PILAR_NEXUS_SHADOW_WORKFLOW.workflow.id).toBe(
+      "Z1TLmeAsa9GAWJg3xufe",
+    );
+    expect(SHADOW_LANDMARKS_DEPLOYABLE).toBe(false);
+    expect(isShadowOnlyRoutingAllowed()).toBe(true);
+    expect(() => assertLandmarksNotDeployable()).not.toThrow();
+  });
+
+  it("exports shadow class lists matching annotation atlas", () => {
+    expect([...SHADOW_SEGMENTATION_CLASSES]).toEqual([
+      "foot",
+      "toes_region",
+      "heel_region",
+    ]);
+    expect([...SHADOW_CANDIDATE_CLASSES]).toEqual([
+      "candidate_open_wound",
+      "candidate_localised_hyperkeratosis",
+      "candidate_heel_fissure",
+    ]);
   });
 });

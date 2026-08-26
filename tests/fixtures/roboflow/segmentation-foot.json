@@ -3,7 +3,7 @@
   "image": { "width": 1280, "height": 960 },
   "predictions": [
     {
-      "class": "foot_plantar",
+      "class": "foot",
       "confidence": 0.93,
       "x": 640,
       "y": 480,

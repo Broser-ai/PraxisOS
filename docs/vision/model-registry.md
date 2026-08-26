@@ -12,7 +12,10 @@ navngiven menneskelig godkendelse + audit-event. Agenter må ikke promote.
 
 `disabled` | `shadow` | `canary` | `active` | `rolled_back`
 
-## Legacy-modeller (nuværende pins — ikke ændret i denne leverance)
+## Legacy-modeller (nuværende produktion på Hetzner — ikke ændret)
+
+Disse Universe/Replicate-pins er **current production**. Custom endpoints nedenfor
+er **shadow-kandidater** og erstatter **ikke** live routing.
 
 | Rolle | Provider | Model ID | Status | Owner | Godkendt threshold | Rollback ID | Bemærkning |
 |-------|----------|----------|--------|-------|--------------------|-------------|------------|
@@ -24,15 +27,41 @@ navngiven menneskelig godkendelse + audit-event. Agenter må ikke promote.
 Quality-gate score-threshold for PASS forbliver **70** (`SCAN_QUALITY_THRESHOLD`) —
 **ikke ændret her**.
 
-## Kandidat-modeller (ikke aktive pins)
+## Shadow-workflow (registreret — active routing OFF)
 
-| Navn | Planlagt Roboflow-projekt | Type | Status | Owner | Godkendt threshold | Rollback ID | Klinisk sprogpolitik |
-|------|---------------------------|------|--------|-------|--------------------|-------------|----------------------|
-| nexus-foot-seg | `praxisos-foot-seg` | instance-seg | `disabled` | Broser | TBD før shadow | `foot-segmentation-ehn9q/1` | N/A (anatomi/isolation) |
-| nexus-foot-pathology | `praxisos-foot-pathology` | detect | `disabled` | Broser | TBD; starter `shadow` | `foot-ulcer/1` | Kandidatsprog obligatorisk |
-| nexus-foot-landmarks | `praxisos-foot-landmarks` / `PraxisOS` | keypoints | `disabled` | Broser | TBD | — | Kun geometri; ingen diagnose |
+Machine-readable: `docs/vision/workflows/del-pilar-nexus-shadow-evaluation.json`  
+TS-export: `lib/scanner/shadow-workflow.ts`
 
-## Env-knapper (dokumentation — værdier uændrede)
+| Felt | Værdi |
+|------|-------|
+| Workspace | `michaelba2712-gmail-com` |
+| Workflow ID | `Z1TLmeAsa9GAWJg3xufe` |
+| Workflow slug | `del-pilar-nexus-shadow-evaluation-1787761439900` |
+| `deployment_state` | `shadow_only` |
+| `approved_for_active_routing` | **false** |
+
+| Rolle | Endpoint | Task | Status | Classes | Bemærkning |
+|-------|----------|------|--------|---------|------------|
+| Segmentation | `praxisos-foot-seg` | instance-segmentation | `shadow` | `foot`, `toes_region`, `heel_region` | Shadow-kandidat; erstatter ikke Universe-pin |
+| Candidates | `praxisos-foot-candidates` | object-detection | `shadow` | `candidate_open_wound`, `candidate_localised_hyperkeratosis`, `candidate_heel_fissure` | Kandidatsprog — ikke diagnose |
+| Landmarks | `praxisos` | keypoint-detection | `disabled` | — | `deployment_state: candidate_untrained`; **deployable: false** |
+
+**Video (shadow evaluation):** sources `live_smartphone_frames`, `recorded_video`;
+`frame_sampling_fps: 3`.
+
+**Ikke i scope for denne registrering:** wiring af alpha-pipeline til disse
+endpoints, env-swap på Hetzner, ændring af patientvendt sprog, retention eller
+`SCAN_QUALITY_THRESHOLD`.
+
+## Kandidat-modeller (overblik)
+
+| Navn | Roboflow-endpoint | Type | Status | Owner | Rollback (legacy pin) | Klinisk sprogpolitik |
+|------|-------------------|------|--------|-------|----------------------|----------------------|
+| nexus-foot-seg | `praxisos-foot-seg` | instance-seg | `shadow` | Broser | `foot-segmentation-ehn9q/1` | N/A (anatomi/isolation) |
+| nexus-foot-candidates | `praxisos-foot-candidates` | detect | `shadow` | Broser | `foot-ulcer/1` | Kandidatsprog obligatorisk |
+| nexus-foot-landmarks | `praxisos` | keypoints | `disabled` | Broser | — | Ikke deployable / untrained |
+
+## Env-knapper (dokumentation — værdier uændrede / legacy production)
 
 | Variabel | Pin / default |
 |----------|----------------|
@@ -54,6 +83,7 @@ Quality-gate score-threshold for PASS forbliver **70** (`SCAN_QUALITY_THRESHOLD`
 | Dato | Ændring | Godkender |
 |------|---------|-----------|
 | 2026-08-26 | Registry oprettet; legacy pins dokumenteret uden env-ændring | Broser |
+| 2026-08-26 | Shadow-workflow `Z1TLmeAsa9GAWJg3xufe` registreret; `approved_for_active_routing: false`; landmarks disabled | Broser (input Michael) |
 
 ## Promotion-skabelon
 

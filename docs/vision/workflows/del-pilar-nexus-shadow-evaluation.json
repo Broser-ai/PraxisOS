@@ -1,0 +1,45 @@
+{
+  "$schema_note": "Machine-readable Del Pilar Nexus Roboflow shadow workflow. Not wired to live routing. Source of truth for docs + future SHADOW_ONLY callers.",
+  "workspace": "michaelba2712-gmail-com",
+  "workflow": {
+    "id": "Z1TLmeAsa9GAWJg3xufe",
+    "slug": "del-pilar-nexus-shadow-evaluation-1787761439900",
+    "deployment_state": "shadow_only",
+    "approved_for_active_routing": false
+  },
+  "models": {
+    "segmentation": {
+      "endpoint": "praxisos-foot-seg",
+      "task": "instance-segmentation",
+      "status": "shadow",
+      "classes": ["foot", "toes_region", "heel_region"]
+    },
+    "candidates": {
+      "endpoint": "praxisos-foot-candidates",
+      "task": "object-detection",
+      "status": "shadow",
+      "classes": [
+        "candidate_open_wound",
+        "candidate_localised_hyperkeratosis",
+        "candidate_heel_fissure"
+      ]
+    },
+    "landmarks": {
+      "endpoint": "praxisos",
+      "task": "keypoint-detection",
+      "deployment_state": "candidate_untrained",
+      "status": "disabled",
+      "deployable": false
+    }
+  },
+  "video": {
+    "sources": ["live_smartphone_frames", "recorded_video"],
+    "frame_sampling_fps": 3
+  },
+  "governance": {
+    "active_routing": false,
+    "replaces_live_universe_pins": false,
+    "clinical_copy": "Kandidatområde registreret; kræver kliniker-review.",
+    "notes": "Legacy production pins remain foot-segmentation-ehn9q/1, foot-ulcer/1, wounds-detection/1, firtoz/trellis. SCAN_QUALITY_THRESHOLD unchanged at 70."
+  }
+}

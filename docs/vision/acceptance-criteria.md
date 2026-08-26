@@ -47,7 +47,8 @@ A lesion/candidate model may leave `shadow` only if **all** hold:
 
 1. Prospective clinic set: ≥ **N=50** de-identified exams (document N if different)
 2. Clinician adjudication on candidate boxes (agree / disagree / unsure)
-3. Primary classes (`ulcer_dfu`, `callus`, `fissure_heel`) meet agreed precision floor
+3. Primary classes (`candidate_open_wound`, `candidate_localised_hyperkeratosis`,
+   `candidate_heel_fissure`) meet agreed precision floor
    (set per release; default proposal **precision ≥ 0.70** on adjudicated set)
 4. Skin-tone / nail-polish / lighting slices reported (no hidden collapse)
 5. Clinician-facing copy still candidate-language only

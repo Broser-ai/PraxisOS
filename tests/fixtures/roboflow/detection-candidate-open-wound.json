@@ -3,7 +3,7 @@
   "image": { "width": 1280, "height": 960 },
   "predictions": [
     {
-      "class": "ulcer_dfu",
+      "class": "candidate_open_wound",
       "confidence": 0.81,
       "x": 640,
       "y": 520,
@@ -11,7 +11,7 @@
       "height": 95
     },
     {
-      "class": "callus",
+      "class": "candidate_localised_hyperkeratosis",
       "confidence": 0.62,
       "x": 580,
       "y": 710,
