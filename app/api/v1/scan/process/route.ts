@@ -128,14 +128,25 @@ export async function POST(req: Request) {
 export async function GET() {
   const boot = await ensureNexusBooted("bypilar");
   const status = await ariaOrchestrator.dispatch({ type: "status" });
+  const replicate = Boolean(process.env.REPLICATE_API_TOKEN?.trim());
+  const roboflow = Boolean(process.env.ROBOFLOW_API_KEY?.trim());
+  const blockers: string[] = [];
+  if (!replicate) blockers.push("REPLICATE_API_TOKEN mangler — 3D-mesh falder tilbage til anatomisk demo");
+  if (!roboflow) blockers.push("ROBOFLOW_API_KEY mangler — segmentering/pathology fail-closed");
   return NextResponse.json({
     ...status,
     nexus: boot,
     tenant: "bypilar",
     pipeline: "del-pilar-nexus",
     providers: {
-      replicate: Boolean(process.env.REPLICATE_API_TOKEN?.trim()),
-      roboflow: Boolean(process.env.ROBOFLOW_API_KEY?.trim()),
+      replicate,
+      roboflow,
+      meshModel: process.env.REPLICATE_MESH_MODEL?.trim() || "firtoz/trellis",
+      segmentModel:
+        process.env.ROBOFLOW_SEGMENT_MODEL?.trim() || "foot-segmentation-ehn9q/1",
+      pathologyModel: process.env.ROBOFLOW_MODEL?.trim() || "diabetic_ulcers/1",
     },
+    liveReady: replicate && roboflow,
+    blockers,
   });
 }

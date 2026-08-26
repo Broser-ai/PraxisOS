@@ -32,13 +32,17 @@ export default function FodScanPage() {
         <ol className="mt-2 list-decimal space-y-1 pl-4">
           <li>
             Sæt <code className="text-ink">REPLICATE_API_TOKEN</code> og{" "}
-            <code className="text-ink">ROBOFLOW_API_KEY</code> i <code>.env.local</code>
+            <code className="text-ink">ROBOFLOW_API_KEY</code> i{" "}
+            <code>.env.local</code> (dev) eller <code>.env.production</code> (Hetzner)
           </li>
           <li>
             Valgfrit: <code>REPLICATE_MESH_MODEL</code> (default <code>firtoz/trellis</code>),{" "}
             <code>ROBOFLOW_SEGMENT_MODEL</code>, <code>ROBOFLOW_MODEL</code>
           </li>
-          <li>Genstart <code>npm run dev</code> · upload skarpt plantar-foto · kør Nexus-scan</li>
+          <li>
+            Genstart app · tjek <code>GET /api/v1/scan/process</code> viser{" "}
+            <code>liveReady: true</code> · upload skarpt plantar-foto · kør Nexus-scan
+          </li>
         </ol>
       </aside>
     </div>

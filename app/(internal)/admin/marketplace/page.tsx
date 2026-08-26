@@ -26,7 +26,7 @@ export default function ModuleMarketplace() {
             <Link href="/admin/packaging" className="font-medium text-ink underline-offset-2 hover:underline">
               Produktpakke · udkast
             </Link>
-            {" "}— kerne obligatorisk, tilvalg, API skjult, fod-scan på pause.
+            {" "}— kerne obligatorisk, tilvalg (inkl. fod-scan), API skjult for kunden.
           </p>
         </div>
         <div className="flex flex-col items-end gap-1">

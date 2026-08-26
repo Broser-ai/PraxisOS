@@ -3,7 +3,7 @@
  *
  * Kundevendt: kun det klinikken skal vælge imellem.
  * Platform/API: styres af Broser — aldrig synligt for kunden.
- * Fod-scan: pause indtil kvalitet er godkendt.
+ * Fod-scan: tilvalg (addon) med quality gate — kræver Replicate + Roboflow for live PASS.
  */
 
 export type Visibility = "core" | "addon" | "paused" | "internal";
@@ -201,7 +201,7 @@ export const ADDON_PACK: PackagingItem[] = [
   },
 ];
 
-/** Pause — tom indtil videre (fod-scan flyttet til tilvalg) */
+/** Pause — tom; fod-scan ligger under tilvalg med quality gate */
 export const PAUSED_PACK: PackagingItem[] = [];
 
 /**

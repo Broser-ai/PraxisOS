@@ -39,6 +39,14 @@ if [[ ! -f .env.production ]]; then
   echo "=> Oprettede .env.production — UDFYLD BIRD_API_KEY før SMS virker"
 fi
 
+# Warn (non-fatal) if fod-scan live providers are missing
+if ! grep -qE '^REPLICATE_API_TOKEN=.+' .env.production 2>/dev/null; then
+  echo "!! REPLICATE_API_TOKEN mangler — fod-scan 3D bliver demo/HOLD"
+fi
+if ! grep -qE '^ROBOFLOW_API_KEY=.+' .env.production 2>/dev/null; then
+  echo "!! ROBOFLOW_API_KEY mangler — segmentering/pathology fail-closed"
+fi
+
 # Ensure public exists for Docker copy
 mkdir -p public
 [[ -f public/.gitkeep ]] || touch public/.gitkeep

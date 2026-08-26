@@ -176,7 +176,7 @@ export default function PackagingDraftPage() {
         </h1>
         <p className="mt-3 max-w-[640px] text-[14px] text-muted">
           Kun det nødvendige synligt for klinikken. API og platform styres af Broser. Fod-scan er
-          sat på pause indtil kvaliteten er godkendt.
+          tilvalg med quality gate (Replicate + Roboflow for live PASS).
         </p>
       </div>
 

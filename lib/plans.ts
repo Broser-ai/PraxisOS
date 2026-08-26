@@ -88,7 +88,7 @@ export const PLANS: LicensePlan[] = [
     name: "Clinic",
     priceMonthlyKr: 2490,
     periodLabel: "/md",
-    tagline: "Flere seats + felt. Fod-scan ikke inkluderet (pause).",
+    tagline: "Flere seats + felt. Fod-scan som tilvalg (addon).",
     seats: 8,
     modules: [
       "booking",
@@ -107,7 +107,7 @@ export const PLANS: LicensePlan[] = [
       "Ruteplanlægning / hjemmebesøg",
       "AR/CV-journal",
       "8 staff-seats",
-      "Fod-scan: pause (ikke aktiv)",
+      "Fod-scan · Del Pilar Nexus (tilvalg)",
     ],
     cta: "Vælg Clinic",
   },
