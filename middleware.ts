@@ -34,13 +34,19 @@ function isAllowedOnBypilar(pathname: string): boolean {
   if (pathname.startsWith("/_next") || pathname.startsWith("/favicon") || pathname === "/icon.svg") {
     return true;
   }
-  // Klinik white-label
-  if (pathname.startsWith("/t/bypilar")) return true;
-  if (pathname.startsWith("/embed/v1/bypilar")) return true;
-  if (pathname.startsWith("/api/v1/bypilar")) return true;
+  // Master review-hub + hele programmet (ejer-adgang via /review)
+  if (pathname === "/review" || pathname.startsWith("/review/")) return true;
+  if (pathname.startsWith("/admin")) return true;
+  if (pathname.startsWith("/demo")) return true;
+  if (pathname.startsWith("/t/")) return true; // white-label tenants (bypilar + demo)
+  if (pathname.startsWith("/embed/v1/")) return true;
+  if (pathname.startsWith("/api/v1/")) return true;
   if (pathname.startsWith("/api/auth")) return true;
+  if (pathname.startsWith("/api/cvr") || pathname.startsWith("/api/dawa") || pathname.startsWith("/api/events") || pathname.startsWith("/api/mcp")) {
+    return true;
+  }
   if (pathname.startsWith("/r/")) return true; // kvitteringer
-  // Klinik-staff (by Pilar personale)
+  // Klinik-staff
   const staff = [
     "/login",
     "/dashboard",
@@ -54,11 +60,17 @@ function isAllowedOnBypilar(pathname: string): boolean {
     "/felt",
     "/indstillinger",
     "/journal",
-    "/review",
   ];
   if (staff.some((p) => pathname === p || pathname.startsWith(p + "/"))) return true;
-  // Begrænset admin til klinik-drift (ikke B2B-salgsflader)
-  if (pathname.startsWith("/admin/services") || pathname.startsWith("/admin/vouchers") || pathname.startsWith("/admin/staff") || pathname.startsWith("/admin/payments")) {
+  // B2B-sider tilladt via review-hub (forsiden `/` forbliver klinik)
+  if (
+    pathname === "/funktioner" ||
+    pathname.startsWith("/funktioner/") ||
+    pathname === "/pricing" ||
+    pathname === "/signup" ||
+    pathname.startsWith("/signup/") ||
+    pathname === "/about"
+  ) {
     return true;
   }
   return false;
@@ -72,14 +84,15 @@ export function middleware(req: NextRequest) {
 
   const { pathname } = req.nextUrl;
 
-  // Eksplicit: B2B-marketing væk fra bypilar-host
-  if (PLATFORM_ONLY_PREFIXES.some((p) => pathname === p || pathname.startsWith(p + "/"))) {
+  // Forsiden på bypilar-host = klinik (ikke PraxisOS-salg)
+  if (pathname === "/" || pathname === "") {
     const url = req.nextUrl.clone();
     url.pathname = "/t/bypilar";
     return NextResponse.redirect(url);
   }
 
-  if (pathname === "/" || pathname === "") {
+  // B2B engros-shop hører ikke under bypilar-host
+  if (pathname === "/shop" || pathname.startsWith("/shop/")) {
     const url = req.nextUrl.clone();
     url.pathname = "/t/bypilar";
     return NextResponse.redirect(url);
