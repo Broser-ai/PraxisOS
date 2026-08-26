@@ -135,6 +135,12 @@ export async function GET() {
   const blockers: string[] = [];
   if (!replicate) blockers.push("REPLICATE_API_TOKEN mangler — 3D-mesh falder tilbage til anatomisk demo");
   if (!roboflow) blockers.push("ROBOFLOW_API_KEY mangler — segmentering/pathology fail-closed");
+  const notes: string[] = [];
+  if (!secrets.openai) {
+    notes.push(
+      "OPENAI_API_KEY mangler — valgfri for live scan; kræves til LLM-agentsvar (ingen rebuild: /scan eller /admin/bird).",
+    );
+  }
   return NextResponse.json({
     ...status,
     nexus: boot,
@@ -143,8 +149,10 @@ export async function GET() {
     providers: {
       replicate,
       roboflow,
+      openai: secrets.openai,
       replicateHint: secrets.replicateHint,
       roboflowHint: secrets.roboflowHint,
+      openaiHint: secrets.openaiHint,
       meshModel: process.env.REPLICATE_MESH_MODEL?.trim() || "firtoz/trellis",
       segmentModel:
         process.env.ROBOFLOW_SEGMENT_MODEL?.trim() || "foot-segmentation-ehn9q/1",
@@ -153,6 +161,8 @@ export async function GET() {
         process.env.ROBOFLOW_MODEL_SECONDARY?.trim() || "wounds-detection/1",
     },
     liveReady: secrets.liveScanReady,
+    llmReady: secrets.openai,
     blockers,
+    notes,
   });
 }

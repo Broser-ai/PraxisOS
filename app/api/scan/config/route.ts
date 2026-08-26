@@ -4,12 +4,26 @@ import { secretsPublicStatus, writeSecrets, type PraxisSecrets } from "@/lib/sec
 export const runtime = "nodejs";
 export const dynamic = "force-dynamic";
 
-/** Broser-only · status for Del Pilar Nexus provider keys */
-export async function GET() {
-  const secrets = secretsPublicStatus();
-  return NextResponse.json({
-    ok: true,
+function readinessPayload(secrets: ReturnType<typeof secretsPublicStatus>) {
+  const blockers: string[] = [];
+  if (!secrets.replicate) {
+    blockers.push("REPLICATE_API_TOKEN mangler — kræves til live 3D-mesh (liveReady)");
+  }
+  if (!secrets.roboflow) {
+    blockers.push("ROBOFLOW_API_KEY mangler — kræves til segmentering/pathology (liveReady)");
+  }
+  const notes: string[] = [];
+  if (!secrets.openai) {
+    notes.push(
+      "OPENAI_API_KEY mangler — valgfri; live fod-scan virker uden. Nødvendig for rigtige LLM-agentsvar.",
+    );
+  }
+  return {
+    ok: true as const,
     liveReady: secrets.liveScanReady,
+    llmReady: secrets.openai,
+    blockers,
+    notes,
     providers: {
       replicate: secrets.replicate,
       replicateHint: secrets.replicateHint,
@@ -21,8 +35,14 @@ export async function GET() {
     where: {
       replicate: "https://replicate.com/account/api-tokens",
       roboflow: "https://app.roboflow.com/settings/api",
+      openai: "https://platform.openai.com/api-keys",
     },
-  });
+  };
+}
+
+/** Broser-only · status for Del Pilar Nexus provider keys */
+export async function GET() {
+  return NextResponse.json(readinessPayload(secretsPublicStatus()));
 }
 
 /** Gem Replicate/Roboflow (og valgfri OpenAI) i /data/secrets.json — ingen rebuild */
@@ -55,19 +75,7 @@ export async function POST(req: Request) {
 
   try {
     writeSecrets(patch);
-    const secrets = secretsPublicStatus();
-    return NextResponse.json({
-      ok: true,
-      liveReady: secrets.liveScanReady,
-      providers: {
-        replicate: secrets.replicate,
-        replicateHint: secrets.replicateHint,
-        roboflow: secrets.roboflow,
-        roboflowHint: secrets.roboflowHint,
-        openai: secrets.openai,
-        openaiHint: secrets.openaiHint,
-      },
-    });
+    return NextResponse.json(readinessPayload(secretsPublicStatus()));
   } catch (err: unknown) {
     const message = err instanceof Error ? err.message : "save_failed";
     return NextResponse.json({ error: message }, { status: 500 });
