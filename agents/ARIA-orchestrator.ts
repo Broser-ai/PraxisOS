@@ -129,13 +129,18 @@ export class AriaOrchestrator {
         }
         case "scan": {
           const result = await this.runClinicalScan(directive);
+          const q = result.quality;
+          const qualityBit = q
+            ? `Quality ${q.grade} ${q.score}/100${q.pass ? " PASS" : " HOLD"}`
+            : result.mode;
+          const summary = result.biomechanics.isCritical
+            ? `Nexus scan kritisk — høj belastning · ${qualityBit}`
+            : `Del Pilar Nexus scan gennemført · ${qualityBit} · ${result.medicalFindings.length} AI-fund`;
           return {
             ok: true,
             directive: "scan",
             specialist: "s-agent",
-            summary: result.biomechanics.isCritical
-              ? "Scan kritisk — høj biomekanisk belastning"
-              : "Scan gennemført",
+            summary,
             data: result,
           };
         }

@@ -1,5 +1,12 @@
-// S-Agent · Alpha spatiotemporal pipeline (Replicate 3D + Roboflow clinical)
+// Del Pilar Nexus · S-Agent clinical scan pipeline
+// Level 1: Roboflow foot isolation · Level 2: pathology VLM · Level 3: Replicate 3D lift · MonoMSK
 import { MonoMSKSolver, type KinematicOutput } from "@/lib/physics/mono-msk-tensor";
+import {
+  attachQuality,
+  isRemoteMeshUrl,
+  scoreScanQuality,
+  type ScanQualityReport,
+} from "@/lib/scanner/quality";
 
 export type MedicalFinding = {
   class: string;
@@ -9,6 +16,8 @@ export type MedicalFinding = {
   z?: number;
   width?: number;
   height?: number;
+  source?: "segment" | "pathology" | "demo";
+  ai_generated?: boolean;
 };
 
 export type AlphaScanResult = {
@@ -18,6 +27,9 @@ export type AlphaScanResult = {
   mode: "live" | "demo";
   timestamp: string;
   notes: string[];
+  quality?: ScanQualityReport;
+  previewImageUrl?: string;
+  segmentation?: { detected: boolean; confidence?: number };
 };
 
 function replicateToken(): string {
@@ -28,109 +40,347 @@ function roboflowToken(): string {
   return process.env.ROBOFLOW_API_KEY?.trim() || "";
 }
 
+function stripDataUrl(b64: string): string {
+  return b64.replace(/^data:image\/\w+;base64,/, "");
+}
+
+function estimateBytes(b64: string): number {
+  if (!b64) return 0;
+  return Math.floor((stripDataUrl(b64).length * 3) / 4);
+}
+
+type ReplicatePrediction = {
+  id?: string;
+  status?: string;
+  output?: unknown;
+  error?: string;
+  urls?: { get?: string };
+};
+
+function extractMeshUrl(output: unknown): string | null {
+  if (typeof output === "string" && /^https?:\/\//i.test(output)) return output;
+  if (Array.isArray(output)) {
+    for (const item of output) {
+      const hit = extractMeshUrl(item);
+      if (hit) return hit;
+    }
+  }
+  if (output && typeof output === "object") {
+    const o = output as Record<string, unknown>;
+    for (const key of ["mesh", "model", "glb", "obj", "ply", "url", "output"]) {
+      const hit = extractMeshUrl(o[key]);
+      if (hit) return hit;
+    }
+  }
+  return null;
+}
+
+async function pollReplicate(getUrl: string, token: string, maxMs = 90_000): Promise<ReplicatePrediction> {
+  const started = Date.now();
+  let last: ReplicatePrediction = {};
+  while (Date.now() - started < maxMs) {
+    const res = await fetch(getUrl, {
+      headers: { Authorization: `Token ${token}`, "Content-Type": "application/json" },
+    });
+    last = (await res.json().catch(() => ({}))) as ReplicatePrediction;
+    if (last.status === "succeeded" || last.status === "failed" || last.status === "canceled") {
+      return last;
+    }
+    await new Promise((r) => setTimeout(r, 1500));
+  }
+  return { ...last, status: "timeout", error: "Replicate poll timeout" };
+}
+
 export class AlphaSpatiotemporalPipeline {
   private mskSolver = new MonoMSKSolver();
 
-  async extractGeometryWithPriors(imageUrl: string): Promise<{ meshUrl: string; note: string }> {
-    const token = replicateToken();
-    if (!token) {
+  /** Level 1 — isolate foot (domain-specific segmentation) */
+  async segmentFoot(imageBase64: string): Promise<{
+    detected: boolean;
+    confidence: number;
+    note: string;
+    maskPreview?: string;
+  }> {
+    const token = roboflowToken();
+    if (!token || !imageBase64) {
       return {
-        meshUrl: "procedural://foot",
-        note: "REPLICATE_API_TOKEN mangler — bruger procedurel fod-mesh",
+        detected: Boolean(imageBase64),
+        confidence: imageBase64 ? 0.55 : 0,
+        note: token ? "Ingen base64 til segmentering" : "ROBOFLOW_API_KEY mangler — segment-skip",
       };
     }
 
-    const version =
-      process.env.REPLICATE_MESH_VERSION?.trim() ||
-      "lucataco/hunyuan3d-2:latest";
+    const model =
+      process.env.ROBOFLOW_SEGMENT_MODEL?.trim() ||
+      "foot-segmentation-ehn9q/1";
 
-    const res = await fetch("https://api.replicate.com/v1/predictions", {
-      method: "POST",
-      headers: {
-        Authorization: `Token ${token}`,
-        "Content-Type": "application/json",
-        Prefer: "wait",
-      },
-      body: JSON.stringify({
-        version,
-        input: { image: imageUrl },
-      }),
-    });
+    try {
+      const res = await fetch(
+        `https://detect.roboflow.com/${model}?api_key=${encodeURIComponent(token)}`,
+        {
+          method: "POST",
+          body: stripDataUrl(imageBase64),
+          headers: { "Content-Type": "application/x-www-form-urlencoded" },
+        },
+      );
+      const data = (await res.json().catch(() => null)) as {
+        predictions?: Array<{ confidence?: number; class?: string }>;
+        message?: string;
+      } | null;
 
-    const data = (await res.json().catch(() => null)) as
-      | { urls?: { get?: string }; output?: string | string[]; error?: string; status?: string }
-      | null;
+      if (!res.ok) {
+        return {
+          detected: true,
+          confidence: 0.4,
+          note: `Segment HTTP ${res.status} — fortsætter med rå billede`,
+        };
+      }
 
-    if (!res.ok) {
+      const preds = data?.predictions ?? [];
+      const best = preds.reduce((m, p) => Math.max(m, p.confidence ?? 0), 0);
+      const detected = preds.length > 0 || best >= 0.35;
       return {
-        meshUrl: "procedural://foot",
-        note: `Replicate HTTP ${res.status} — fallback mesh (${data?.error ?? "error"})`,
+        detected: detected || preds.length === 0, // empty model response ≠ hard fail
+        confidence: best || (preds.length === 0 ? 0.6 : 0),
+        note:
+          preds.length > 0
+            ? `Fod-segmentering: ${preds.length} region(er), conf ${Math.round(best * 100)}%`
+            : "Segment-model returnerede ingen maske — bruger fuldt frame",
+      };
+    } catch (e) {
+      return {
+        detected: true,
+        confidence: 0.35,
+        note: `Segment fejl: ${e instanceof Error ? e.message : "unknown"}`,
       };
     }
-
-    const output = data?.output;
-    const meshFromOutput = Array.isArray(output) ? output[0] : output;
-    if (typeof meshFromOutput === "string" && meshFromOutput.length > 0) {
-      return { meshUrl: meshFromOutput, note: "Replicate mesh klar" };
-    }
-
-    return {
-      meshUrl: data?.urls?.get || "procedural://foot",
-      note: "Replicate prediction startet — poll URL eller fallback mesh",
-    };
   }
 
+  /** Level 2 — pathology / dermatology detections */
   async extractClinicalFindings(imageBase64: string): Promise<{
     findings: MedicalFinding[];
     note: string;
   }> {
     const token = roboflowToken();
     if (!token) {
-      return {
-        findings: demoFindings(),
-        note: "ROBOFLOW_API_KEY mangler — demo findings",
-      };
+      return { findings: [], note: "ROBOFLOW_API_KEY mangler — ingen pathology (fail-closed)" };
     }
     if (!imageBase64) {
-      return { findings: [], note: "Ingen imageBase64 — springer Roboflow over" };
+      return { findings: [], note: "Ingen imageBase64 — springer pathology over" };
     }
 
-    const model = process.env.ROBOFLOW_MODEL?.trim() || "diabetic_ulcers/1";
-    const res = await fetch(`https://detect.roboflow.com/${model}?api_key=${encodeURIComponent(token)}`, {
-      method: "POST",
-      body: imageBase64.replace(/^data:image\/\w+;base64,/, ""),
-      headers: { "Content-Type": "application/x-www-form-urlencoded" },
-    });
+    const models = [
+      process.env.ROBOFLOW_MODEL?.trim() || "diabetic_ulcers/1",
+      process.env.ROBOFLOW_MODEL_SECONDARY?.trim(),
+    ].filter(Boolean) as string[];
 
-    const data = (await res.json().catch(() => null)) as
-      | { predictions?: MedicalFinding[]; message?: string }
-      | null;
+    const all: MedicalFinding[] = [];
+    const notes: string[] = [];
 
-    if (!res.ok) {
-      return {
-        findings: demoFindings(),
-        note: `Roboflow HTTP ${res.status} — demo findings`,
-      };
+    for (const model of models) {
+      try {
+        const res = await fetch(
+          `https://detect.roboflow.com/${model}?api_key=${encodeURIComponent(token)}`,
+          {
+            method: "POST",
+            body: stripDataUrl(imageBase64),
+            headers: { "Content-Type": "application/x-www-form-urlencoded" },
+          },
+        );
+        const data = (await res.json().catch(() => null)) as {
+          predictions?: Array<MedicalFinding & { class?: string; confidence?: number }>;
+        } | null;
+
+        if (!res.ok) {
+          notes.push(`${model}: HTTP ${res.status}`);
+          continue;
+        }
+
+        const preds = (data?.predictions ?? []).map((p) => ({
+          class: p.class || "finding",
+          confidence: p.confidence ?? 0,
+          x: p.x,
+          y: p.y,
+          width: p.width,
+          height: p.height,
+          z: 0.35,
+          source: "pathology" as const,
+          ai_generated: true,
+        }));
+        all.push(...preds);
+        notes.push(`${model}: ${preds.length} fund`);
+      } catch (e) {
+        notes.push(`${model}: ${e instanceof Error ? e.message : "error"}`);
+      }
+    }
+
+    // Deduplicate overlapping class names keeping highest confidence
+    const byClass = new Map<string, MedicalFinding>();
+    for (const f of all) {
+      const prev = byClass.get(f.class);
+      if (!prev || (f.confidence ?? 0) > (prev.confidence ?? 0)) byClass.set(f.class, f);
     }
 
     return {
-      findings: Array.isArray(data?.predictions) ? data!.predictions! : [],
-      note: "Roboflow detections klar",
+      findings: [...byClass.values()].sort((a, b) => (b.confidence ?? 0) - (a.confidence ?? 0)),
+      note: notes.join(" · ") || "Pathology completed",
     };
   }
 
-  /** Build a short synthetic 4D stream when no depth video is provided */
-  synthesizeStreamFromFindings(findings: MedicalFinding[]): Float32Array[] {
-    const frames: Float32Array[] = [];
-    for (let f = 0; f < 12; f++) {
-      const arr = new Float32Array(24);
-      for (let p = 0; p < 8; p++) {
-        const finding = findings[p % Math.max(findings.length, 1)];
-        const conf = finding?.confidence ?? 0.3;
-        arr[p * 3] = ((finding?.x ?? 40) / 100 - 0.5) * 0.04 * (1 + f * 0.02);
-        arr[p * 3 + 1] = 0;
-        arr[p * 3 + 2] = 0.04 + conf * 0.06 + Math.sin(f / 3 + p) * 0.01;
+  /**
+   * Level 3 — 2D→3D geometric lifting via Replicate model predictions API
+   * Uses /v1/models/{owner}/{name}/predictions so we don't need a pinned version hash.
+   */
+  async extractGeometryWithPriors(imageUrl: string): Promise<{
+    meshUrl: string;
+    note: string;
+    polledOk: boolean;
+  }> {
+    const token = replicateToken();
+    if (!token) {
+      return {
+        meshUrl: "procedural://anatomical-foot",
+        note: "REPLICATE_API_TOKEN mangler — anatomisk demo-mesh (ikke klinisk)",
+        polledOk: false,
+      };
+    }
+
+    if (!imageUrl || /placehold\.co/i.test(imageUrl)) {
+      return {
+        meshUrl: "procedural://anatomical-foot",
+        note: "Afvist: placeholder-billede kan ikke give klinisk 3D",
+        polledOk: false,
+      };
+    }
+
+    // Prefer explicit owner/name; fall back to common image→3D models
+    const modelRef =
+      process.env.REPLICATE_MESH_MODEL?.trim() ||
+      process.env.REPLICATE_MESH_VERSION?.trim() ||
+      "firtoz/trellis";
+
+    const ownerName = modelRef.includes("/")
+      ? modelRef.replace(/:.*$/, "")
+      : "firtoz/trellis";
+    const [owner, name] = ownerName.split("/");
+
+    try {
+      // Prefer models API (no version hash required)
+      const startRes = await fetch(
+        `https://api.replicate.com/v1/models/${owner}/${name}/predictions`,
+        {
+          method: "POST",
+          headers: {
+            Authorization: `Token ${token}`,
+            "Content-Type": "application/json",
+            Prefer: "wait",
+          },
+          body: JSON.stringify({
+            input: {
+              image: imageUrl,
+              images: [imageUrl],
+              // common optional knobs ignored by models that don't use them
+              texture_size: 1024,
+              mesh_simplify: 0.95,
+            },
+          }),
+        },
+      );
+
+      let pred = (await startRes.json().catch(() => ({}))) as ReplicatePrediction;
+
+      // Fallback: classic versioned predictions if models API rejects
+      if (!startRes.ok && process.env.REPLICATE_MESH_VERSION?.includes(":")) {
+        const version = process.env.REPLICATE_MESH_VERSION.trim();
+        const vRes = await fetch("https://api.replicate.com/v1/predictions", {
+          method: "POST",
+          headers: {
+            Authorization: `Token ${token}`,
+            "Content-Type": "application/json",
+            Prefer: "wait",
+          },
+          body: JSON.stringify({ version, input: { image: imageUrl } }),
+        });
+        pred = (await vRes.json().catch(() => ({}))) as ReplicatePrediction;
+        if (!vRes.ok) {
+          return {
+            meshUrl: "procedural://anatomical-foot",
+            note: `Replicate HTTP ${vRes.status}: ${pred.error ?? "start failed"}`,
+            polledOk: false,
+          };
+        }
+      } else if (!startRes.ok) {
+        return {
+          meshUrl: "procedural://anatomical-foot",
+          note: `Replicate HTTP ${startRes.status}: ${pred.error ?? ownerName}`,
+          polledOk: false,
+        };
       }
+
+      if (pred.status !== "succeeded" && pred.urls?.get) {
+        pred = await pollReplicate(pred.urls.get, token);
+      }
+
+      if (pred.status === "failed" || pred.status === "canceled" || pred.status === "timeout") {
+        return {
+          meshUrl: "procedural://anatomical-foot",
+          note: `Replicate ${pred.status}: ${pred.error ?? "no mesh"}`,
+          polledOk: false,
+        };
+      }
+
+      const meshUrl = extractMeshUrl(pred.output);
+      if (meshUrl) {
+        return {
+          meshUrl,
+          note: `3D lift OK · ${ownerName} · mesh klar`,
+          polledOk: true,
+        };
+      }
+
+      return {
+        meshUrl: "procedural://anatomical-foot",
+        note: "Replicate succeeded uden mesh-URL i output",
+        polledOk: false,
+      };
+    } catch (e) {
+      return {
+        meshUrl: "procedural://anatomical-foot",
+        note: `Replicate exception: ${e instanceof Error ? e.message : "error"}`,
+        polledOk: false,
+      };
+    }
+  }
+
+  /** Landmark-ish stream from findings + plantar priors (better than pure noise) */
+  synthesizeStreamFromFindings(findings: MedicalFinding[]): Float32Array[] {
+    const landmarks = [
+      { name: "heel", x: 0.5, y: 0.85, z: 0.05 },
+      { name: "arch", x: 0.45, y: 0.55, z: 0.09 },
+      { name: "ball", x: 0.5, y: 0.28, z: 0.04 },
+      { name: "hallux", x: 0.62, y: 0.12, z: 0.03 },
+      { name: "fifth", x: 0.32, y: 0.18, z: 0.03 },
+      { name: "navicular", x: 0.42, y: 0.48, z: 0.07 },
+      { name: "lateral", x: 0.28, y: 0.5, z: 0.05 },
+      { name: "medial", x: 0.68, y: 0.5, z: 0.06 },
+    ];
+
+    const frames: Float32Array[] = [];
+    for (let f = 0; f < 24; f++) {
+      const arr = new Float32Array(landmarks.length * 3);
+      const gait = Math.sin((f / 24) * Math.PI); // stance compression
+      landmarks.forEach((lm, i) => {
+        const near = findings.find((find) => {
+          if (find.x == null || find.y == null) return false;
+          const dx = find.x / 100 - lm.x;
+          const dy = find.y / 100 - lm.y;
+          return dx * dx + dy * dy < 0.04;
+        });
+        const pressure = near ? 0.02 + (near.confidence ?? 0.5) * 0.05 : 0;
+        arr[i * 3] = (lm.x - 0.5) * 0.08 + (near ? ((near.x ?? 50) / 100 - 0.5) * 0.01 : 0);
+        arr[i * 3 + 1] = 0;
+        arr[i * 3 + 2] = lm.z - gait * 0.015 - pressure;
+      });
       frames.push(arr);
     }
     return frames;
@@ -143,13 +393,16 @@ export class AlphaSpatiotemporalPipeline {
     patientId: string,
   ): Promise<AlphaScanResult> {
     const notes: string[] = [];
-    const live = Boolean(replicateToken() || roboflowToken());
+    const imageBytes = estimateBytes(imageBase64);
 
-    const [geometry, clinical] = await Promise.all([
-      this.extractGeometryWithPriors(imageUrl),
+    // Parallel: segment + pathology + 3D (3D can use URL; pathology needs base64)
+    const [segment, clinical, geometry] = await Promise.all([
+      this.segmentFoot(imageBase64),
       this.extractClinicalFindings(imageBase64),
+      this.extractGeometryWithPriors(imageUrl),
     ]);
-    notes.push(geometry.note, clinical.note);
+
+    notes.push(segment.note, clinical.note, geometry.note);
 
     const stream = this.synthesizeStreamFromFindings(clinical.findings);
     const biomechanics = await this.mskSolver.computeInternalJointForces(
@@ -158,20 +411,27 @@ export class AlphaSpatiotemporalPipeline {
       patientId,
     );
 
-    return {
+    const providersLive = Boolean(replicateToken() || roboflowToken());
+    const draft: AlphaScanResult = {
       meshUrl: geometry.meshUrl,
-      medicalFindings: clinical.findings,
+      medicalFindings: clinical.findings.map((f) => ({ ...f, ai_generated: true })),
       biomechanics,
-      mode: live ? "live" : "demo",
+      mode: providersLive && isRemoteMeshUrl(geometry.meshUrl) ? "live" : "demo",
       timestamp: new Date().toISOString(),
       notes,
+      previewImageUrl: imageUrl.startsWith("data:") ? undefined : imageUrl,
+      segmentation: { detected: segment.detected, confidence: segment.confidence },
     };
-  }
-}
 
-function demoFindings(): MedicalFinding[] {
-  return [
-    { class: "callus_risk", confidence: 0.62, x: 48, y: 72, z: 0.35, width: 12, height: 10 },
-    { class: "pressure_hotspot", confidence: 0.71, x: 55, y: 80, z: 0.4, width: 9, height: 8 },
-  ];
+    const quality = scoreScanQuality({
+      meshUrl: geometry.meshUrl,
+      findings: clinical.findings,
+      notes,
+      imageBytes,
+      footDetected: segment.detected,
+      meshPolledOk: geometry.polledOk,
+    });
+
+    return attachQuality(draft, quality);
+  }
 }

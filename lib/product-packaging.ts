@@ -191,19 +191,18 @@ export const ADDON_PACK: PackagingItem[] = [
     visibility: "addon",
     href: "/klienter/mette",
   },
-];
-
-/** Pause — ikke aktiv for kunder endnu */
-export const PAUSED_PACK: PackagingItem[] = [
   {
     id: "fod-scan",
-    name: "Fod-scan · Physical AI",
-    summary: "3D fod-scanning. Kvalitet ikke godkendt endnu — deaktiveret.",
-    visibility: "paused",
+    name: "Fod-scan · Del Pilar Nexus",
+    summary: "ARIA + S-Agent: segmentering, pathology, 3D-lift, MonoMSK med quality gate.",
+    visibility: "addon",
     href: "/scan",
-    note: "Intern R&D. Skal ligne og måle en rigtig fod før aktivering.",
+    note: "Kræver Replicate + Roboflow for live PASS. AI-fund er forslag, ikke diagnose.",
   },
 ];
+
+/** Pause — tom indtil videre (fod-scan flyttet til tilvalg) */
+export const PAUSED_PACK: PackagingItem[] = [];
 
 /**
  * Intern platform — aldrig synlig i kundens marketplace/signup.

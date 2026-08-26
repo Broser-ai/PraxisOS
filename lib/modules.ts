@@ -259,27 +259,31 @@ export const MODULES: Module[] = [
   },
   {
     id: "clinical-foot-scan",
-    name: "Physical AI · Fod-scan",
+    name: "Physical AI · Fod-scan (Del Pilar Nexus)",
     shortName: "Fod-scan",
-    tagline: "PAUSE — kvalitet ikke godkendt",
-    description: "Deaktiveret. Scanningskvalitet ligner ikke en rigtig fod godt nok. Intern R&D indtil godkendt.",
+    tagline: "ARIA + S-Agent · quality-gated 3D",
+    description:
+      "Del Pilar Nexus: fod-segmentering, pathology, 3D-lift (Replicate) og MonoMSK. Quality gate afgør klinisk brug. AI-fund er beslutningsstøtte.",
     category: "clinical",
     tier: "physical",
     priceMonthly: 1499,
     pricePerSeat: 0,
     pricingModel: "flat",
-    iconColor: "var(--color-clay)",
+    iconColor: "var(--color-accent)",
     icon: "M9 2c-2 0-3 2-3 5 0 2 1 3 1 5s-1 4-1 6c0 2 1 4 3 4s3-2 3-4-1-2-1-4c0-3 1-5 1-7 0-3-1-5-3-5z",
     features: [
-      "PAUSE — ikke til salg",
-      "Kræver kvalitets-godkendelse før aktivering",
+      "Kamera/upload capture",
+      "Roboflow segment + pathology",
+      "Replicate 3D mesh lift",
+      "MonoMSK biomekanik + quality gate",
+      "Journal-integration via ARIA",
     ],
     dependsOn: ["core-clients"],
-    trialDays: 0,
+    trialDays: 14,
     enterprise: true,
-    setupTimeMin: 240,
+    setupTimeMin: 90,
     metricLabel: "Status",
-    metricValue: "pause",
+    metricValue: "addon",
   },
 
   // ---------- COMPLIANCE & DK ----------
@@ -595,13 +599,13 @@ export const CATEGORIES = [
 
 // Mock active modules per tenant
 export const TENANT_ACTIVE_MODULES: Record<string, string[]> = {
-  // Fod-scan (clinical-foot-scan) er bevidst ude — pause
   bypilar: [
     "core-booking",
     "core-clients",
     "core-payments",
     "ai-aria",
     "ai-niels",
+    "clinical-foot-scan",
     "compliance-mitid",
     "compliance-nemsms",
     "compliance-subsidies",

@@ -1,34 +1,46 @@
-import Link from "next/link";
+import { NexusScanPanel } from "@/components/NexusScanPanel";
 
 /**
- * Fod-scan er bevidst deaktiveret indtil scanningskvaliteten er godkendt.
- * Skærmen findes kun som intern R&D — ikke aktivt produkt.
+ * Del Pilar Nexus · klinisk fod-scan (ARIA + S-Agent pipeline).
+ * Tilvalg-modul — kræver Replicate + Roboflow nøgler for live quality PASS.
  */
-export default function FodScanPausedPage() {
+export default function FodScanPage() {
   return (
-    <div className="mx-auto max-w-[720px] py-16">
-      <div className="rounded-[16px] border border-amber/30 bg-amber/[0.07] p-8">
-        <div className="kicker text-amber">Pause · ikke aktiv i løsningen</div>
-        <h1 className="display mt-3 text-[32px] font-semibold leading-tight">Fod-scan er midlertidigt slået fra</h1>
-        <p className="mt-3 text-[14.5px] leading-relaxed text-muted">
-          Den nuværende scan ligner ikke en rigtig fod godt nok. Vi arbejder videre på kvalitet før
-          den aktiveres for klinikker. Indtil da er modulet skjult i kundens pakke.
+    <div className="mx-auto max-w-[1180px] space-y-6 py-6">
+      <header className="px-1">
+        <div className="kicker text-signal">Del Pilar Nexus</div>
+        <h1 className="display mt-2 text-[34px] font-semibold leading-tight tracking-tight">
+          Klinisk fod-scan
+        </h1>
+        <p className="mt-2 max-w-[62ch] text-[14.5px] leading-relaxed text-muted">
+          ARIA orkestrerer S-Agent pipeline: fod-segmentering → pathology → 3D-lift → MonoMSK.
+          Quality gate afgør om resultatet er klinisk brugbart. AI-fund er forslag — ikke diagnose.
         </p>
-        <div className="mt-6 flex flex-wrap gap-2">
-          <Link
-            href="/admin/packaging"
-            className="rounded-[10px] bg-ink px-4 py-2.5 text-[13px] font-medium text-paper"
-          >
-            Se produktpakke →
-          </Link>
-          <Link
-            href="/dashboard"
-            className="rounded-[10px] border border-line px-4 py-2.5 text-[13px] font-medium"
-          >
-            Tilbage til overblik
-          </Link>
-        </div>
-      </div>
+      </header>
+
+      <NexusScanPanel
+        tenantId="bypilar"
+        brandName="by Pilar"
+        patientId="mette"
+        patientName="Mette Lindqvist"
+        bookingId="bk_c1"
+        serviceName="Del Pilar Nexus · Physical AI"
+      />
+
+      <aside className="rounded-[14px] border border-line bg-paper-2/80 px-5 py-4 text-[12.5px] text-muted">
+        <div className="font-medium text-ink">Opsætning til live quality</div>
+        <ol className="mt-2 list-decimal space-y-1 pl-4">
+          <li>
+            Sæt <code className="text-ink">REPLICATE_API_TOKEN</code> og{" "}
+            <code className="text-ink">ROBOFLOW_API_KEY</code> i <code>.env.local</code>
+          </li>
+          <li>
+            Valgfrit: <code>REPLICATE_MESH_MODEL</code> (default <code>firtoz/trellis</code>),{" "}
+            <code>ROBOFLOW_SEGMENT_MODEL</code>, <code>ROBOFLOW_MODEL</code>
+          </li>
+          <li>Genstart <code>npm run dev</code> · upload skarpt plantar-foto · kør Nexus-scan</li>
+        </ol>
+      </aside>
     </div>
   );
 }

@@ -267,16 +267,16 @@ export const B2B_FEATURES: B2bFeature[] = [
   {
     slug: "fod-scan",
     categoryId: "klinisk",
-    title: "Fod-scan · Physical AI",
-    summary: "3D / plantar pressure / biomarkers — bygget til fodpleje.",
+    title: "Fod-scan · Del Pilar Nexus",
+    summary: "ARIA + S-Agent: segmentering, pathology, 3D-lift, MonoMSK med quality gate.",
     body: [
-      "Fod-scan er et kerne-differentieringspunkt for PraxisOS til fodplejere. Rapport + live-scan findes i UI.",
+      "Del Pilar Nexus orkestrerer klinisk fod-scan. Quality gate afgør om output er klinisk brugbart. AI-fund er forslag.",
     ],
-    bullets: ["Scan-rapport", "Live capture", "Plantar pressure", "Klinik-differentiering"],
+    bullets: ["Kamera/upload", "Roboflow + Replicate", "Quality gate", "Journal via ARIA"],
     demoHref: "/scan",
     status: "live",
     moduleId: "clinical-foot-scan",
-    planHint: "Physical AI-modul",
+    planHint: "Physical AI-modul / tilvalg",
   },
 
   // —— AI ——

@@ -15,9 +15,14 @@ type Body = {
   patientId?: string;
   patientName?: string;
   bookingId?: string;
+  requireQuality?: boolean;
 };
 
-/** by Pilar clinical scan · S-Agent + ARIA inside PraxisOS */
+function isPlaceholder(url: string): boolean {
+  return /placehold\.co|procedural:\/\//i.test(url);
+}
+
+/** Del Pilar Nexus · ARIA + S-Agent clinical scan */
 export async function POST(req: Request) {
   let body: Body;
   try {
@@ -32,15 +37,35 @@ export async function POST(req: Request) {
 
   await ensureNexusBooted(tenantId);
 
-  const imageUrl =
-    body.imageUrl?.trim() ||
-    process.env.SCAN_DEMO_IMAGE_URL?.trim() ||
-    "https://placehold.co/512x512/png?text=by+Pilar+fod";
+  const imageUrl = body.imageUrl?.trim() || "";
+  const imageBase64 = body.imageBase64?.trim() || "";
+
+  if (!imageUrl && !imageBase64) {
+    return NextResponse.json(
+      { ok: false, error: "missing_image", summary: "Upload eller fang et fodfoto først" },
+      { status: 400 },
+    );
+  }
+
+  if (body.requireQuality && imageUrl && isPlaceholder(imageUrl) && !imageBase64) {
+    return NextResponse.json(
+      {
+        ok: false,
+        error: "placeholder_rejected",
+        summary: "Placeholder-billeder kan ikke bruges til klinisk Nexus-scan",
+      },
+      { status: 400 },
+    );
+  }
+
+  const effectiveUrl =
+    imageUrl ||
+    (imageBase64.startsWith("data:") ? imageBase64 : `data:image/jpeg;base64,${imageBase64}`);
 
   const result = await ariaOrchestrator.dispatch({
     type: "scan",
-    imageUrl,
-    imageBase64: body.imageBase64,
+    imageUrl: effectiveUrl,
+    imageBase64: imageBase64 || (effectiveUrl.startsWith("data:") ? effectiveUrl : undefined),
     tenantId,
     patientId,
   });
@@ -60,28 +85,30 @@ export async function POST(req: Request) {
       const entry = await ensureJournalForBooking(booking.id);
       journalId = entry.id;
       const findingLine = scan.medicalFindings
-        .map((f) => `${f.class} (${Math.round(f.confidence * 100)}%)`)
+        .map((f) => `${f.class} (${Math.round(f.confidence * 100)}%) [AI]`)
         .join(", ");
+      const q = scan.quality;
       await updateJournalEntry(entry.id, {
         soap: {
           ...entry.soap,
           O: [
             entry.soap.O,
-            `Nexus 4D fod-scan (${scan.mode}): arch strain ${scan.biomechanics.archStrainMPa} MPa, torsion ${scan.biomechanics.jointTorsionNm} N·m.`,
-            findingLine ? `Findings: ${findingLine}.` : "",
+            `Del Pilar Nexus fod-scan (${scan.mode}${q ? `, ${q.grade} ${q.score}/100` : ""}): arch ${scan.biomechanics.archStrainMPa} MPa, torsion ${scan.biomechanics.jointTorsionNm} N·m.`,
+            findingLine ? `AI-fund: ${findingLine}.` : "",
           ]
             .filter(Boolean)
             .join(" "),
           A: scan.biomechanics.isCritical
-            ? "Forhøjet biomekanisk belastning — behandler vurderer opfølgning."
-            : entry.soap.A || "Scan uden kritiske biomekaniske flags i denne session.",
+            ? "Forhøjet biomekanisk belastning — behandler vurderer opfølgning. AI er beslutningsstøtte."
+            : entry.soap.A ||
+              "Scan uden kritiske biomekaniske flags. AI-fund er forslag, ikke diagnose.",
           P:
             entry.soap.P ||
             "Scan arkiveret. Eventuel indlæg/opfølgning aftales med behandler.",
         },
       });
     } catch {
-      // journal optional — scan still succeeds
+      // journal optional
     }
   }
 
@@ -93,6 +120,7 @@ export async function POST(req: Request) {
     patientId,
     bookingId: booking?.id,
     journalId,
+    quality: scan.quality,
     scan,
   });
 }
@@ -100,5 +128,14 @@ export async function POST(req: Request) {
 export async function GET() {
   const boot = await ensureNexusBooted("bypilar");
   const status = await ariaOrchestrator.dispatch({ type: "status" });
-  return NextResponse.json({ ...status, nexus: boot, tenant: "bypilar" });
+  return NextResponse.json({
+    ...status,
+    nexus: boot,
+    tenant: "bypilar",
+    pipeline: "del-pilar-nexus",
+    providers: {
+      replicate: Boolean(process.env.REPLICATE_API_TOKEN?.trim()),
+      roboflow: Boolean(process.env.ROBOFLOW_API_KEY?.trim()),
+    },
+  });
 }

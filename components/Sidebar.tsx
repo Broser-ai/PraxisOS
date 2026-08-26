@@ -27,6 +27,7 @@ const secondary = [
   { href: "/admin/agents", label: "Agent-valg", icon: "M16 21v-2a4 4 0 00-4-4H6a4 4 0 00-4 4v2M9 11a4 4 0 100-8 4 4 0 000 8zM22 21v-2a4 4 0 00-3-3.9M16 3.1a4 4 0 010 7.8" },
   { href: "/admin/marketplace", label: "Modul-tilvalg", icon: "M4 8h16M4 16h16M9 4v16M15 4v16" },
   { href: "/felt", label: "Ruteplanlægning", icon: "M3 7l9-4 9 4-9 4-9-4zM3 7v6l9 4 9-4V7" },
+  { href: "/scan", label: "Fod-scan · Nexus", icon: "M9 2c-2 0-3 2-3 5 0 2 1 3 1 5s-1 4-1 6c0 2 1 4 3 4s3-2 3-4-1-2-1-4c0-3 1-5 1-7 0-3-1-5-3-5z" },
   { href: "/indstillinger", label: "Indstillinger", icon: "M12 9a3 3 0 100 6 3 3 0 000-6zM19 12a7 7 0 00-.1-1.3l2-1.6-2-3.4-2.4 1a7 7 0 00-2.2-1.3l-.4-2.6h-3.8l-.4 2.6a7 7 0 00-2.2 1.3l-2.4-1-2 3.4 2 1.6A7 7 0 005 12" },
 ];
 
@@ -46,7 +47,6 @@ const broserOnly = [
   { href: "/admin/database", label: "Database (Broser)", icon: "M4 6c0-1.7 4-3 8-3s8 1.3 8 3v12c0 1.7-4 3-8 3s-8-1.3-8-3zM4 6v6c0 1.7 4 3 8 3s8-1.3 8-3V6" },
   { href: "/admin/security", label: "Sikkerhed (Broser)", icon: "M12 2l8 4v6c0 5-3.5 8-8 10-4.5-2-8-5-8-10V6z" },
   { href: "/admin/health", label: "System-status", icon: "M22 12h-4l-3 9L9 3l-3 9H2" },
-  { href: "/scan", label: "Fod-scan · pause", icon: "M9 2c-2 0-3 2-3 5 0 2 1 3 1 5s-1 4-1 6c0 2 1 4 3 4s3-2 3-4-1-2-1-4c0-3 1-5 1-7 0-3-1-5-3-5z" },
 ];
 
 function Icon({ d }: { d: string }) {

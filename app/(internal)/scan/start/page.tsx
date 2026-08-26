@@ -1,6 +1,6 @@
 import { redirect } from "next/navigation";
 
-/** Live scan-flow er også pause — samme beslutning som /scan */
-export default function ScanStartPaused() {
+/** Capture flow bor på /scan (Nexus panel med kamera/upload) */
+export default function ScanStartPage() {
   redirect("/scan");
 }
