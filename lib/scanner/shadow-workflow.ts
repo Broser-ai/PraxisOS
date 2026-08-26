@@ -1,14 +1,20 @@
 /**
  * Del Pilar Nexus Roboflow shadow workflow constants.
  *
- * Registry + config only. Do NOT wire alpha-pipeline / live routing to these
- * endpoints unless `approved_for_active_routing === true` (currently false)
- * and Broser promotion gates in docs/vision/model-governance.md are met.
+ * SHADOW_ONLY evaluation callers: `lib/scanner/shadow-inference.ts`.
+ * Do NOT use these endpoints for live routing, quality gate, or patient response
+ * unless `approved_for_active_routing === true` (currently false) and Broser
+ * promotion gates in docs/vision/model-governance.md are met.
+ *
+ * Landmarks (`praxisos`) stay candidate_untrained / deployable:false and are
+ * excluded from shadow parallel inference until status allows — see
+ * docs/vision/landmarks-training-brief.md and docs/vision/promotion/.
  */
 import shadowWorkflowJson from "@/docs/vision/workflows/del-pilar-nexus-shadow-evaluation.json";
 
 export type ShadowDeploymentState = "shadow_only";
 export type ModelLaneStatus = "shadow" | "disabled";
+export type LandmarksDeploymentState = "candidate_untrained";
 
 export type ShadowWorkflowConfig = {
   workspace: string;
@@ -34,7 +40,7 @@ export type ShadowWorkflowConfig = {
     landmarks: {
       endpoint: string;
       task: "keypoint-detection";
-      deployment_state: "candidate_untrained";
+      deployment_state: LandmarksDeploymentState;
       status: "disabled";
       deployable: false;
     };
@@ -51,6 +57,14 @@ export type ShadowWorkflowConfig = {
   };
 };
 
+export type ShadowParallelLane = "segmentation" | "candidates";
+
+export type ShadowParallelEndpoint = {
+  lane: ShadowParallelLane;
+  endpoint: string;
+  status: "shadow";
+};
+
 const cfg = shadowWorkflowJson as ShadowWorkflowConfig;
 
 if (cfg.workflow.approved_for_active_routing !== false) {
@@ -63,6 +77,14 @@ if (cfg.governance.active_routing !== false) {
 }
 if (cfg.models.landmarks.deployable !== false) {
   throw new Error("shadow-workflow: landmarks must not be deployable");
+}
+if (cfg.models.landmarks.status !== "disabled") {
+  throw new Error("shadow-workflow: landmarks status must be disabled while untrained");
+}
+if (cfg.models.landmarks.deployment_state !== "candidate_untrained") {
+  throw new Error(
+    "shadow-workflow: landmarks deployment_state must be candidate_untrained until trained",
+  );
 }
 
 /** Full shadow workflow document (shared with docs/vision/workflows/). */
@@ -80,11 +102,13 @@ export const SHADOW_CANDIDATES_ENDPOINT = cfg.models.candidates.endpoint;
 export const SHADOW_CANDIDATE_CLASSES = cfg.models.candidates.classes;
 export const SHADOW_LANDMARKS_ENDPOINT = cfg.models.landmarks.endpoint;
 export const SHADOW_LANDMARKS_DEPLOYABLE = cfg.models.landmarks.deployable;
+export const SHADOW_LANDMARKS_STATUS = cfg.models.landmarks.status;
+export const SHADOW_LANDMARKS_DEPLOYMENT_STATE =
+  cfg.models.landmarks.deployment_state;
 
 /**
- * Guard for any future caller: never treat this workflow as live routing.
- * Prefer registry+config only until Broser enables an explicit SHADOW_ONLY path
- * that does not replace Universe pins.
+ * Guard: shadow workflow may only be used for evaluation logging — never live routing.
+ * Callers must keep approved_for_active_routing false and leave Universe pins as the live path.
  */
 export function isShadowOnlyRoutingAllowed(): boolean {
   return (
@@ -95,8 +119,82 @@ export function isShadowOnlyRoutingAllowed(): boolean {
   );
 }
 
+/**
+ * Landmarks are not runnable for shadow parallel inference (or any deployable
+ * path) while candidate_untrained / disabled / deployable:false.
+ */
+export function isLandmarksEndpointRunnable(): boolean {
+  const { deployable, status, deployment_state } = cfg.models.landmarks;
+  return (
+    Boolean(deployable) &&
+    status !== "disabled" &&
+    deployment_state !== "candidate_untrained"
+  );
+}
+
 export function assertLandmarksNotDeployable(): void {
-  if (cfg.models.landmarks.deployable || cfg.models.landmarks.status !== "disabled") {
-    throw new Error("Landmarks are candidate_untrained / disabled — not deployable");
+  if (
+    cfg.models.landmarks.deployable ||
+    cfg.models.landmarks.status !== "disabled" ||
+    cfg.models.landmarks.deployment_state !== "candidate_untrained"
+  ) {
+    throw new Error(
+      "Landmarks are candidate_untrained / disabled — not deployable",
+    );
+  }
+  if (isLandmarksEndpointRunnable()) {
+    throw new Error("Landmarks must not be runnable until trained + adjudicated");
+  }
+}
+
+/**
+ * Reject selecting landmarks for any deployable / active / parallel-shadow path
+ * while untrained. Call before enqueueing inference to `praxisos`.
+ */
+export function assertLandmarksNotSelectedForInference(): void {
+  assertLandmarksNotDeployable();
+  if (isLandmarksEndpointRunnable()) {
+    throw new Error("Landmarks endpoint must not be selected for inference");
+  }
+}
+
+/**
+ * Endpoints allowed for future SHADOW_ONLY parallel inference.
+ * Landmarks are intentionally omitted until deployable + status allows.
+ */
+export function listShadowParallelInferenceEndpoints(): readonly ShadowParallelEndpoint[] {
+  assertLandmarksNotSelectedForInference();
+  return [
+    {
+      lane: "segmentation",
+      endpoint: cfg.models.segmentation.endpoint,
+      status: "shadow",
+    },
+    {
+      lane: "candidates",
+      endpoint: cfg.models.candidates.endpoint,
+      status: "shadow",
+    },
+  ] as const;
+}
+
+/**
+ * Registry helper: a lane is deployable only if status is canary/active-shaped.
+ * Landmarks stay false while untrained regardless of caller requests.
+ */
+export function isModelLaneDeployable(
+  lane: "segmentation" | "candidates" | "landmarks",
+): boolean {
+  switch (lane) {
+    case "segmentation":
+    case "candidates":
+      // Shadow candidates are not production-deployable; active routing remains off.
+      return false;
+    case "landmarks":
+      return isLandmarksEndpointRunnable();
+    default: {
+      const _exhaustive: never = lane;
+      return _exhaustive;
+    }
   }
 }

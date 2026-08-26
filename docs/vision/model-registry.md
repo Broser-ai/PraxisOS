@@ -57,9 +57,13 @@ trained + adjudicated. Helpers: `isLandmarksEndpointRunnable()`,
 `docs/vision/promotion/` (`gate-checklist.md`, eval-report, model-card,
 rollback-plan, audit-checklist). Flag remains **false**.
 
-**Ikke i scope for denne registrering:** wiring af alpha-pipeline til disse
-endpoints, env-swap på Hetzner, ændring af patientvendt sprog, retention eller
-`SCAN_QUALITY_THRESHOLD`.
+**SHADOW_ONLY parallel eval (optional):** `docs/vision/shadow-evaluation.md` —
+flag `PRAXIS_SHADOW_EVAL_ENABLED` (default OFF) + privacy-gate. Logs only;
+**does not** replace Universe pins, quality gate, or patient copy.
+`approved_for_active_routing` remains **false**.
+
+**Ikke i scope uden Broser-promotion:** env-swap af live pins på Hetzner,
+ændring af patientvendt sprog, retention eller `SCAN_QUALITY_THRESHOLD`.
 
 ## Kandidat-modeller (overblik)
 
@@ -94,6 +98,7 @@ Agent-tooling (Cursor Roboflow-plugin MCP) er separat fra denne nøgle — se `d
 |------|---------|-----------|
 | 2026-08-26 | Registry oprettet; legacy pins dokumenteret uden env-ændring | Broser |
 | 2026-08-26 | Shadow-workflow `Z1TLmeAsa9GAWJg3xufe` registreret; `approved_for_active_routing: false`; landmarks disabled | Broser (input Michael) |
+| 2026-08-26 | SHADOW_ONLY parallel eval path (`PRAXIS_SHADOW_EVAL_ENABLED`, privacy-gate); active routing still false | Broser (draft) |
 | 2026-08-26 | Landmarks training brief + promotion pack scaffolding; landmarks skipped for shadow parallel inference; routing still false | Broser (agent draft) |
 
 ## Promotion-skabelon

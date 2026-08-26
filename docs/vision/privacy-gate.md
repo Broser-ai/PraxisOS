@@ -2,7 +2,10 @@
 
 **Status:** bindende for Broser  
 **Må ikke ændres af agenter uden navngiven menneskelig godkendelse**  
-**Relateret:** `model-governance.md`, `model-registry.md`
+**Relateret:** `model-governance.md`, `model-registry.md`,
+`privacy-gate-broser-checklist.md`  
+**Operationel Broser-pakke:** `privacy-gate-broser-checklist.md`  
+**Kode (fail-closed):** `lib/scanner/privacy-gate.ts`
 
 ## Formål
 
@@ -65,6 +68,10 @@ Base64 er transportformat — ikke en privacy-kontrol.
 
 ## Checklist før ny ekstern vision-route
 
+Brug den operationelle Broser-pakke:
+[`privacy-gate-broser-checklist.md`](./privacy-gate-broser-checklist.md)
+(PASS/FAIL-gates, navngivne roller, SHADOW_ONLY billedblokering).
+
 - [ ] Privat projekt / privat endpoint
 - [ ] EU data-processing route dokumenteret
 - [ ] DPA på plads
@@ -72,3 +79,14 @@ Base64 er transportformat — ikke en privacy-kontrol.
 - [ ] Retention-politik skrevet
 - [ ] Navngiven godkender + immutable audit-event
 - [ ] Model registreret i `model-registry.md` med status `shadow` eller strammere
+- [ ] SHADOW_ONLY parallel inference sender **ikke** billeder før Broser PASS
+- [ ] Agenter har **ikke** self-approved
+
+## Kode-kontrakt
+
+- Default: gate **lukket** (`PrivacyGateStatus: "closed"`).
+- `maySendImagesToCustomRoboflow()` / `mayRunShadowOnlyImageInference()` er
+  false indtil alle checks PASS.
+- Shadow-path (`runShadowEval`) sender ingen billeder før gate PASS **og**
+  eksplicit flag `PRAXIS_SHADOW_EVAL_ENABLED` (default off).
+- `approved_for_active_routing` åbnes **ikke** af privacy-gate-pakken.

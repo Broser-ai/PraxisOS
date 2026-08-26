@@ -52,6 +52,9 @@ Hver promotion kræver **alle** følgende:
 4. **Rollback model ID** (eksakt tidligere pin)
 5. **Immutable audit-event** (fx `model.version.changed`)
 
+Udfyld skabelonerne i `docs/vision/promotion/` (`gate-checklist.md` som master).
+Sæt **ikke** `approved_for_active_routing: true` uden komplet, signeret pack.
+
 Uden disse forbliver modellen i `shadow` eller `disabled`.
 
 ## Klinisk sprogpolitik

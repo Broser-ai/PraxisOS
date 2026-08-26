@@ -29,7 +29,9 @@
       "task": "keypoint-detection",
       "deployment_state": "candidate_untrained",
       "status": "disabled",
-      "deployable": false
+      "deployable": false,
+      "shadow_parallel_inference": "skipped",
+      "training_brief": "docs/vision/landmarks-training-brief.md"
     }
   },
   "video": {
@@ -40,6 +42,6 @@
     "active_routing": false,
     "replaces_live_universe_pins": false,
     "clinical_copy": "Kandidatområde registreret; kræver kliniker-review.",
-    "notes": "Legacy production pins remain foot-segmentation-ehn9q/1, foot-ulcer/1, wounds-detection/1, firtoz/trellis. SCAN_QUALITY_THRESHOLD unchanged at 70."
+    "notes": "Legacy production pins remain foot-segmentation-ehn9q/1, foot-ulcer/1, wounds-detection/1, firtoz/trellis. SCAN_QUALITY_THRESHOLD unchanged at 70. Landmarks skipped for shadow parallel inference until trained + adjudicated. Promotion pack: docs/vision/promotion/."
   }
 }

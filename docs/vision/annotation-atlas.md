@@ -12,7 +12,7 @@
 |----------|------|-----------------|
 | `praxisos-foot-seg` | instance-segmentation | `shadow` |
 | `praxisos-foot-candidates` | object-detection | `shadow` |
-| `praxisos` | keypoint-detection | `disabled` (untrained / not deployable) |
+| `praxisos` | keypoint-detection | `disabled` (untrained / not deployable; skipped in shadow parallel) |
 
 Universe stand-ins in **production** today (unchanged):
 
@@ -72,11 +72,15 @@ mask IoU ≥ 0.85 on clear plantar; confidence &lt; 0.4 when no foot → app HOL
 
 **Type:** keypoint detection  
 **Registry status:** `disabled` · `deployment_state: candidate_untrained` ·
-**deployable: false**
+**deployable: false** · **not runnable** in shadow parallel inference
 
-Do not train or route until Broser opens a separate labeling brief. Planned
+**Training brief (SoT for schema + dataset + gates):**
+`landmarks-training-brief.md`
+
+Do not train or route until Broser opens labeling per that brief. Planned
 consumers (when enabled): MonoMSK landmark stream (heel, arch, ball, hallux,
-fifth, navicular, lateral, medial).
+fifth, navicular, lateral, medial). Nested keypoint fields must be
+`x`, `y`, `class_name`, `class_id`, `confidence` (strict Zod contract).
 
 | Keypoint | Hint |
 |----------|------|
@@ -100,7 +104,7 @@ Invisible keypoints: mark as not-visible per Roboflow keypoint UI — do not inv
 1. Skip images with faces or readable IDs → quarantine.
 2. Segment: draw polygon for `foot` / `toes_region` / `heel_region` as applicable.
 3. Candidates: box only visible `candidate_*` areas; when unsure, skip.
-4. Keypoints: **not in scope** until landmarks leave `disabled`.
+4. Keypoints: **not in scope** until landmarks leave `disabled` (see training brief).
 5. Never write diagnostic prose in annotations.
 
 ## Active learning

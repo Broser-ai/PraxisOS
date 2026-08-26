@@ -1,5 +1,6 @@
 // Del Pilar Nexus · S-Agent clinical scan pipeline
 // Level 1: Roboflow foot isolation · Level 2: pathology VLM · Level 3: Replicate 3D lift · MonoMSK
+// Shadow eval (optional): parallel custom endpoints — never used for routing/quality/patient copy.
 import { MonoMSKSolver, type KinematicOutput } from "@/lib/physics/mono-msk-tensor";
 import {
   attachQuality,
@@ -7,6 +8,7 @@ import {
   scoreScanQuality,
   type ScanQualityReport,
 } from "@/lib/scanner/quality";
+import { scheduleShadowEval } from "@/lib/scanner/shadow-inference";
 import { resolveSecret } from "@/lib/secrets";
 
 export type MedicalFinding = {
@@ -396,7 +398,11 @@ export class AlphaSpatiotemporalPipeline {
     const notes: string[] = [];
     const imageBytes = estimateBytes(imageBase64);
 
-    // Parallel: segment + pathology + 3D (3D can use URL; pathology needs base64)
+    // SHADOW_ONLY parallel eval — fire-and-forget; never feeds quality/findings/routing.
+    // Requires PRAXIS_SHADOW_EVAL_ENABLED + privacy-gate; default OFF / fail-closed.
+    scheduleShadowEval({ imageBase64, tenantId, patientId });
+
+    // Parallel: segment + pathology + 3D (legacy Universe / Replicate pins — live path)
     const [segment, clinical, geometry] = await Promise.all([
       this.segmentFoot(imageBase64),
       this.extractClinicalFindings(imageBase64),

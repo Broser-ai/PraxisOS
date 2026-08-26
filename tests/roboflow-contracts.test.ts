@@ -18,9 +18,16 @@ import {
   ROBOFLOW_SHADOW_APPROVED_FOR_ACTIVE_ROUTING,
   SHADOW_CANDIDATE_CLASSES,
   SHADOW_LANDMARKS_DEPLOYABLE,
+  SHADOW_LANDMARKS_DEPLOYMENT_STATE,
+  SHADOW_LANDMARKS_ENDPOINT,
+  SHADOW_LANDMARKS_STATUS,
   SHADOW_SEGMENTATION_CLASSES,
   assertLandmarksNotDeployable,
+  assertLandmarksNotSelectedForInference,
+  isLandmarksEndpointRunnable,
+  isModelLaneDeployable,
   isShadowOnlyRoutingAllowed,
+  listShadowParallelInferenceEndpoints,
 } from "@/lib/scanner/shadow-workflow";
 
 const fixtureDir = join(process.cwd(), "tests/fixtures/roboflow");
@@ -110,8 +117,26 @@ describe("del pilar nexus shadow workflow registry", () => {
       "Z1TLmeAsa9GAWJg3xufe",
     );
     expect(SHADOW_LANDMARKS_DEPLOYABLE).toBe(false);
+    expect(SHADOW_LANDMARKS_STATUS).toBe("disabled");
+    expect(SHADOW_LANDMARKS_DEPLOYMENT_STATE).toBe("candidate_untrained");
+    expect(SHADOW_LANDMARKS_ENDPOINT).toBe("praxisos");
     expect(isShadowOnlyRoutingAllowed()).toBe(true);
     expect(() => assertLandmarksNotDeployable()).not.toThrow();
+    expect(() => assertLandmarksNotSelectedForInference()).not.toThrow();
+  });
+
+  it("rejects deployable landmarks while untrained and skips parallel inference", () => {
+    expect(isLandmarksEndpointRunnable()).toBe(false);
+    expect(isModelLaneDeployable("landmarks")).toBe(false);
+    expect(isModelLaneDeployable("segmentation")).toBe(false);
+    expect(isModelLaneDeployable("candidates")).toBe(false);
+
+    const parallel = listShadowParallelInferenceEndpoints();
+    expect(parallel.map((p) => p.lane)).toEqual(["segmentation", "candidates"]);
+    expect(parallel.every((p) => p.status === "shadow")).toBe(true);
+    expect(parallel.some((p) => p.endpoint === SHADOW_LANDMARKS_ENDPOINT)).toBe(
+      false,
+    );
   });
 
   it("exports shadow class lists matching annotation atlas", () => {
