@@ -236,6 +236,7 @@ force-plate»-copy.
 
 ## Relaterede filer
 
+- `docs/vision/alphaxiv-aurelle-transcript-impact.md` — bredere transcript-impact + anti-recs
 - `docs/alphaxiv-del-pilar-nexus-sota-prompt.md`
 - `docs/vision/model-governance.md`
 - `docs/vision/acceptance-criteria.md`
