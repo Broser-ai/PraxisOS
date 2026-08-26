@@ -191,7 +191,7 @@ export const AGENTS: Persona[] = [
   {
     id: "bjorn",
     name: "Bjørn",
-    role: "Felt-service-koordinator",
+    role: "Ruteplanlægning-koordinator",
     domain: "hjemmebesøg · rute-optimering · mobil-workflow",
     pronouns: "han",
     voiceTone: "Praktisk, lokal-orienteret. Tænker i kilometer, parkering, trapper.",
