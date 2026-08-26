@@ -19,10 +19,17 @@ services:
     user: "0:0"
     labels:
       - "traefik.enable=true"
+      - "traefik.docker.network=omni_net"
+      - "traefik.http.middlewares.praxisos-https-redirect.redirectscheme.scheme=https"
+      - "traefik.http.middlewares.praxisos-https-redirect.redirectscheme.permanent=true"
       - "traefik.http.routers.praxisos.rule=Host(`app.bypilar.dk`) || Host(`praxis.bypilar.dk`) || PathPrefix(`/praxis`)"
       - "traefik.http.routers.praxisos.entrypoints=web"
+      - "traefik.http.routers.praxisos.middlewares=praxisos-https-redirect"
+      - "traefik.http.routers.praxisos-secure.rule=Host(`app.bypilar.dk`) || Host(`praxis.bypilar.dk`)"
+      - "traefik.http.routers.praxisos-secure.entrypoints=websecure"
+      - "traefik.http.routers.praxisos-secure.tls=true"
+      - "traefik.http.routers.praxisos-secure.tls.certresolver=le"
       - "traefik.http.services.praxisos.loadbalancer.server.port=3000"
-      - "traefik.docker.network=omni_net"
     networks:
       - default
       - omni_net
