@@ -1,0 +1,51 @@
+{
+  "time": 0.095,
+  "image": { "width": 1280, "height": 960 },
+  "predictions": [
+    {
+      "class": "foot",
+      "confidence": 0.9,
+      "x": 640,
+      "y": 480,
+      "width": 500,
+      "height": 760,
+      "keypoints": [
+        {
+          "x": 640,
+          "y": 820,
+          "class_name": "heel_center",
+          "class_id": 0,
+          "confidence": 0.91
+        },
+        {
+          "x": 700,
+          "y": 560,
+          "class_name": "arch_apex",
+          "class_id": 1,
+          "confidence": 0.84
+        },
+        {
+          "x": 720,
+          "y": 280,
+          "class_name": "mtp1",
+          "class_id": 2,
+          "confidence": 0.88
+        },
+        {
+          "x": 520,
+          "y": 300,
+          "class_name": "mtp5",
+          "class_id": 3,
+          "confidence": 0.86
+        },
+        {
+          "x": 760,
+          "y": 180,
+          "class_name": "hallux_tip",
+          "class_id": 4,
+          "confidence": 0.87
+        }
+      ]
+    }
+  ]
+}
