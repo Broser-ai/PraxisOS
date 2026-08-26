@@ -10,6 +10,10 @@ export type PraxisSecrets = {
   BIRD_SMS_FROM?: string;
   BIRD_WORKSPACE_ID?: string;
   OPENAI_API_KEY?: string;
+  /** Del Pilar Nexus · 3D lift (Replicate) */
+  REPLICATE_API_TOKEN?: string;
+  /** Del Pilar Nexus · segment + pathology (Roboflow) */
+  ROBOFLOW_API_KEY?: string;
 };
 
 const g = globalThis as typeof globalThis & { __praxisSecretsCache?: PraxisSecrets | null };
@@ -74,16 +78,29 @@ export function resolveSecret(key: keyof PraxisSecrets): string {
   return fromFile;
 }
 
+function hintOf(value: string, head = 4, tail = 4): string | null {
+  if (!value) return null;
+  if (value.length <= head + tail) return `${value.slice(0, 2)}…`;
+  return `${value.slice(0, head)}…${value.slice(-tail)}`;
+}
+
 export function secretsPublicStatus() {
   const birdKey = resolveSecret("BIRD_API_KEY");
   const openai = resolveSecret("OPENAI_API_KEY");
   const channel = resolveSecret("BIRD_SMS_CHANNEL_ID");
+  const replicate = resolveSecret("REPLICATE_API_TOKEN");
+  const roboflow = resolveSecret("ROBOFLOW_API_KEY");
   return {
     birdKey: Boolean(birdKey),
-    birdKeyHint: birdKey ? `${birdKey.slice(0, 4)}…${birdKey.slice(-4)}` : null,
+    birdKeyHint: hintOf(birdKey),
     birdChannel: Boolean(channel),
     openai: Boolean(openai),
-    openaiHint: openai ? `${openai.slice(0, 3)}…${openai.slice(-4)}` : null,
+    openaiHint: hintOf(openai, 3, 4),
+    replicate: Boolean(replicate),
+    replicateHint: hintOf(replicate, 3, 4),
+    roboflow: Boolean(roboflow),
+    roboflowHint: hintOf(roboflow, 3, 4),
+    liveScanReady: Boolean(replicate && roboflow),
     dataDir: Boolean(dataDir()),
   };
 }

@@ -7,6 +7,7 @@ import {
   scoreScanQuality,
   type ScanQualityReport,
 } from "@/lib/scanner/quality";
+import { resolveSecret } from "@/lib/secrets";
 
 export type MedicalFinding = {
   class: string;
@@ -33,11 +34,11 @@ export type AlphaScanResult = {
 };
 
 function replicateToken(): string {
-  return process.env.REPLICATE_API_TOKEN?.trim() || "";
+  return resolveSecret("REPLICATE_API_TOKEN");
 }
 
 function roboflowToken(): string {
-  return process.env.ROBOFLOW_API_KEY?.trim() || "";
+  return resolveSecret("ROBOFLOW_API_KEY");
 }
 
 function stripDataUrl(b64: string): string {
