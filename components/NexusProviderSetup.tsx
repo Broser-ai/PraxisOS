@@ -85,11 +85,13 @@ export function NexusProviderSetup() {
     <aside className="rounded-[14px] border border-amber/30 bg-amber/[0.06] px-5 py-4">
       <div className="font-medium text-ink">Broser · aktiver live fod-scan</div>
       <p className="mt-1 max-w-[62ch] text-[12.5px] text-muted">
-        Mangler API-nøgler på serveren. Hent dem og gem her — gemmes i{" "}
-        <code className="text-ink">/data/secrets.json</code> (ingen Docker-rebuild).
+        Mangler API-nøgler på serveren. Du skal <strong className="font-medium text-ink">ikke</strong>{" "}
+        oprette et PraxisOS-projekt i Roboflow — vi kalder offentlige Universe-modeller. Gem nøglerne
+        her (ingen Docker-rebuild).
       </p>
       <ol className="mt-2 list-decimal space-y-1 pl-4 text-[12px] text-muted">
         <li>
+          Replicate (allerede sat hvis du har limet <code className="text-ink">r8_…</code>):{" "}
           <a
             className="underline-offset-2 hover:underline"
             href="https://replicate.com/account/api-tokens"
@@ -97,19 +99,21 @@ export function NexusProviderSetup() {
             rel="noreferrer"
           >
             replicate.com/account/api-tokens
-          </a>{" "}
-          → kopiér token (<code className="text-ink">r8_…</code>)
+          </a>
         </li>
         <li>
+          Roboflow: opret gratis konto →{" "}
           <a
             className="underline-offset-2 hover:underline"
             href="https://app.roboflow.com/settings/api"
             target="_blank"
             rel="noreferrer"
           >
-            app.roboflow.com/settings/api
+            Settings → API Keys → Private API Key
           </a>{" "}
-          → Private API Key
+          (ikke et workspace-navn). Pipeline bruger Universe-modellerne{" "}
+          <code className="text-ink">foot-segmentation-ehn9q</code> og{" "}
+          <code className="text-ink">diabetic_ulcers</code>.
         </li>
       </ol>
       <div className="mt-3 grid gap-2 md:grid-cols-2">
