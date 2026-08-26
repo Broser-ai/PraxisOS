@@ -11,6 +11,10 @@
  * docs/vision/landmarks-training-brief.md and docs/vision/promotion/.
  */
 import shadowWorkflowJson from "@/docs/vision/workflows/del-pilar-nexus-shadow-evaluation.json";
+import {
+  maySendImagesToCustomRoboflow,
+  type PrivacyGateEnv,
+} from "@/lib/scanner/privacy-gate";
 
 export type ShadowDeploymentState = "shadow_only";
 export type ModelLaneStatus = "shadow" | "disabled";
@@ -197,4 +201,17 @@ export function isModelLaneDeployable(
       return _exhaustive;
     }
   }
+}
+
+/**
+ * True only when shadow-only config is intact AND privacy-gate is open.
+ * Does not enable active routing. Call before any custom-endpoint image upload.
+ */
+export function mayRunShadowOnlyImageInference(
+  privacyEnv?: PrivacyGateEnv,
+): boolean {
+  if (!isShadowOnlyRoutingAllowed()) return false;
+  if (cfg.workflow.approved_for_active_routing !== false) return false;
+  if (cfg.models.landmarks.deployable !== false) return false;
+  return maySendImagesToCustomRoboflow(privacyEnv);
 }

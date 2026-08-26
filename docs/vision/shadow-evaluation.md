@@ -29,6 +29,9 @@ Live path stays: `foot-segmentation-ehn9q/1`, `foot-ulcer/1`,
 Code: `lib/scanner/shadow-inference.ts` · wired fire-and-forget from
 `AlphaSpatiotemporalPipeline.executeAlphaScan`.
 
+Combined guard: `mayRunShadowOnlyImageInference()` (shadow-only config **and**
+open privacy-gate). `approved_for_active_routing` stays **false**.
+
 ## Privacy gate (required before any image upload)
 
 Even with the flag on, uploads are **blocked** unless every checklist item from

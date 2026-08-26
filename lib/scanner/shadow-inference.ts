@@ -13,6 +13,7 @@ import { auditError, auditLog } from "@/lib/audit";
 import { resolveSecret } from "@/lib/secrets";
 import {
   evaluatePrivacyGate,
+  maySendImagesToCustomRoboflow,
   readPrivacyGateEnv,
   type PrivacyGateEnv,
   type PrivacyGateResult,
@@ -26,6 +27,7 @@ import {
   assertLandmarksNotSelectedForInference,
   isShadowOnlyRoutingAllowed,
   listShadowParallelInferenceEndpoints,
+  mayRunShadowOnlyImageInference,
 } from "@/lib/scanner/shadow-workflow";
 
 /** Explicit feature flag — default OFF. Accepts 1/true/yes/on. */
@@ -268,7 +270,12 @@ export async function runShadowEval(
   }
 
   const gate = evaluatePrivacyGate(deps.privacyEnv ?? readPrivacyGateEnv());
-  if (!gate.allowed) {
+  // Fail-closed: privacy helper + combined shadow/routing/landmarks guard.
+  if (
+    !gate.allowed ||
+    !maySendImagesToCustomRoboflow(deps.privacyEnv) ||
+    !mayRunShadowOnlyImageInference(deps.privacyEnv)
+  ) {
     record.skipped = true;
     record.skip_reason = "privacy_gate";
     record.privacy_fail_reasons = gate.failReasons;

@@ -5,10 +5,10 @@ import {
   getPrivacyGateStatus,
   isAgentSelfApproval,
   isPrivacyGateOpen,
-  mayRunShadowOnlyImageInference,
   maySendImagesToCustomRoboflow,
   type PrivacyGateEnv,
 } from "@/lib/scanner/privacy-gate";
+import { mayRunShadowOnlyImageInference } from "@/lib/scanner/shadow-workflow";
 
 const broserPassEnv: PrivacyGateEnv = {
   privateProject: "true",
@@ -38,6 +38,7 @@ describe("privacy-gate (fail-closed)", () => {
     expect(result.status).toBe("passed");
     expect(result.allowed).toBe(true);
     expect(result.failReasons).toEqual([]);
+    expect(maySendImagesToCustomRoboflow(broserPassEnv)).toBe(true);
     expect(mayRunShadowOnlyImageInference(broserPassEnv)).toBe(true);
   });
 
@@ -52,10 +53,12 @@ describe("privacy-gate (fail-closed)", () => {
     expect(result.allowed).toBe(false);
     expect(result.status).toBe("failed");
     expect(result.failReasons).toContain("human_approver");
-    expect(maySendImagesToCustomRoboflow({
-      ...broserPassEnv,
-      humanApprover: "CI",
-    })).toBe(false);
+    expect(
+      maySendImagesToCustomRoboflow({
+        ...broserPassEnv,
+        humanApprover: "CI",
+      }),
+    ).toBe(false);
   });
 
   it("fails closed when only some checks pass", () => {

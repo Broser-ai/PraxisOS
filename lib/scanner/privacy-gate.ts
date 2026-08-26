@@ -184,16 +184,12 @@ export function getPrivacyGateStatus(env?: PrivacyGateEnv): PrivacyGateStatus {
 /**
  * SHADOW_ONLY (and any custom Roboflow) image traffic must call this.
  * Returns false until Broser EU DPA pack passes — default closed.
- */
-export function maySendImagesToCustomRoboflow(env?: PrivacyGateEnv): boolean {
-  return isPrivacyGateOpen(env);
-}
-
-/**
- * Convenience for shadow callers: privacy pack must pass before any image send.
+ *
+ * For the combined guard (shadow-only config + landmarks + privacy), use
+ * `mayRunShadowOnlyImageInference` from `lib/scanner/shadow-workflow.ts`.
  * Callers must still keep `PRAXIS_SHADOW_EVAL_ENABLED` off by default and
  * `approved_for_active_routing === false` (see `shadow-inference.runShadowEval`).
  */
-export function mayRunShadowOnlyImageInference(env?: PrivacyGateEnv): boolean {
-  return maySendImagesToCustomRoboflow(env);
+export function maySendImagesToCustomRoboflow(env?: PrivacyGateEnv): boolean {
+  return isPrivacyGateOpen(env);
 }
