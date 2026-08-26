@@ -89,4 +89,5 @@ Next.js 16 (App Router) · React 19 · Tailwind v4 · TypeScript. Multi-tenant v
 - `CODE-MAP.md` — fil-for-fil oversigt
 - `PRAXISOS-BRIEF.md` — kort system-brief
 - `PRODUCTION.md` — go-live runbook
+- `docs/ops/roboflow-cursor-sot.md` — Roboflow: Cursor-plugin MCP = SoT (ikke duplikat mcp.json; MCP ≠ `ROBOFLOW_API_KEY`)
 - `.env.example` — env-skabelon

@@ -44,10 +44,18 @@ TS-export: `lib/scanner/shadow-workflow.ts`
 |-------|----------|------|--------|---------|------------|
 | Segmentation | `praxisos-foot-seg` | instance-segmentation | `shadow` | `foot`, `toes_region`, `heel_region` | Shadow-kandidat; erstatter ikke Universe-pin |
 | Candidates | `praxisos-foot-candidates` | object-detection | `shadow` | `candidate_open_wound`, `candidate_localised_hyperkeratosis`, `candidate_heel_fissure` | Kandidatsprog — ikke diagnose |
-| Landmarks | `praxisos` | keypoint-detection | `disabled` | — | `deployment_state: candidate_untrained`; **deployable: false** |
+| Landmarks | `praxisos` | keypoint-detection | `disabled` | — | `deployment_state: candidate_untrained`; **deployable: false**; **skipped** in shadow parallel inference |
 
 **Video (shadow evaluation):** sources `live_smartphone_frames`, `recorded_video`;
 `frame_sampling_fps: 3`.
+
+**Landmarks training brief:** `landmarks-training-brief.md` — not deployable until
+trained + adjudicated. Helpers: `isLandmarksEndpointRunnable()`,
+`listShadowParallelInferenceEndpoints()` (omits landmarks).
+
+**Promotion pack (Broser, before any `approved_for_active_routing: true`):**
+`docs/vision/promotion/` (`gate-checklist.md`, eval-report, model-card,
+rollback-plan, audit-checklist). Flag remains **false**.
 
 **Ikke i scope for denne registrering:** wiring af alpha-pipeline til disse
 endpoints, env-swap på Hetzner, ændring af patientvendt sprog, retention eller
@@ -59,7 +67,7 @@ endpoints, env-swap på Hetzner, ændring af patientvendt sprog, retention eller
 |------|-------------------|------|--------|-------|----------------------|----------------------|
 | nexus-foot-seg | `praxisos-foot-seg` | instance-seg | `shadow` | Broser | `foot-segmentation-ehn9q/1` | N/A (anatomi/isolation) |
 | nexus-foot-candidates | `praxisos-foot-candidates` | detect | `shadow` | Broser | `foot-ulcer/1` | Kandidatsprog obligatorisk |
-| nexus-foot-landmarks | `praxisos` | keypoints | `disabled` | Broser | — | Ikke deployable / untrained |
+| nexus-foot-landmarks | `praxisos` | keypoints | `disabled` | Broser | — | Ikke deployable / untrained; see `landmarks-training-brief.md` |
 
 ## Env-knapper (dokumentation — værdier uændrede / legacy production)
 
@@ -78,21 +86,25 @@ endpoints, env-swap på Hetzner, ændring af patientvendt sprog, retention eller
 | `REPLICATE_API_TOKEN` | `/data/secrets.json` |
 | `ROBOFLOW_API_KEY` | `/data/secrets.json` (Private/Secret key — ikke publishable `rf_…`) |
 
+Agent-tooling (Cursor Roboflow-plugin MCP) er separat fra denne nøgle — se `docs/ops/roboflow-cursor-sot.md`.
+
 ## Change log
 
 | Dato | Ændring | Godkender |
 |------|---------|-----------|
 | 2026-08-26 | Registry oprettet; legacy pins dokumenteret uden env-ændring | Broser |
 | 2026-08-26 | Shadow-workflow `Z1TLmeAsa9GAWJg3xufe` registreret; `approved_for_active_routing: false`; landmarks disabled | Broser (input Michael) |
+| 2026-08-26 | Landmarks training brief + promotion pack scaffolding; landmarks skipped for shadow parallel inference; routing still false | Broser (agent draft) |
 
 ## Promotion-skabelon
 
-Ved fremtidig statusændring udfyld:
+Udfyld pack under `docs/vision/promotion/` før statusændring:
 
 - Fra-status → til-status  
 - Exact model ID  
-- Evaluation report (link)  
-- Model card (version)  
-- Rollback model ID  
-- Navngiven godkender  
-- Audit-event ID  
+- Evaluation report (`promotion/eval-report.md`)  
+- Model card (`promotion/model-card.md`)  
+- Rollback model ID (`promotion/rollback-plan.md`)  
+- Navngiven godkender + audit (`promotion/audit-checklist.md`)  
+- Master gate (`promotion/gate-checklist.md`) — må ikke sætte
+  `approved_for_active_routing: true` uden sign-off  
