@@ -2,6 +2,7 @@
 // Level 1: Roboflow foot isolation · Level 2: pathology VLM · Level 3: Replicate 3D lift · MonoMSK
 // Shadow eval (optional): parallel custom endpoints — never used for routing/quality/patient copy.
 import { MonoMSKSolver, type KinematicOutput } from "@/lib/physics/mono-msk-tensor";
+import { scheduleCaptureGateShadow } from "@/lib/scanner/capture-gate";
 import {
   attachQuality,
   isRemoteMeshUrl,
@@ -9,6 +10,7 @@ import {
   type ScanQualityReport,
 } from "@/lib/scanner/quality";
 import { scheduleShadowEval } from "@/lib/scanner/shadow-inference";
+import { scheduleTriViewShadow } from "@/lib/scanner/triview-lift";
 import { resolveSecret } from "@/lib/secrets";
 
 export type MedicalFinding = {
@@ -437,6 +439,21 @@ export class AlphaSpatiotemporalPipeline {
       imageBytes,
       footDetected: segment.detected,
       meshPolledOk: geometry.polledOk,
+    });
+
+    // CaptureGate-Σ — parallel shadow signals only; never drives PASS/HOLD (threshold 70).
+    scheduleCaptureGateShadow({
+      imageBase64,
+      imageBytes,
+      footDetected: segment.detected,
+      tenantId,
+    });
+
+    // TriView-Lift — InstantMesh A/B scaffold; live TRELLIS pin unchanged (flag default OFF).
+    scheduleTriViewShadow({
+      imageBase64,
+      trellisGlbUrl: isRemoteMeshUrl(geometry.meshUrl) ? geometry.meshUrl : null,
+      tenantId,
     });
 
     return attachQuality(draft, quality);

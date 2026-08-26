@@ -231,11 +231,21 @@ force-plate»-copy.
 | Autonom triage / risk score | Bryder klinisk grænse; MDR 5 |
 | Træne foundation lesion-model fra scratch | Fejler 90-dages / actionability bar |
 | Force-plate hardware som first spike | Specialist hardware; phone-first constraint |
+| Overnight auto-merge daemon til main | `NO_AUTO_MERGE` — se impact memo §D |
+| MonoMSK MPa/N·m som clinical GT | Hooke-proxy ≠ paper / force-plate |
+| Public Universe til Art. 9 uploads | Privacy-gate forbyder indtil DPA |
+| Nail SSS som klinisk mesh/findings-driver | Atelier-only; ikke MDR-path |
+
+Fuld anti-liste + PrivacyUnlock / ShadowFlywheel / Harness:
+`docs/vision/alphaxiv-aurelle-transcript-impact.md` §D–F.
 
 ---
 
 ## Relaterede filer
 
+- `docs/vision/alphaxiv-aurelle-transcript-impact.md` — bredere transcript-impact + anti-recs
+- `docs/vision/capture-gate.md` · `triview-lift.md` · `harness-human-gate.md`
+- `docs/vision/privacy-unlock-broser-unblock.md`
 - `docs/alphaxiv-del-pilar-nexus-sota-prompt.md`
 - `docs/vision/model-governance.md`
 - `docs/vision/acceptance-criteria.md`

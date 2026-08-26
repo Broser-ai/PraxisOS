@@ -62,6 +62,12 @@ flag `PRAXIS_SHADOW_EVAL_ENABLED` (default OFF) + privacy-gate. Logs only;
 **does not** replace Universe pins, quality gate, or patient copy.
 `approved_for_active_routing` remains **false**.
 
+**CaptureGate-Σ / TriView-Lift (shadow, default OFF):** `capture-gate.md`,
+`triview-lift.md` — neither changes threshold 70 nor live TRELLIS pin.
+
+**Privacy unlock (Broser):** if DPA env unsigned, follow
+`privacy-unlock-broser-unblock.md` — do not fake signatures.
+
 **Ikke i scope uden Broser-promotion:** env-swap af live pins på Hetzner,
 ændring af patientvendt sprog, retention eller `SCAN_QUALITY_THRESHOLD`.
 

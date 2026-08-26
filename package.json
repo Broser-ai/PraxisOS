@@ -9,6 +9,7 @@
     "start": "next start",
     "smoke": "node scripts/smoke-core.mjs",
     "test": "vitest run",
+    "harness:human-gate": "node scripts/harness-human-gate.mjs",
     "agent:worker": "node scripts/agent-worker.mjs",
     "agent:tick": "node -e \"fetch(process.env.PRAXIS_BASE_URL||'http://127.0.0.1:3000'+'/api/agents/tick',{method:'POST',headers:{'Content-Type':'application/json','x-agent-worker-secret':process.env.AGENT_WORKER_SECRET||''},body:JSON.stringify({force:true})}).then(r=>r.json()).then(console.log)\"",
     "swarm": "bash ./swarm.sh",

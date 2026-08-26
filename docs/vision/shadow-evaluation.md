@@ -73,3 +73,19 @@ Records use hashed `scan_ref` / `tenant_ref` — no raw base64 or CPR.
 3. Confirm Universe pins unchanged and quality threshold still 70.
 4. Review audit sink for `vision.shadow.*` — never promote without
    `docs/vision/promotion/` pack.
+
+> **Current unblocker:** if privacy env is unsigned, leave this flag OFF and
+> follow `docs/vision/privacy-unlock-broser-unblock.md`. Agents must not fake DPA.
+
+## Clinician adjudication hook (ShadowFlywheel)
+
+Schema placeholder: `lib/scanner/adjudication.ts`
+(`praxisos.candidate_adjudication.v1` — agree / disagree / unsure).
+
+- No fake clinical labels shipped
+- `approved_for_active_routing` remains **false**
+- Precision helper is a **proxy** for acceptance §C — not clinical GT
+- Landmarks remain excluded from parallel inference until trained
+
+Related: CaptureGate `docs/vision/capture-gate.md` · TriView
+`docs/vision/triview-lift.md` · Harness `docs/vision/harness-human-gate.md`
