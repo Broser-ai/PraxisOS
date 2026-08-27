@@ -2,7 +2,10 @@
 // Level 1: Roboflow foot isolation · Level 2: pathology VLM · Level 3: Replicate 3D lift · MonoMSK
 // Shadow eval (optional): parallel custom endpoints — never used for routing/quality/patient copy.
 import { MonoMSKSolver, type KinematicOutput } from "@/lib/physics/mono-msk-tensor";
-import { resolveLiveVisionPins } from "@/lib/scanner/active-routing";
+import {
+  resolveLiveVisionPins,
+  type LiveVisionPinSet,
+} from "@/lib/scanner/active-routing";
 import { scheduleCaptureGateShadow } from "@/lib/scanner/capture-gate";
 import {
   attachQuality,
@@ -10,7 +13,12 @@ import {
   scoreScanQuality,
   type ScanQualityReport,
 } from "@/lib/scanner/quality";
+import {
+  buildRoboflowInferUrl,
+  isRoboflowUndeployedStatus,
+} from "@/lib/scanner/roboflow-infer";
 import { scheduleShadowEval } from "@/lib/scanner/shadow-inference";
+import { runTrellisMeshPrediction } from "@/lib/scanner/trellis-mesh";
 import { scheduleTriViewShadow } from "@/lib/scanner/triview-lift";
 import { resolveSecret } from "@/lib/secrets";
 
@@ -55,46 +63,22 @@ function estimateBytes(b64: string): number {
   return Math.floor((stripDataUrl(b64).length * 3) / 4);
 }
 
-type ReplicatePrediction = {
-  id?: string;
-  status?: string;
-  output?: unknown;
-  error?: string;
-  urls?: { get?: string };
-};
-
-function extractMeshUrl(output: unknown): string | null {
-  if (typeof output === "string" && /^https?:\/\//i.test(output)) return output;
-  if (Array.isArray(output)) {
-    for (const item of output) {
-      const hit = extractMeshUrl(item);
-      if (hit) return hit;
-    }
-  }
-  if (output && typeof output === "object") {
-    const o = output as Record<string, unknown>;
-    for (const key of ["mesh", "model", "glb", "obj", "ply", "url", "output"]) {
-      const hit = extractMeshUrl(o[key]);
-      if (hit) return hit;
-    }
-  }
-  return null;
-}
-
-async function pollReplicate(getUrl: string, token: string, maxMs = 90_000): Promise<ReplicatePrediction> {
-  const started = Date.now();
-  let last: ReplicatePrediction = {};
-  while (Date.now() - started < maxMs) {
-    const res = await fetch(getUrl, {
-      headers: { Authorization: `Token ${token}`, "Content-Type": "application/json" },
-    });
-    last = (await res.json().catch(() => ({}))) as ReplicatePrediction;
-    if (last.status === "succeeded" || last.status === "failed" || last.status === "canceled") {
-      return last;
-    }
-    await new Promise((r) => setTimeout(r, 1500));
-  }
-  return { ...last, status: "timeout", error: "Replicate poll timeout" };
+/** Universe pins for fail-soft when custom canary version is undeployed (HTTP 405/404). */
+function universePinsFallback(
+  canaryPercent: number,
+  clinicalCopy: string,
+): LiveVisionPinSet {
+  return {
+    segmentModel:
+      process.env.ROBOFLOW_SEGMENT_MODEL?.trim() || "foot-segmentation-ehn9q/1",
+    pathologyModels: [
+      process.env.ROBOFLOW_MODEL?.trim() || "foot-ulcer/1",
+      process.env.ROBOFLOW_MODEL_SECONDARY?.trim() || "wounds-detection/1",
+    ].filter(Boolean),
+    usingCustomCanary: false,
+    canaryPercent,
+    clinicalCopy,
+  };
 }
 
 export class AlphaSpatiotemporalPipeline {
@@ -120,18 +104,30 @@ export class AlphaSpatiotemporalPipeline {
     }
 
     // Canary 0% (default) → Universe pin. Custom only when canary selects.
-    const pins = resolveLiveVisionPins(scanKey);
-    const model = pins.segmentModel;
+    let pins = resolveLiveVisionPins(scanKey);
+    let model = pins.segmentModel;
+    let undeployedFallbackNote = "";
 
     try {
-      const res = await fetch(
-        `https://detect.roboflow.com/${model}?api_key=${encodeURIComponent(token)}`,
-        {
+      let res = await fetch(buildRoboflowInferUrl(model, token), {
+        method: "POST",
+        body: stripDataUrl(imageBase64),
+        headers: { "Content-Type": "application/x-www-form-urlencoded" },
+      });
+
+      // Custom canary with no trained version returns HTTP 405 (Roboflow) —
+      // fail soft to Universe pins so patient path is not poisoned.
+      if (pins.usingCustomCanary && isRoboflowUndeployedStatus(res.status)) {
+        undeployedFallbackNote = ` [canary custom undeployed HTTP ${res.status} → Universe]`;
+        pins = universePinsFallback(pins.canaryPercent, pins.clinicalCopy);
+        model = pins.segmentModel;
+        res = await fetch(buildRoboflowInferUrl(model, token), {
           method: "POST",
           body: stripDataUrl(imageBase64),
           headers: { "Content-Type": "application/x-www-form-urlencoded" },
-        },
-      );
+        });
+      }
+
       const data = (await res.json().catch(() => null)) as {
         predictions?: Array<{ confidence?: number; class?: string }>;
         message?: string;
@@ -141,7 +137,7 @@ export class AlphaSpatiotemporalPipeline {
         return {
           detected: true,
           confidence: 0.4,
-          note: `Segment HTTP ${res.status} — fortsætter med rå billede`,
+          note: `Segment HTTP ${res.status} — fortsætter med rå billede${undeployedFallbackNote}`,
         };
       }
 
@@ -150,7 +146,7 @@ export class AlphaSpatiotemporalPipeline {
       const detected = preds.length > 0 || best >= 0.35;
       const canaryNote = pins.usingCustomCanary
         ? ` [canary ${pins.canaryPercent}% custom]`
-        : "";
+        : undeployedFallbackNote;
       return {
         detected: detected || preds.length === 0, // empty model response ≠ hard fail
         confidence: best || (preds.length === 0 ? 0.6 : 0),
@@ -184,55 +180,69 @@ export class AlphaSpatiotemporalPipeline {
       return { findings: [], note: "Ingen imageBase64 — springer pathology over" };
     }
 
-    const pins = resolveLiveVisionPins(scanKey);
-    const models = [...pins.pathologyModels];
+    let pins = resolveLiveVisionPins(scanKey);
+    let models = [...pins.pathologyModels];
+    let undeployedFallbackNote = "";
 
     const all: MedicalFinding[] = [];
     const notes: string[] = [];
 
-    for (const model of models) {
-      try {
-        const res = await fetch(
-          `https://detect.roboflow.com/${model}?api_key=${encodeURIComponent(token)}`,
-          {
+    const runModels = async (modelList: string[], usingCustom: boolean) => {
+      for (const model of modelList) {
+        try {
+          const res = await fetch(buildRoboflowInferUrl(model, token), {
             method: "POST",
             body: stripDataUrl(imageBase64),
             headers: { "Content-Type": "application/x-www-form-urlencoded" },
-          },
-        );
-        const data = (await res.json().catch(() => null)) as {
-          predictions?: Array<MedicalFinding & { class?: string; confidence?: number }>;
-        } | null;
+          });
+          const data = (await res.json().catch(() => null)) as {
+            predictions?: Array<MedicalFinding & { class?: string; confidence?: number }>;
+          } | null;
 
-        if (!res.ok) {
-          notes.push(`${model}: HTTP ${res.status}`);
-          continue;
+          if (!res.ok) {
+            if (usingCustom && isRoboflowUndeployedStatus(res.status)) {
+              return { undeployed: true as const, status: res.status };
+            }
+            notes.push(`${model}: HTTP ${res.status}`);
+            continue;
+          }
+
+          const preds = (data?.predictions ?? []).map((p) => {
+            const rawClass = p.class || "finding";
+            // Custom canary outputs must stay suggestion/candidate language — never diagnosis.
+            const className =
+              usingCustom && !rawClass.startsWith("candidate_")
+                ? `candidate_${rawClass}`
+                : rawClass;
+            return {
+              class: className,
+              confidence: p.confidence ?? 0,
+              x: p.x,
+              y: p.y,
+              width: p.width,
+              height: p.height,
+              z: 0.35,
+              source: "pathology" as const,
+              ai_generated: true,
+            };
+          });
+          all.push(...preds);
+          notes.push(`${model}: ${preds.length} fund`);
+        } catch (e) {
+          notes.push(`${model}: ${e instanceof Error ? e.message : "error"}`);
         }
-
-        const preds = (data?.predictions ?? []).map((p) => {
-          const rawClass = p.class || "finding";
-          // Custom canary outputs must stay suggestion/candidate language — never diagnosis.
-          const className =
-            pins.usingCustomCanary && !rawClass.startsWith("candidate_")
-              ? `candidate_${rawClass}`
-              : rawClass;
-          return {
-            class: className,
-            confidence: p.confidence ?? 0,
-            x: p.x,
-            y: p.y,
-            width: p.width,
-            height: p.height,
-            z: 0.35,
-            source: "pathology" as const,
-            ai_generated: true,
-          };
-        });
-        all.push(...preds);
-        notes.push(`${model}: ${preds.length} fund`);
-      } catch (e) {
-        notes.push(`${model}: ${e instanceof Error ? e.message : "error"}`);
       }
+      return { undeployed: false as const };
+    };
+
+    const first = await runModels(models, pins.usingCustomCanary);
+    if (first.undeployed && pins.usingCustomCanary) {
+      undeployedFallbackNote = ` · canary custom undeployed HTTP ${first.status} → Universe`;
+      pins = universePinsFallback(pins.canaryPercent, pins.clinicalCopy);
+      models = [...pins.pathologyModels];
+      all.length = 0;
+      notes.length = 0;
+      await runModels(models, false);
     }
 
     // Deduplicate overlapping class names keeping highest confidence
@@ -244,7 +254,7 @@ export class AlphaSpatiotemporalPipeline {
 
     const canaryNote = pins.usingCustomCanary
       ? ` · canary ${pins.canaryPercent}% · ${pins.clinicalCopy}`
-      : "";
+      : undeployedFallbackNote;
     return {
       findings: [...byClass.values()].sort((a, b) => (b.confidence ?? 0) - (a.confidence ?? 0)),
       note: (notes.join(" · ") || "Pathology completed") + canaryNote,
@@ -252,8 +262,8 @@ export class AlphaSpatiotemporalPipeline {
   }
 
   /**
-   * Level 3 — 2D→3D geometric lifting via Replicate model predictions API
-   * Uses /v1/models/{owner}/{name}/predictions so we don't need a pinned version hash.
+   * Level 3 — 2D→3D geometric lifting via Replicate Trellis.
+   * Pin stays firtoz/trellis; uses versioned predictions (models API 404s for Trellis).
    */
   async extractGeometryWithPriors(imageUrl: string): Promise<{
     meshUrl: string;
@@ -277,94 +287,25 @@ export class AlphaSpatiotemporalPipeline {
       };
     }
 
-    // Prefer explicit owner/name; fall back to common image→3D models
-    const modelRef =
-      process.env.REPLICATE_MESH_MODEL?.trim() ||
-      process.env.REPLICATE_MESH_VERSION?.trim() ||
-      "firtoz/trellis";
-
-    const ownerName = modelRef.includes("/")
-      ? modelRef.replace(/:.*$/, "")
-      : "firtoz/trellis";
-    const [owner, name] = ownerName.split("/");
+    const modelRef = process.env.REPLICATE_MESH_MODEL?.trim() || "firtoz/trellis";
 
     try {
-      // Prefer models API (no version hash required)
-      const startRes = await fetch(
-        `https://api.replicate.com/v1/models/${owner}/${name}/predictions`,
-        {
-          method: "POST",
-          headers: {
-            Authorization: `Token ${token}`,
-            "Content-Type": "application/json",
-            Prefer: "wait",
-          },
-          body: JSON.stringify({
-            input: {
-              image: imageUrl,
-              images: [imageUrl],
-              // common optional knobs ignored by models that don't use them
-              texture_size: 1024,
-              mesh_simplify: 0.95,
-            },
-          }),
-        },
-      );
-
-      let pred = (await startRes.json().catch(() => ({}))) as ReplicatePrediction;
-
-      // Fallback: classic versioned predictions if models API rejects
-      if (!startRes.ok && process.env.REPLICATE_MESH_VERSION?.includes(":")) {
-        const version = process.env.REPLICATE_MESH_VERSION.trim();
-        const vRes = await fetch("https://api.replicate.com/v1/predictions", {
-          method: "POST",
-          headers: {
-            Authorization: `Token ${token}`,
-            "Content-Type": "application/json",
-            Prefer: "wait",
-          },
-          body: JSON.stringify({ version, input: { image: imageUrl } }),
-        });
-        pred = (await vRes.json().catch(() => ({}))) as ReplicatePrediction;
-        if (!vRes.ok) {
-          return {
-            meshUrl: "procedural://anatomical-foot",
-            note: `Replicate HTTP ${vRes.status}: ${pred.error ?? "start failed"}`,
-            polledOk: false,
-          };
-        }
-      } else if (!startRes.ok) {
+      const result = await runTrellisMeshPrediction({
+        imageUrl,
+        token,
+        modelRef,
+        versionPin: process.env.REPLICATE_MESH_VERSION,
+      });
+      if (result.meshUrl) {
         return {
-          meshUrl: "procedural://anatomical-foot",
-          note: `Replicate HTTP ${startRes.status}: ${pred.error ?? ownerName}`,
-          polledOk: false,
+          meshUrl: result.meshUrl,
+          note: result.note,
+          polledOk: result.polledOk,
         };
       }
-
-      if (pred.status !== "succeeded" && pred.urls?.get) {
-        pred = await pollReplicate(pred.urls.get, token);
-      }
-
-      if (pred.status === "failed" || pred.status === "canceled" || pred.status === "timeout") {
-        return {
-          meshUrl: "procedural://anatomical-foot",
-          note: `Replicate ${pred.status}: ${pred.error ?? "no mesh"}`,
-          polledOk: false,
-        };
-      }
-
-      const meshUrl = extractMeshUrl(pred.output);
-      if (meshUrl) {
-        return {
-          meshUrl,
-          note: `3D lift OK · ${ownerName} · mesh klar`,
-          polledOk: true,
-        };
-      }
-
       return {
         meshUrl: "procedural://anatomical-foot",
-        note: "Replicate succeeded uden mesh-URL i output",
+        note: result.note,
         polledOk: false,
       };
     } catch (e) {
