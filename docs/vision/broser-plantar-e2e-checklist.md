@@ -36,5 +36,11 @@
 
 ## Known blockers for PASS today
 
-- Live note from synthetic run: `Replicate HTTP 404: firtoz/trellis` → mesh falls back to `procedural://` → quality HOLD until Trellis/API path is healthy for a real photo.
-- Custom canary endpoints returned **HTTP 405** on synthetic call — confirm Roboflow deploy/inference URL for `/1` before relying on canary traffic clinically.
+- Live note (pre-fix): `Replicate HTTP 404: firtoz/trellis` was models-API 404 —
+  fixed via versioned `/v1/predictions` + `generate_model:true` + `model_file` extract.
+  Residual external: Replicate credit (HTTP 402) blocks live GLB until account is billed.
+- Custom canary endpoints returned **HTTP 405** when version `/1` is undeployed
+  (projects exist with 0 trained versions). Code now uses `serverless.roboflow.com`
+  for workspace-qualified ids and fail-soft falls back to Universe on 405/404.
+  Residual: annotate + train `praxisos-foot-seg` / `praxisos-foot-candidates` v1
+  before canary custom traffic is clinically meaningful.

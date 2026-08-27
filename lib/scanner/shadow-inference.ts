@@ -19,6 +19,10 @@ import {
   type PrivacyGateResult,
 } from "@/lib/scanner/privacy-gate";
 import {
+  buildRoboflowInferUrl,
+  isRoboflowUndeployedStatus,
+} from "@/lib/scanner/roboflow-infer";
+import {
   DEL_PILAR_NEXUS_SHADOW_WORKFLOW,
   ROBOFLOW_SHADOW_APPROVED_FOR_ACTIVE_ROUTING,
   ROBOFLOW_SHADOW_WORKFLOW_ID,
@@ -163,23 +167,24 @@ async function inferEndpoint(
 ): Promise<Omit<ShadowEndpointResult, "role">> {
   const started = now();
   try {
-    const res = await fetchFn(
-      `https://detect.roboflow.com/${modelId}?api_key=${encodeURIComponent(apiKey)}`,
-      {
-        method: "POST",
-        body: stripDataUrl(imageBase64),
-        headers: { "Content-Type": "application/x-www-form-urlencoded" },
-      },
-    );
+    // Workspace-qualified custom endpoints use serverless.roboflow.com
+    const res = await fetchFn(buildRoboflowInferUrl(modelId, apiKey), {
+      method: "POST",
+      body: stripDataUrl(imageBase64),
+      headers: { "Content-Type": "application/x-www-form-urlencoded" },
+    });
     const latency_ms = Math.max(0, now() - started);
     const data = await res.json().catch(() => null);
     if (!res.ok) {
+      const undeployed = isRoboflowUndeployedStatus(res.status)
+        ? " (model version undeployed / missing)"
+        : "";
       return {
         model_id: modelId,
         latency_ms,
         ok: false,
         predictions: [],
-        error: `HTTP ${res.status}`,
+        error: `HTTP ${res.status}${undeployed}`,
       };
     }
     return {
