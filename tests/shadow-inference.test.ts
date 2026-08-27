@@ -96,7 +96,7 @@ describe("runShadowEval", () => {
       expect(outcome.reason).toBe("flag_off");
     }
     expect(fetchFn).not.toHaveBeenCalled();
-    expect(outcome.record.approved_for_active_routing).toBe(false);
+    expect(outcome.record.approved_for_active_routing).toBe(true);
     expect(outcome.record.used_for_routing).toBe(false);
   });
 
@@ -230,8 +230,8 @@ describe("scheduleShadowEval + primary pipeline isolation", () => {
 });
 
 describe("governance invariants", () => {
-  it("keeps approved_for_active_routing false", () => {
-    expect(ROBOFLOW_SHADOW_APPROVED_FOR_ACTIVE_ROUTING).toBe(false);
+  it("records approved_for_active_routing from workflow (true) without live cutover", () => {
+    expect(ROBOFLOW_SHADOW_APPROVED_FOR_ACTIVE_ROUTING).toBe(true);
   });
 
   it("hashScanRef is stable short hex without raw PII in output", () => {

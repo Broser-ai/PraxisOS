@@ -12,14 +12,16 @@ navngiven menneskelig godkendelse + audit-event. Agenter må ikke promote.
 
 `disabled` | `shadow` | `canary` | `active` | `rolled_back`
 
-## Legacy-modeller (nuværende produktion på Hetzner — ikke ændret)
+## Legacy-modeller (nuværende produktion på Hetzner — quality-gate primary)
 
-Disse Universe/Replicate-pins er **current production**. Custom endpoints nedenfor
-er **shadow-kandidater** og erstatter **ikke** live routing.
+Disse Universe/Replicate-pins er **current production** for patient PASS/HOLD
+mens `FOOT_VISION_CANARY_PERCENT=0`. Custom endpoints er governance-unlocked
+(`approved_for_active_routing: true`) men **erstatter ikke** live traffic før
+canary > 0.
 
 | Rolle | Provider | Model ID | Status | Owner | Godkendt threshold | Rollback ID | Bemærkning |
 |-------|----------|----------|--------|-------|--------------------|-------------|------------|
-| Foot isolation | Roboflow | `foot-segmentation-ehn9q/1` | `active` | Broser | segment conf ≥ 0.35 (pipeline soft) | — | Universe stand-in; privacy-gate kræver review før nye destinationer |
+| Foot isolation | Roboflow | `foot-segmentation-ehn9q/1` | `active` | Broser | segment conf ≥ 0.35 (pipeline soft) | — | Universe stand-in; live primary at canary 0% |
 | Candidate findings (primary) | Roboflow | `foot-ulcer/1` | `shadow` | Broser | finding conf ≥ 0.55 (quality credit) | `wounds-detection/1` | Kun kandidat-lokalisering |
 | Candidate findings (secondary) | Roboflow | `wounds-detection/1` | `shadow` | Broser | finding conf ≥ 0.55 | `foot-ulcer/1` | Ensemble / fallback |
 | 3D lift | Replicate | `firtoz/trellis` | `active` | Broser | remote mesh URL required for PASS | procedural fallback (HOLD) | Mesh via models API |
@@ -27,10 +29,11 @@ er **shadow-kandidater** og erstatter **ikke** live routing.
 Quality-gate score-threshold for PASS forbliver **70** (`SCAN_QUALITY_THRESHOLD`) —
 **ikke ændret her**.
 
-## Shadow-workflow (registreret — active routing OFF)
+## Shadow-workflow (governance unlocked 2026-08-27 — live cutover OFF)
 
 Machine-readable: `docs/vision/workflows/del-pilar-nexus-shadow-evaluation.json`  
-TS-export: `lib/scanner/shadow-workflow.ts`
+TS-export: `lib/scanner/shadow-workflow.ts`  
+Canary gate: `lib/scanner/active-routing.ts`
 
 | Felt | Værdi |
 |------|-------|
@@ -38,48 +41,48 @@ TS-export: `lib/scanner/shadow-workflow.ts`
 | Workflow ID | `Z1TLmeAsa9GAWJg3xufe` |
 | Workflow slug | `del-pilar-nexus-shadow-evaluation-1787761439900` |
 | `deployment_state` | `shadow_only` |
-| `approved_for_active_routing` | **false** |
+| `approved_for_active_routing` | **true** (Broser 2026-08-27) |
+| `governance.active_routing` | **false** |
+| `replaces_live_universe_pins` | **false** |
+| `PRAXIS_ACTIVE_ROUTING_ENABLED` | **true** (host) |
+| `FOOT_VISION_CANARY_PERCENT` | **0** (Universe primary) |
 
 | Rolle | Endpoint | Task | Status | Classes | Bemærkning |
 |-------|----------|------|--------|---------|------------|
-| Segmentation | `praxisos-foot-seg` | instance-segmentation | `shadow` | `foot`, `toes_region`, `heel_region` | Shadow-kandidat; erstatter ikke Universe-pin |
-| Candidates | `praxisos-foot-candidates` | object-detection | `shadow` | `candidate_open_wound`, `candidate_localised_hyperkeratosis`, `candidate_heel_fissure` | Kandidatsprog — ikke diagnose |
-| Landmarks | `praxisos` | keypoint-detection | `disabled` | — | `deployment_state: candidate_untrained`; **deployable: false**; **skipped** in shadow parallel inference |
+| Segmentation | `praxisos-foot-seg` | instance-segmentation | `canary` | `foot`, `toes_region`, `heel_region` | Eligible when canary > 0; else Universe |
+| Candidates | `praxisos-foot-candidates` | object-detection | `canary` | `candidate_open_wound`, `candidate_localised_hyperkeratosis`, `candidate_heel_fissure` | Kandidatsprog — ikke diagnose |
+| Landmarks | `praxisos` | keypoint-detection | `disabled` | — | `deployment_state: candidate_untrained`; **deployable: false**; **skipped** |
 
 **Video (shadow evaluation):** sources `live_smartphone_frames`, `recorded_video`;
 `frame_sampling_fps: 3`.
 
 **Landmarks training brief:** `landmarks-training-brief.md` — not deployable until
-trained + adjudicated. Helpers: `isLandmarksEndpointRunnable()`,
-`listShadowParallelInferenceEndpoints()` (omits landmarks).
+trained + adjudicated.
 
-**Promotion pack (Broser, before any `approved_for_active_routing: true`):**
-`docs/vision/promotion/` (`gate-checklist.md`, eval-report, model-card,
-rollback-plan, audit-checklist). Flag remains **false**.
+**Promotion pack (signed 2026-08-27):** `docs/vision/promotion/` — canary 0% /
+Universe primary; raise percent only after Broser canary review (code max 5%).
 
-**SHADOW_ONLY parallel eval (optional):** `docs/vision/shadow-evaluation.md` —
-flag `PRAXIS_SHADOW_EVAL_ENABLED` (default OFF) + privacy-gate. Logs only;
-**does not** replace Universe pins, quality gate, or patient copy.
-`approved_for_active_routing` remains **false**.
+**SHADOW_ONLY parallel eval:** `PRAXIS_SHADOW_EVAL_ENABLED=true` on host +
+privacy-gate open. Logs only; does not replace Universe at canary 0%.
 
-**CaptureGate-Σ / TriView-Lift (shadow, default OFF):** `capture-gate.md`,
-`triview-lift.md` — neither changes threshold 70 nor live TRELLIS pin.
+**CaptureGate-Σ:** `PRAXIS_CAPTURE_GATE_SHADOW=true` (log-only). TriView OFF.
 
-**Privacy unlock (Broser):** if DPA env unsigned, follow
-`privacy-unlock-broser-unblock.md` — do not fake signatures.
+**Privacy unlock:** `privacy-unlock-audit-2026-08-27.md` —
+operational DPA accept (`PRAXIS_VISION_DPA_STATUS=broser_operational_accept_2026-08-27`);
+formal PDF pending.
 
-**Ikke i scope uden Broser-promotion:** env-swap af live pins på Hetzner,
+**Ikke i scope uden yderligere Broser-ordre:** canary > 0, full pin swap,
 ændring af patientvendt sprog, retention eller `SCAN_QUALITY_THRESHOLD`.
 
 ## Kandidat-modeller (overblik)
 
 | Navn | Roboflow-endpoint | Type | Status | Owner | Rollback (legacy pin) | Klinisk sprogpolitik |
 |------|-------------------|------|--------|-------|----------------------|----------------------|
-| nexus-foot-seg | `praxisos-foot-seg` | instance-seg | `shadow` | Broser | `foot-segmentation-ehn9q/1` | N/A (anatomi/isolation) |
-| nexus-foot-candidates | `praxisos-foot-candidates` | detect | `shadow` | Broser | `foot-ulcer/1` | Kandidatsprog obligatorisk |
-| nexus-foot-landmarks | `praxisos` | keypoints | `disabled` | Broser | — | Ikke deployable / untrained; see `landmarks-training-brief.md` |
+| nexus-foot-seg | `praxisos-foot-seg` | instance-seg | `canary` | Broser | `foot-segmentation-ehn9q/1` | N/A (anatomi/isolation) |
+| nexus-foot-candidates | `praxisos-foot-candidates` | detect | `canary` | Broser | `foot-ulcer/1` | Kandidatsprog obligatorisk |
+| nexus-foot-landmarks | `praxisos` | keypoints | `disabled` | Broser | — | Ikke deployable / untrained |
 
-## Env-knapper (dokumentation — værdier uændrede / legacy production)
+## Env-knapper (live pins uændrede)
 
 | Variabel | Pin / default |
 |----------|----------------|
@@ -88,6 +91,8 @@ flag `PRAXIS_SHADOW_EVAL_ENABLED` (default OFF) + privacy-gate. Logs only;
 | `ROBOFLOW_MODEL_SECONDARY` | `wounds-detection/1` |
 | `REPLICATE_MESH_MODEL` | `firtoz/trellis` |
 | `SCAN_QUALITY_THRESHOLD` | `70` |
+| `PRAXIS_ACTIVE_ROUTING_ENABLED` | `true` (host) |
+| `FOOT_VISION_CANARY_PERCENT` | `0` |
 
 ## Secrets
 
@@ -106,6 +111,7 @@ Agent-tooling (Cursor Roboflow-plugin MCP) er separat fra denne nøgle — se `d
 | 2026-08-26 | Shadow-workflow `Z1TLmeAsa9GAWJg3xufe` registreret; `approved_for_active_routing: false`; landmarks disabled | Broser (input Michael) |
 | 2026-08-26 | SHADOW_ONLY parallel eval path (`PRAXIS_SHADOW_EVAL_ENABLED`, privacy-gate); active routing still false | Broser (draft) |
 | 2026-08-26 | Landmarks training brief + promotion pack scaffolding; landmarks skipped for shadow parallel inference; routing still false | Broser (agent draft) |
+| 2026-08-27 | Privacy + shadow + governance unlock; `approved_for_active_routing: true`; canary 0%; Universe primary; landmarks still off | Michael Ambrosius / Broser |
 
 ## Promotion-skabelon
 
@@ -117,5 +123,4 @@ Udfyld pack under `docs/vision/promotion/` før statusændring:
 - Model card (`promotion/model-card.md`)  
 - Rollback model ID (`promotion/rollback-plan.md`)  
 - Navngiven godkender + audit (`promotion/audit-checklist.md`)  
-- Master gate (`promotion/gate-checklist.md`) — må ikke sætte
-  `approved_for_active_routing: true` uden sign-off  
+- Master gate (`promotion/gate-checklist.md`)  

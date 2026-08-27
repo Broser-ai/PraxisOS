@@ -52,7 +52,8 @@ export type ShadowEvalRecord = {
   workflow_id: string;
   workspace: string;
   deployment_state: "shadow_only";
-  approved_for_active_routing: false;
+  /** Mirrors workflow governance flag; shadow path never routes live. */
+  approved_for_active_routing: boolean;
   used_for_routing: false;
   used_for_quality_gate: false;
   used_for_patient_response: false;
@@ -204,7 +205,7 @@ function baseRecord(scanRef: string, tenantRef: string): ShadowEvalRecord {
     workflow_id: ROBOFLOW_SHADOW_WORKFLOW_ID,
     workspace: ROBOFLOW_SHADOW_WORKSPACE,
     deployment_state: "shadow_only",
-    approved_for_active_routing: false,
+    approved_for_active_routing: ROBOFLOW_SHADOW_APPROVED_FOR_ACTIVE_ROUTING,
     used_for_routing: false,
     used_for_quality_gate: false,
     used_for_patient_response: false,
@@ -240,12 +241,9 @@ export async function runShadowEval(
   const tenantRef = hashTenantRef(input.tenantId);
   const record = baseRecord(scanRef, tenantRef);
 
-  // Hard governance: never treat as active routing
-  if (
-    ROBOFLOW_SHADOW_APPROVED_FOR_ACTIVE_ROUTING !== false ||
-    !isShadowOnlyRoutingAllowed() ||
-    SHADOW_LANDMARKS_DEPLOYABLE !== false
-  ) {
+  // Shadow eval stays allowed after governance unlock; block only if live
+  // cutover flags or landmarks violate shadow-only invariants.
+  if (!isShadowOnlyRoutingAllowed() || SHADOW_LANDMARKS_DEPLOYABLE !== false) {
     record.skipped = true;
     record.skip_reason = "governance_block";
     audit.log("vision.shadow.skipped", {
@@ -361,7 +359,7 @@ export function scheduleShadowEval(
       auditError("vision.shadow.error", err, {
         event: "vision.shadow.eval",
         skip_reason: "unhandled",
-        approved_for_active_routing: false,
+        approved_for_active_routing: ROBOFLOW_SHADOW_APPROVED_FOR_ACTIVE_ROUTING,
         used_for_routing: false,
       });
     } catch {

@@ -2,9 +2,9 @@
  * Del Pilar Nexus Roboflow shadow workflow constants.
  *
  * SHADOW_ONLY evaluation callers: `lib/scanner/shadow-inference.ts`.
- * Do NOT use these endpoints for live routing, quality gate, or patient response
- * unless `approved_for_active_routing === true` (currently false) and Broser
- * promotion gates in docs/vision/model-governance.md are met.
+ * Live patient path stays on Universe pins until
+ * `approved_for_active_routing === true` AND `PRAXIS_ACTIVE_ROUTING_ENABLED`
+ * AND `FOOT_VISION_CANARY_PERCENT > 0` (see `lib/scanner/active-routing.ts`).
  *
  * Landmarks (`praxisos`) stay candidate_untrained / deployable:false and are
  * excluded from shadow parallel inference until status allows — see
@@ -17,7 +17,7 @@ import {
 } from "@/lib/scanner/privacy-gate";
 
 export type ShadowDeploymentState = "shadow_only";
-export type ModelLaneStatus = "shadow" | "disabled";
+export type ModelLaneStatus = "shadow" | "disabled" | "canary";
 export type LandmarksDeploymentState = "candidate_untrained";
 
 export type ShadowWorkflowConfig = {
@@ -26,19 +26,19 @@ export type ShadowWorkflowConfig = {
     id: string;
     slug: string;
     deployment_state: ShadowDeploymentState;
-    approved_for_active_routing: false;
+    approved_for_active_routing: boolean;
   };
   models: {
     segmentation: {
       endpoint: string;
       task: "instance-segmentation";
-      status: "shadow";
+      status: ModelLaneStatus;
       classes: readonly string[];
     };
     candidates: {
       endpoint: string;
       task: "object-detection";
-      status: "shadow";
+      status: ModelLaneStatus;
       classes: readonly string[];
     };
     landmarks: {
@@ -54,8 +54,9 @@ export type ShadowWorkflowConfig = {
     frame_sampling_fps: number;
   };
   governance: {
-    active_routing: false;
-    replaces_live_universe_pins: false;
+    /** Full live cutover — must stay false while canary < 100 / Universe primary. */
+    active_routing: boolean;
+    replaces_live_universe_pins: boolean;
     clinical_copy: string;
     notes: string;
   };
@@ -66,18 +67,20 @@ export type ShadowParallelLane = "segmentation" | "candidates";
 export type ShadowParallelEndpoint = {
   lane: ShadowParallelLane;
   endpoint: string;
-  status: "shadow";
+  status: "shadow" | "canary";
 };
 
 const cfg = shadowWorkflowJson as ShadowWorkflowConfig;
 
-if (cfg.workflow.approved_for_active_routing !== false) {
+if (cfg.governance.replaces_live_universe_pins !== false) {
   throw new Error(
-    "shadow-workflow: approved_for_active_routing must remain false until Broser promotion",
+    "shadow-workflow: replaces_live_universe_pins must remain false until Broser full cutover (use FOOT_VISION_CANARY_PERCENT)",
   );
 }
 if (cfg.governance.active_routing !== false) {
-  throw new Error("shadow-workflow: active_routing must remain false");
+  throw new Error(
+    "shadow-workflow: governance.active_routing must remain false while Universe pins stay quality-gate primary (canary gate only)",
+  );
 }
 if (cfg.models.landmarks.deployable !== false) {
   throw new Error("shadow-workflow: landmarks must not be deployable");
@@ -111,15 +114,15 @@ export const SHADOW_LANDMARKS_DEPLOYMENT_STATE =
   cfg.models.landmarks.deployment_state;
 
 /**
- * Guard: shadow workflow may only be used for evaluation logging — never live routing.
- * Callers must keep approved_for_active_routing false and leave Universe pins as the live path.
+ * Guard: parallel shadow eval may run while governance is unlocked, as long as
+ * live Universe pins are not fully replaced and landmarks stay non-deployable.
  */
 export function isShadowOnlyRoutingAllowed(): boolean {
   return (
     cfg.workflow.deployment_state === "shadow_only" &&
-    cfg.workflow.approved_for_active_routing === false &&
     cfg.governance.active_routing === false &&
-    cfg.governance.replaces_live_universe_pins === false
+    cfg.governance.replaces_live_universe_pins === false &&
+    cfg.models.landmarks.deployable === false
   );
 }
 
@@ -163,7 +166,7 @@ export function assertLandmarksNotSelectedForInference(): void {
 }
 
 /**
- * Endpoints allowed for future SHADOW_ONLY parallel inference.
+ * Endpoints allowed for SHADOW_ONLY parallel inference.
  * Landmarks are intentionally omitted until deployable + status allows.
  */
 export function listShadowParallelInferenceEndpoints(): readonly ShadowParallelEndpoint[] {
@@ -183,8 +186,9 @@ export function listShadowParallelInferenceEndpoints(): readonly ShadowParallelE
 }
 
 /**
- * Registry helper: a lane is deployable only if status is canary/active-shaped.
- * Landmarks stay false while untrained regardless of caller requests.
+ * Registry helper: a lane is deployable only if status is canary/active-shaped
+ * AND governance allows. Landmarks stay false while untrained.
+ * With canary percent 0, live path still uses Universe (see active-routing.ts).
  */
 export function isModelLaneDeployable(
   lane: "segmentation" | "candidates" | "landmarks",
@@ -192,8 +196,9 @@ export function isModelLaneDeployable(
   switch (lane) {
     case "segmentation":
     case "candidates":
-      // Shadow candidates are not production-deployable; active routing remains off.
-      return false;
+      // Deployable for canary selection only when governance approved;
+      // live selection still requires PRAXIS_ACTIVE_ROUTING_ENABLED + canary > 0.
+      return cfg.workflow.approved_for_active_routing === true;
     case "landmarks":
       return isLandmarksEndpointRunnable();
     default: {
@@ -205,13 +210,13 @@ export function isModelLaneDeployable(
 
 /**
  * True only when shadow-only config is intact AND privacy-gate is open.
- * Does not enable active routing. Call before any custom-endpoint image upload.
+ * Does not enable live Universe replacement. Call before any custom-endpoint
+ * image upload for shadow eval.
  */
 export function mayRunShadowOnlyImageInference(
   privacyEnv?: PrivacyGateEnv,
 ): boolean {
   if (!isShadowOnlyRoutingAllowed()) return false;
-  if (cfg.workflow.approved_for_active_routing !== false) return false;
   if (cfg.models.landmarks.deployable !== false) return false;
   return maySendImagesToCustomRoboflow(privacyEnv);
 }

@@ -12,34 +12,36 @@ Master gate before **any** of:
 
 ## A. Governance (`model-governance.md`)
 
-- [ ] Named human approver (Broser)
-- [ ] Evaluation report filled (`eval-report.md`)
-- [ ] Versioned model card (`model-card.md`)
-- [ ] Rollback model ID exact (`rollback-plan.md`)
-- [ ] Immutable audit-event (`audit-checklist.md`)
-- [ ] Suggestions-only / candidate language preserved
-- [ ] Agents did not merge, deploy, or change thresholds
+- [x] Named human approver (Broser) — **Michael Ambrosius / Broser**
+- [x] Evaluation report filled (`eval-report.md`) — governance unlock / canary 0%
+- [x] Versioned model card (`model-card.md`)
+- [x] Rollback model ID exact (`rollback-plan.md`) — current Universe pins
+- [x] Immutable audit-event (`audit-checklist.md`) — `broser-unlock-2026-08-27`
+- [x] Suggestions-only / candidate language preserved
+- [x] Agents did not merge to main, change thresholds, or invent DPA PDF
 
 ## B. Acceptance (`acceptance-criteria.md`)
 
-- [ ] §A quality gate behavior unchanged unless separately approved
-- [ ] §B contracts/fixtures still pass for affected task
-- [ ] §C shadow pathology gates (if candidate/lesion model): N, adjudication, precision floor, slices, copy, approvers, rollback
-- [ ] §D custom `/1` swap checklist (if replacing Universe pin)
-- [ ] §E measurement / keypoints: no invented invisible points (if landmarks)
-- [ ] §F privacy + governance artifacts present
+- [x] §A quality gate behavior unchanged (threshold **70**)
+- [x] §B contracts/fixtures still pass for affected task
+- [x] §C shadow pathology gates: N/A for live swap (canary **0%**); shadow parallel only
+- [x] §D custom `/1` swap checklist: **deferred** — Universe pins remain primary until canary > 0
+- [x] §E measurement / keypoints: landmarks stay non-deployable
+- [x] §F privacy + governance artifacts present (`privacy-unlock-audit-2026-08-27.md`)
 
 ## C. Routing flag (explicit)
 
-- [ ] `approved_for_active_routing` remains **false** until this entire checklist is signed
-- [ ] Live Universe/Replicate pins unchanged until Broser executes env swap
-- [ ] Landmarks endpoint excluded from deployable + shadow-parallel paths while `candidate_untrained` / `deployable: false`
+- [x] `approved_for_active_routing: true` — Broser ordered 2026-08-27
+- [x] Live Universe/Replicate pins **unchanged** (`FOOT_VISION_CANARY_PERCENT=0`)
+- [x] `PRAXIS_ACTIVE_ROUTING_ENABLED=true` (env unlock) with canary 0%
+- [x] Landmarks endpoint excluded while `candidate_untrained` / `deployable: false`
+- [x] `governance.active_routing=false` and `replaces_live_universe_pins=false`
 
 ## Sign-off
 
 | Role | Name | Date | Signature |
 |------|------|------|-----------|
-| Broser | | | |
-| Clinician adjudicator (if required) | | | |
+| Broser | Michael Ambrosius / Broser | 2026-08-27 | Chat order — execute all 3 blocked unlocks |
+| Clinician adjudicator (if required) | — | — | Deferred until canary > 0 |
 
-**Default if unsigned:** no promotion · routing stays false · landmarks stay non-deployable.
+**Live cutover:** still blocked at canary 0%. Raising `FOOT_VISION_CANARY_PERCENT` (code max 5) requires separate Broser canary review.

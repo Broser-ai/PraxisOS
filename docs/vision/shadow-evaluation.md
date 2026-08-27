@@ -1,7 +1,8 @@
 # Shadow evaluation · Del Pilar Nexus
 
-**Status:** SHADOW_ONLY — active routing remains **OFF**  
+**Status:** SHADOW_ONLY — live Universe primary at canary 0%  
 **Relateret:** `privacy-gate.md`, `model-governance.md`, `model-registry.md`,
+`privacy-unlock-audit-2026-08-27.md`,
 `workflows/del-pilar-nexus-shadow-evaluation.json`
 
 ## What this does
@@ -30,7 +31,9 @@ Code: `lib/scanner/shadow-inference.ts` · wired fire-and-forget from
 `AlphaSpatiotemporalPipeline.executeAlphaScan`.
 
 Combined guard: `mayRunShadowOnlyImageInference()` (shadow-only config **and**
-open privacy-gate). `approved_for_active_routing` stays **false**.
+open privacy-gate). Governance may set `approved_for_active_routing: true`
+while live Universe pins stay primary at `FOOT_VISION_CANARY_PERCENT=0`
+(see `lib/scanner/active-routing.ts`).
 
 ## Privacy gate (required before any image upload)
 
@@ -60,10 +63,13 @@ If the gate fails, the shadow call is **skipped** and
 
 Records use hashed `scan_ref` / `tenant_ref` — no raw base64 or CPR.
 
-## Governance pins (must stay)
+## Governance pins
 
-- `approved_for_active_routing`: **false**
+- `approved_for_active_routing`: **true** (Broser 2026-08-27)
+- `governance.active_routing` / `replaces_live_universe_pins`: **false**
+- `FOOT_VISION_CANARY_PERCENT`: **0** (Universe quality-gate primary)
 - `deployment_state`: **shadow_only**
+- Landmarks: **not deployable** / excluded from parallel inference
 - AI findings = suggestions only («Kandidatområde registreret; kræver kliniker-review.»)
 
 ## Enable checklist (Broser)
@@ -71,11 +77,11 @@ Records use hashed `scan_ref` / `tenant_ref` — no raw base64 or CPR.
 1. Complete `privacy-gate.md` checklist and set the env vars above.
 2. Set `PRAXIS_SHADOW_EVAL_ENABLED=true` on the evaluation host only.
 3. Confirm Universe pins unchanged and quality threshold still 70.
-4. Review audit sink for `vision.shadow.*` — never promote without
-   `docs/vision/promotion/` pack.
+4. Review audit sink for `vision.shadow.*` — never raise canary without
+   `docs/vision/promotion/` pack + Broser review.
 
-> **Current unblocker:** if privacy env is unsigned, leave this flag OFF and
-> follow `docs/vision/privacy-unlock-broser-unblock.md`. Agents must not fake DPA.
+> **Unlock audit:** `docs/vision/privacy-unlock-audit-2026-08-27.md`
+> (operational DPA accept; formal PDF pending).
 
 ## Clinician adjudication hook (ShadowFlywheel)
 
@@ -83,7 +89,7 @@ Schema placeholder: `lib/scanner/adjudication.ts`
 (`praxisos.candidate_adjudication.v1` — agree / disagree / unsure).
 
 - No fake clinical labels shipped
-- `approved_for_active_routing` remains **false**
+- Live custom traffic still gated by canary percent (0 = Universe only)
 - Precision helper is a **proxy** for acceptance §C — not clinical GT
 - Landmarks remain excluded from parallel inference until trained
 

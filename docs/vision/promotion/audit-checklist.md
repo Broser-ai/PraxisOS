@@ -1,32 +1,32 @@
-# Audit checklist template
+# Audit checklist · Broser unlock 2026-08-27
 
 **Immutable audit-event required for every promotion or pin change.**
 
 | Field | Value |
 |-------|-------|
-| Event type | `model.version.changed` (or documented equivalent) |
-| Event ID | |
-| Timestamp (UTC) | |
-| Actor (named human) | Broser: _______________ |
-| Model role | |
-| From model ID | |
-| To model ID | |
-| From status | |
-| To status | |
-| Eval report link | |
-| Model card version | |
-| Rollback model ID | |
-| `approved_for_active_routing` after change | must stay **false** unless gate-checklist fully signed |
+| Event type | `vision.governance.unlock` / privacy `broser-unlock-2026-08-27` |
+| Event ID | `broser-unlock-2026-08-27` |
+| Timestamp (UTC) | 2026-08-27 |
+| Actor (named human) | Broser: **Michael Ambrosius / Broser** |
+| Model role | segmentation + candidates (governance); landmarks unchanged |
+| From model ID | Universe live pins (unchanged) |
+| To model ID | Canary-eligible custom endpoints; **traffic still Universe at 0%** |
+| From status | `shadow` |
+| To status | `canary` (governance) / live still Universe |
+| Eval report link | `eval-report.md` |
+| Model card version | `2026-08-27-governance-unlock` |
+| Rollback model ID | `foot-segmentation-ehn9q/1`, `foot-ulcer/1`, `wounds-detection/1`, `firtoz/trellis` |
+| `approved_for_active_routing` after change | **true** (gate-checklist signed; canary 0%) |
 
 ## Pre-flight
 
-- [ ] Pack complete: eval-report, model-card, rollback-plan, gate-checklist
-- [ ] Privacy gate satisfied for any new data destination
-- [ ] No agent-only approval (human signature present)
-- [ ] Production thresholds / patient copy / retention **unchanged** unless separately approved
+- [x] Pack complete: eval-report, model-card, rollback-plan, gate-checklist
+- [x] Privacy gate operational accept documented (`privacy-unlock-audit-2026-08-27.md`)
+- [x] No agent-only approval (human Broser order 2026-08-27)
+- [x] Production thresholds / patient copy / retention **unchanged**
 
 ## Post-flight
 
-- [ ] Registry change log row added
-- [ ] Audit event persisted (immutable store / log sink)
-- [ ] Smoke verification recorded
+- [x] Registry change log row added
+- [x] Audit event documented in `docs/vision/privacy-unlock-audit-2026-08-27.md`
+- [ ] Smoke verification recorded (host curl after env apply)

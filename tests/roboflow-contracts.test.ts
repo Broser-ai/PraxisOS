@@ -108,11 +108,17 @@ describe("roboflow contracts (strict Zod)", () => {
 });
 
 describe("del pilar nexus shadow workflow registry", () => {
-  it("keeps active routing off and landmarks non-deployable", () => {
-    expect(ROBOFLOW_SHADOW_APPROVED_FOR_ACTIVE_ROUTING).toBe(false);
+  it("keeps live cutover off, landmarks non-deployable, governance approved", () => {
+    expect(ROBOFLOW_SHADOW_APPROVED_FOR_ACTIVE_ROUTING).toBe(true);
     expect(DEL_PILAR_NEXUS_SHADOW_WORKFLOW.workflow.deployment_state).toBe(
       "shadow_only",
     );
+    expect(DEL_PILAR_NEXUS_SHADOW_WORKFLOW.governance.active_routing).toBe(
+      false,
+    );
+    expect(
+      DEL_PILAR_NEXUS_SHADOW_WORKFLOW.governance.replaces_live_universe_pins,
+    ).toBe(false);
     expect(DEL_PILAR_NEXUS_SHADOW_WORKFLOW.workflow.id).toBe(
       "Z1TLmeAsa9GAWJg3xufe",
     );
@@ -128,8 +134,8 @@ describe("del pilar nexus shadow workflow registry", () => {
   it("rejects deployable landmarks while untrained and skips parallel inference", () => {
     expect(isLandmarksEndpointRunnable()).toBe(false);
     expect(isModelLaneDeployable("landmarks")).toBe(false);
-    expect(isModelLaneDeployable("segmentation")).toBe(false);
-    expect(isModelLaneDeployable("candidates")).toBe(false);
+    expect(isModelLaneDeployable("segmentation")).toBe(true);
+    expect(isModelLaneDeployable("candidates")).toBe(true);
 
     const parallel = listShadowParallelInferenceEndpoints();
     expect(parallel.map((p) => p.lane)).toEqual(["segmentation", "candidates"]);

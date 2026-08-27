@@ -2,6 +2,7 @@
 // Level 1: Roboflow foot isolation · Level 2: pathology VLM · Level 3: Replicate 3D lift · MonoMSK
 // Shadow eval (optional): parallel custom endpoints — never used for routing/quality/patient copy.
 import { MonoMSKSolver, type KinematicOutput } from "@/lib/physics/mono-msk-tensor";
+import { resolveLiveVisionPins } from "@/lib/scanner/active-routing";
 import { scheduleCaptureGateShadow } from "@/lib/scanner/capture-gate";
 import {
   attachQuality,
@@ -100,7 +101,10 @@ export class AlphaSpatiotemporalPipeline {
   private mskSolver = new MonoMSKSolver();
 
   /** Level 1 — isolate foot (domain-specific segmentation) */
-  async segmentFoot(imageBase64: string): Promise<{
+  async segmentFoot(
+    imageBase64: string,
+    scanKey?: string,
+  ): Promise<{
     detected: boolean;
     confidence: number;
     note: string;
@@ -115,9 +119,9 @@ export class AlphaSpatiotemporalPipeline {
       };
     }
 
-    const model =
-      process.env.ROBOFLOW_SEGMENT_MODEL?.trim() ||
-      "foot-segmentation-ehn9q/1";
+    // Canary 0% (default) → Universe pin. Custom only when canary selects.
+    const pins = resolveLiveVisionPins(scanKey);
+    const model = pins.segmentModel;
 
     try {
       const res = await fetch(
@@ -144,13 +148,16 @@ export class AlphaSpatiotemporalPipeline {
       const preds = data?.predictions ?? [];
       const best = preds.reduce((m, p) => Math.max(m, p.confidence ?? 0), 0);
       const detected = preds.length > 0 || best >= 0.35;
+      const canaryNote = pins.usingCustomCanary
+        ? ` [canary ${pins.canaryPercent}% custom]`
+        : "";
       return {
         detected: detected || preds.length === 0, // empty model response ≠ hard fail
         confidence: best || (preds.length === 0 ? 0.6 : 0),
         note:
           preds.length > 0
-            ? `Fod-segmentering: ${preds.length} region(er), conf ${Math.round(best * 100)}%`
-            : "Segment-model returnerede ingen maske — bruger fuldt frame",
+            ? `Fod-segmentering: ${preds.length} region(er), conf ${Math.round(best * 100)}%${canaryNote}`
+            : `Segment-model returnerede ingen maske — bruger fuldt frame${canaryNote}`,
       };
     } catch (e) {
       return {
@@ -161,8 +168,11 @@ export class AlphaSpatiotemporalPipeline {
     }
   }
 
-  /** Level 2 — pathology / dermatology detections */
-  async extractClinicalFindings(imageBase64: string): Promise<{
+  /** Level 2 — pathology / dermatology detections (suggestion / candidate language) */
+  async extractClinicalFindings(
+    imageBase64: string,
+    scanKey?: string,
+  ): Promise<{
     findings: MedicalFinding[];
     note: string;
   }> {
@@ -174,10 +184,8 @@ export class AlphaSpatiotemporalPipeline {
       return { findings: [], note: "Ingen imageBase64 — springer pathology over" };
     }
 
-    const models = [
-      process.env.ROBOFLOW_MODEL?.trim() || "foot-ulcer/1",
-      process.env.ROBOFLOW_MODEL_SECONDARY?.trim() || "wounds-detection/1",
-    ].filter(Boolean) as string[];
+    const pins = resolveLiveVisionPins(scanKey);
+    const models = [...pins.pathologyModels];
 
     const all: MedicalFinding[] = [];
     const notes: string[] = [];
@@ -201,17 +209,25 @@ export class AlphaSpatiotemporalPipeline {
           continue;
         }
 
-        const preds = (data?.predictions ?? []).map((p) => ({
-          class: p.class || "finding",
-          confidence: p.confidence ?? 0,
-          x: p.x,
-          y: p.y,
-          width: p.width,
-          height: p.height,
-          z: 0.35,
-          source: "pathology" as const,
-          ai_generated: true,
-        }));
+        const preds = (data?.predictions ?? []).map((p) => {
+          const rawClass = p.class || "finding";
+          // Custom canary outputs must stay suggestion/candidate language — never diagnosis.
+          const className =
+            pins.usingCustomCanary && !rawClass.startsWith("candidate_")
+              ? `candidate_${rawClass}`
+              : rawClass;
+          return {
+            class: className,
+            confidence: p.confidence ?? 0,
+            x: p.x,
+            y: p.y,
+            width: p.width,
+            height: p.height,
+            z: 0.35,
+            source: "pathology" as const,
+            ai_generated: true,
+          };
+        });
         all.push(...preds);
         notes.push(`${model}: ${preds.length} fund`);
       } catch (e) {
@@ -226,9 +242,12 @@ export class AlphaSpatiotemporalPipeline {
       if (!prev || (f.confidence ?? 0) > (prev.confidence ?? 0)) byClass.set(f.class, f);
     }
 
+    const canaryNote = pins.usingCustomCanary
+      ? ` · canary ${pins.canaryPercent}% · ${pins.clinicalCopy}`
+      : "";
     return {
       findings: [...byClass.values()].sort((a, b) => (b.confidence ?? 0) - (a.confidence ?? 0)),
-      note: notes.join(" · ") || "Pathology completed",
+      note: (notes.join(" · ") || "Pathology completed") + canaryNote,
     };
   }
 
@@ -404,10 +423,13 @@ export class AlphaSpatiotemporalPipeline {
     // Requires PRAXIS_SHADOW_EVAL_ENABLED + privacy-gate; default OFF / fail-closed.
     scheduleShadowEval({ imageBase64, tenantId, patientId });
 
-    // Parallel: segment + pathology + 3D (legacy Universe / Replicate pins — live path)
+    // Canary key: deterministic per tenant+patient. FOOT_VISION_CANARY_PERCENT=0 → Universe.
+    const scanKey = `${tenantId}|${patientId}`;
+
+    // Parallel: segment + pathology + 3D (Universe / Replicate pins unless canary > 0 selects custom)
     const [segment, clinical, geometry] = await Promise.all([
-      this.segmentFoot(imageBase64),
-      this.extractClinicalFindings(imageBase64),
+      this.segmentFoot(imageBase64, scanKey),
+      this.extractClinicalFindings(imageBase64, scanKey),
       this.extractGeometryWithPriors(imageUrl),
     ]);
 
