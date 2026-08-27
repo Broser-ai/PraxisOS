@@ -10,13 +10,13 @@
 | Actor (named human) | Broser: **Michael Ambrosius / Broser** |
 | Model role | segmentation + candidates (governance); landmarks unchanged |
 | From model ID | Universe live pins (unchanged) |
-| To model ID | Canary-eligible custom endpoints; **traffic still Universe at 0%** |
+| To model ID | Custom endpoints for **5%** canary bucket; Universe default (~95%) |
 | From status | `shadow` |
-| To status | `canary` (governance) / live still Universe |
+| To status | `canary` (governance + live 5%) |
 | Eval report link | `eval-report.md` |
-| Model card version | `2026-08-27-governance-unlock` |
+| Model card version | `2026-08-27-canary-5` |
 | Rollback model ID | `foot-segmentation-ehn9q/1`, `foot-ulcer/1`, `wounds-detection/1`, `firtoz/trellis` |
-| `approved_for_active_routing` after change | **true** (gate-checklist signed; canary 0%) |
+| `approved_for_active_routing` after change | **true** (gate-checklist signed; canary **5%**) |
 
 ## Pre-flight
 
@@ -29,4 +29,4 @@
 
 - [x] Registry change log row added
 - [x] Audit event documented in `docs/vision/privacy-unlock-audit-2026-08-27.md`
-- [x] Smoke verification recorded (host curl 2026-08-27: `liveReady: true`, privacy_gate_open, canary 0, threshold 70)
+- [x] Smoke verification recorded (host curl 2026-08-27: `liveReady: true`, privacy_gate_open, canary **5**, threshold 70; Universe default + custom canary path verified)

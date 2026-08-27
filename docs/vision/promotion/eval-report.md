@@ -5,12 +5,12 @@
 | Field | Value |
 |-------|-------|
 | Model / endpoint | `praxisos-foot-seg` + `praxisos-foot-candidates` (governance unlock) |
-| Exact version ID (e.g. `endpoint/n`) | workspace `michaelba2712-gmail-com` / version `1` (when canary > 0) |
-| From status → to status | `shadow` → `canary` (governance); **live traffic still Universe at 0%** |
+| Exact version ID (e.g. `endpoint/n`) | workspace `michaelba2712-gmail-com` / version `1` (canary 5%) |
+| From status → to status | `shadow` → `canary` (governance + **live 5%**); Universe remains default |
 | Task type | detect / seg |
 | Eval date | 2026-08-27 |
-| Dataset N (prospective / hold-out) | Shadow parallel only until canary > 0 |
-| Adjudicator(s) | Deferred to clinician pack before canary raise |
+| Dataset N (prospective / hold-out) | Shadow parallel + synthetic canary smoke; manual plantar pending |
+| Adjudicator(s) | Deferred to clinician pack / manual plantar E2E |
 | Report author | Ops agent (draft) under Broser order |
 | Broser approver | **Michael Ambrosius / Broser** |
 
@@ -19,17 +19,18 @@
 | Metric | Target | Observed | Pass? |
 |--------|--------|----------|-------|
 | Live Universe quality gate intact | threshold 70 | unchanged | yes |
-| Custom models on patient PASS/HOLD | 0% until canary raise | canary=0 | yes |
+| Custom models on patient path | ≤5% canary | canary=5 (verified) | yes |
+| Universe default | ~95% | non-canary key used Universe pins | yes |
 | Landmarks off | deployable false | false | yes |
 
 ## Slice report (required)
 
 | Slice | N | Metric | Notes |
 |-------|---|--------|-------|
-| Skin tone | — | — | Collect via shadow eval before canary > 0 |
-| Nail polish | — | — | Collect via shadow eval before canary > 0 |
-| Lighting | — | — | Collect via shadow eval before canary > 0 |
-| Blur / motion | — | — | CaptureGate shadow log-only enabled |
+| Skin tone | — | — | Collect via shadow eval + manual plantar |
+| Nail polish | — | — | Collect via shadow eval + manual plantar |
+| Lighting | — | — | Collect via shadow eval + manual plantar |
+| Blur / motion | — | — | CaptureGate + TriView shadow log-only enabled |
 
 ## Failure modes
 

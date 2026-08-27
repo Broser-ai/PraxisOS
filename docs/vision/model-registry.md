@@ -14,14 +14,14 @@ navngiven menneskelig godkendelse + audit-event. Agenter må ikke promote.
 
 ## Legacy-modeller (nuværende produktion på Hetzner — quality-gate primary)
 
-Disse Universe/Replicate-pins er **current production** for patient PASS/HOLD
-mens `FOOT_VISION_CANARY_PERCENT=0`. Custom endpoints er governance-unlocked
-(`approved_for_active_routing: true`) men **erstatter ikke** live traffic før
-canary > 0.
+Disse Universe/Replicate-pins er **current production default** for patient PASS/HOLD
+(~95% traffic). Custom endpoints are governance-unlocked
+(`approved_for_active_routing: true`) and selected only when
+`FOOT_VISION_CANARY_PERCENT=5` places the scan key in the canary bucket.
 
 | Rolle | Provider | Model ID | Status | Owner | Godkendt threshold | Rollback ID | Bemærkning |
 |-------|----------|----------|--------|-------|--------------------|-------------|------------|
-| Foot isolation | Roboflow | `foot-segmentation-ehn9q/1` | `active` | Broser | segment conf ≥ 0.35 (pipeline soft) | — | Universe stand-in; live primary at canary 0% |
+| Foot isolation | Roboflow | `foot-segmentation-ehn9q/1` | `active` | Broser | segment conf ≥ 0.35 (pipeline soft) | — | Universe stand-in; live default (~95%) |
 | Candidate findings (primary) | Roboflow | `foot-ulcer/1` | `shadow` | Broser | finding conf ≥ 0.55 (quality credit) | `wounds-detection/1` | Kun kandidat-lokalisering |
 | Candidate findings (secondary) | Roboflow | `wounds-detection/1` | `shadow` | Broser | finding conf ≥ 0.55 | `foot-ulcer/1` | Ensemble / fallback |
 | 3D lift | Replicate | `firtoz/trellis` | `active` | Broser | remote mesh URL required for PASS | procedural fallback (HOLD) | Mesh via models API |
@@ -45,7 +45,7 @@ Canary gate: `lib/scanner/active-routing.ts`
 | `governance.active_routing` | **false** |
 | `replaces_live_universe_pins` | **false** |
 | `PRAXIS_ACTIVE_ROUTING_ENABLED` | **true** (host) |
-| `FOOT_VISION_CANARY_PERCENT` | **0** (Universe primary) |
+| `FOOT_VISION_CANARY_PERCENT` | **5** (code max; Universe default) |
 
 | Rolle | Endpoint | Task | Status | Classes | Bemærkning |
 |-------|----------|------|--------|---------|------------|
@@ -59,20 +59,21 @@ Canary gate: `lib/scanner/active-routing.ts`
 **Landmarks training brief:** `landmarks-training-brief.md` — not deployable until
 trained + adjudicated.
 
-**Promotion pack (signed 2026-08-27):** `docs/vision/promotion/` — canary 0% /
-Universe primary; raise percent only after Broser canary review (code max 5%).
+**Promotion pack (signed 2026-08-27):** `docs/vision/promotion/` — canary **5%** /
+Universe default; full pin swap still Broser-only.
 
 **SHADOW_ONLY parallel eval:** `PRAXIS_SHADOW_EVAL_ENABLED=true` on host +
-privacy-gate open. Logs only; does not replace Universe at canary 0%.
+privacy-gate open. Logs only; does not replace Universe outside canary.
 
-**CaptureGate-Σ:** `PRAXIS_CAPTURE_GATE_SHADOW=true` (log-only). TriView OFF.
+**CaptureGate-Σ:** `PRAXIS_CAPTURE_GATE_SHADOW=true` (log-only).  
+**TriView-Lift:** `PRAXIS_TRIVIEW_SHADOW_ENABLED=true` (fail-soft; live Trellis pin unchanged).
 
 **Privacy unlock:** `privacy-unlock-audit-2026-08-27.md` —
 operational DPA accept (`PRAXIS_VISION_DPA_STATUS=broser_operational_accept_2026-08-27`);
-formal PDF pending.
+formal PDF pending — `dpa-operational-residual.md`.
 
-**Ikke i scope uden yderligere Broser-ordre:** canary > 0, full pin swap,
-ændring af patientvendt sprog, retention eller `SCAN_QUALITY_THRESHOLD`.
+**Ikke i scope uden yderligere Broser-ordre:** full pin swap (`replaces_live_universe_pins`),
+landmarks deploy, ændring af patientvendt sprog, retention eller `SCAN_QUALITY_THRESHOLD`.
 
 ## Kandidat-modeller (overblik)
 
@@ -92,7 +93,7 @@ formal PDF pending.
 | `REPLICATE_MESH_MODEL` | `firtoz/trellis` |
 | `SCAN_QUALITY_THRESHOLD` | `70` |
 | `PRAXIS_ACTIVE_ROUTING_ENABLED` | `true` (host) |
-| `FOOT_VISION_CANARY_PERCENT` | `0` |
+| `FOOT_VISION_CANARY_PERCENT` | `5` |
 
 ## Secrets
 
@@ -111,7 +112,7 @@ Agent-tooling (Cursor Roboflow-plugin MCP) er separat fra denne nøgle — se `d
 | 2026-08-26 | Shadow-workflow `Z1TLmeAsa9GAWJg3xufe` registreret; `approved_for_active_routing: false`; landmarks disabled | Broser (input Michael) |
 | 2026-08-26 | SHADOW_ONLY parallel eval path (`PRAXIS_SHADOW_EVAL_ENABLED`, privacy-gate); active routing still false | Broser (draft) |
 | 2026-08-26 | Landmarks training brief + promotion pack scaffolding; landmarks skipped for shadow parallel inference; routing still false | Broser (agent draft) |
-| 2026-08-27 | Privacy + shadow + governance unlock; `approved_for_active_routing: true`; canary 0%; Universe primary; landmarks still off | Michael Ambrosius / Broser |
+| 2026-08-27 | Privacy + shadow + governance unlock; `approved_for_active_routing: true`; canary 0% then raised to **5%**; Universe default; TriView+CaptureGate shadow ON; landmarks still off | Michael Ambrosius / Broser |
 
 ## Promotion-skabelon
 

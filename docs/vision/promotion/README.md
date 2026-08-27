@@ -25,3 +25,11 @@ Templates Broser must complete **before** any model or workflow may set
 3. Incomplete pack → model stays `shadow` or `disabled`.
 4. Landmarks (`praxisos`) additionally require `landmarks-training-brief.md`
    completion (trained + adjudicated) before any deployable path.
+
+## Current live sign-off (2026-08-27)
+
+- Canary: **`FOOT_VISION_CANARY_PERCENT=5`** (code max)
+- Shadow: CaptureGate + TriView + parallel shadow eval **ON**
+- Threshold: **70** · Trellis pin live · landmarks off
+- DPA: operational accept only — `../dpa-operational-residual.md`
+- Manual plantar: `../broser-plantar-e2e-checklist.md`

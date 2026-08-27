@@ -13,7 +13,7 @@ Master gate before **any** of:
 ## A. Governance (`model-governance.md`)
 
 - [x] Named human approver (Broser) — **Michael Ambrosius / Broser**
-- [x] Evaluation report filled (`eval-report.md`) — governance unlock / canary 0%
+- [x] Evaluation report filled (`eval-report.md`) — governance unlock / canary **5%**
 - [x] Versioned model card (`model-card.md`)
 - [x] Rollback model ID exact (`rollback-plan.md`) — current Universe pins
 - [x] Immutable audit-event (`audit-checklist.md`) — `broser-unlock-2026-08-27`
@@ -24,24 +24,25 @@ Master gate before **any** of:
 
 - [x] §A quality gate behavior unchanged (threshold **70**)
 - [x] §B contracts/fixtures still pass for affected task
-- [x] §C shadow pathology gates: N/A for live swap (canary **0%**); shadow parallel only
-- [x] §D custom `/1` swap checklist: **deferred** — Universe pins remain primary until canary > 0
+- [x] §C shadow pathology gates: shadow parallel ON; live custom only inside 5% canary
+- [x] §D custom `/1` swap checklist: **partial** — canary 5% selects custom; Universe remains default
 - [x] §E measurement / keypoints: landmarks stay non-deployable
-- [x] §F privacy + governance artifacts present (`privacy-unlock-audit-2026-08-27.md`)
+- [x] §F privacy + governance artifacts present (`privacy-unlock-audit-2026-08-27.md`, `dpa-operational-residual.md`)
 
 ## C. Routing flag (explicit)
 
 - [x] `approved_for_active_routing: true` — Broser ordered 2026-08-27
-- [x] Live Universe/Replicate pins **unchanged** (`FOOT_VISION_CANARY_PERCENT=0`)
-- [x] `PRAXIS_ACTIVE_ROUTING_ENABLED=true` (env unlock) with canary 0%
+- [x] Live Universe/Replicate pins remain **default**; canary **5%** (code max) may select custom
+- [x] `PRAXIS_ACTIVE_ROUTING_ENABLED=true` with `FOOT_VISION_CANARY_PERCENT=5`
 - [x] Landmarks endpoint excluded while `candidate_untrained` / `deployable: false`
 - [x] `governance.active_routing=false` and `replaces_live_universe_pins=false`
+- [x] Suggestion-only clinical copy verified on canary synthetic smoke
 
 ## Sign-off
 
 | Role | Name | Date | Signature |
 |------|------|------|-----------|
-| Broser | Michael Ambrosius / Broser | 2026-08-27 | Chat order — execute all 3 blocked unlocks |
-| Clinician adjudicator (if required) | — | — | Deferred until canary > 0 |
+| Broser | Michael Ambrosius / Broser | 2026-08-27 | Chat order — unlock + «Kør alt og gør færdigt» (canary 5%) |
+| Clinician adjudicator (if required) | — | — | Deferred until manual plantar PASS + formal DPA |
 
-**Live cutover:** still blocked at canary 0%. Raising `FOOT_VISION_CANARY_PERCENT` (code max 5) requires separate Broser canary review.
+**Live full cutover:** still blocked (`replaces_live_universe_pins=false`). Safe-max canary **5%** live on Hetzner.

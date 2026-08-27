@@ -1,7 +1,7 @@
 # TriView-Lift · InstantMesh A/B (shadow-only)
 
-**Status:** scaffolded — feature-flagged, default **OFF**, fail-soft  
-**Flag:** `PRAXIS_TRIVIEW_SHADOW_ENABLED` (default **OFF**)  
+**Status:** enabled on Hetzner eval/prod host (2026-08-27) — fail-soft, does **not** replace Trellis  
+**Flag:** `PRAXIS_TRIVIEW_SHADOW_ENABLED` (default **OFF** in code; **true** on host)  
 **Optional model:** `PRAXIS_TRIVIEW_INSTANTMESH_MODEL` (must **not** be `firtoz/trellis`)  
 **Code:** `lib/scanner/triview-lift.ts` · scheduled from `alpha-pipeline.ts`  
 **Spike:** `docs/vision/alphaxiv-top3-spikes.md` §2 · impact memo §C.4
@@ -23,7 +23,7 @@
 
 ## Enable (Broser, eval only)
 
-1. Provide InstantMesh-compatible Replicate model/version ≠ TRELLIS.
-2. Set `PRAXIS_TRIVIEW_SHADOW_ENABLED=true` on eval host only.
-3. Collect 3-frame sessions; review `vision.triview.shadow` audits.
+1. Provide InstantMesh-compatible Replicate model/version ≠ TRELLIS (optional; without it shadow skips InstantMesh arm).
+2. Set `PRAXIS_TRIVIEW_SHADOW_ENABLED=true` on eval host only — **done on Hetzner 2026-08-27**.
+3. Collect 3-frame sessions; review `vision.triview.shadow` audits (durable sink needs `PRAXIS_AUDIT_MODE=supabase`).
 4. Rollback = flag OFF (no pin change).

@@ -14,12 +14,15 @@
 |-------|--------|
 | `PRAXIS_VISION_*` on Hetzner `.env.production` | **set** (gate open) |
 | `PRAXIS_SHADOW_EVAL_ENABLED` | **true** |
-| `approved_for_active_routing` | **true** (governance; canary 0%) |
-| `FOOT_VISION_CANARY_PERCENT` | **0** (Universe primary) |
+| `approved_for_active_routing` | **true** (governance) |
+| `FOOT_VISION_CANARY_PERCENT` | **5** (code max; Universe still default ~95%) |
+| `PRAXIS_TRIVIEW_SHADOW_ENABLED` | **true** (fail-soft; does not replace Trellis) |
+| `PRAXIS_CAPTURE_GATE_SHADOW` | **true** |
 | `SCAN_QUALITY_THRESHOLD` | **70** (unchanged) |
 
 ## Residual
 
-- Formal DPA PDF archive still outstanding
-- Raise canary only after Broser review (code max 5%)
+- Formal DPA PDF archive still outstanding — `dpa-operational-residual.md`
+- Manual plantar E2E PASS — `broser-plantar-e2e-checklist.md`
 - Landmarks remain non-deployable
+- Live Trellis HTTP 404 / custom canary HTTP 405 observed on synthetic smoke

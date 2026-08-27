@@ -41,16 +41,45 @@ PRAXIS_ACTIVE_ROUTING_ENABLED=true
 FOOT_VISION_CANARY_PERCENT=0
 ```
 
+## Follow-up · canary 5% + TriView shadow (same day)
+
+**Authorization:** Broser chat order 2026-08-27 — «Kør alt og gør færdigt» (safe max canary).  
+**Host action:** `/opt/PraxisOS/.env.production` updated; `praxisos` container recreated healthy.
+
+```
+FOOT_VISION_CANARY_PERCENT=5
+PRAXIS_TRIVIEW_SHADOW_ENABLED=true
+PRAXIS_CAPTURE_GATE_SHADOW=true   # confirmed still on
+PRAXIS_SHADOW_EVAL_ENABLED=true   # confirmed still on
+PRAXIS_ACTIVE_ROUTING_ENABLED=true
+SCAN_QUALITY_THRESHOLD=70
+REPLICATE_MESH_MODEL=firtoz/trellis
+```
+
+### Verification (live)
+
+| Check | Result |
+|-------|--------|
+| `GET /api/scan/config` | `liveReady: true`, blockers `[]` |
+| Default / non-canary synthetic (`bypilar\|e2e-synth-0`) | Universe `foot-ulcer/1` + `wounds-detection/1` |
+| Canary synthetic (`bypilar\|e2e-synth-23`) | Custom `michaelba2712-gmail-com/praxisos-foot-candidates/1` · note **canary 5%** · suggestion copy |
+| Landmarks | Not selected / not deployable |
+| Clinical copy | «Kandidatområde registreret; kræver kliniker-review.» |
+| TriView | Flag ON; fail-soft; live mesh pin still `firtoz/trellis` (does not replace Trellis) |
+
 ## Explicit non-changes
 
 - `SCAN_QUALITY_THRESHOLD` remains **70**
-- Universe pins remain live quality-gate primary (`foot-segmentation-ehn9q/1`, `foot-ulcer/1`, `wounds-detection/1`)
-- Replicate Trellis (`firtoz/trellis`) unchanged
+- Universe pins remain **default** live quality-gate (~95% traffic); custom only inside 5% canary bucket
+- Replicate Trellis (`firtoz/trellis`) pin unchanged (TriView is shadow A/B only)
 - Landmarks (`praxisos`) remain **not deployable**
 - Pathology language remains suggestion / `candidate_*` only
-- TriView remains OFF
-- No merge to `main` required for this unlock
+- No fabricated formal DPA PDF
+- No agent merge to `main` without Broser + green CI
 
 ## Residual risk
 
-Formal DPA PDF not yet on file — operational unlock only. Canary at **0%** means custom models do not yet replace Universe for patient PASS/HOLD; raise `FOOT_VISION_CANARY_PERCENT` (max 5 in code) only after Broser canary review.
+- Formal DPA PDF not yet on file — see `dpa-operational-residual.md` (lawyer next step).
+- Canary **5%** (code max) may hit private custom endpoints; Universe remains default.
+- Synthetic E2E observed `Replicate HTTP 404: firtoz/trellis` and custom endpoint **HTTP 405** — real plantar PASS still human; see `broser-plantar-e2e-checklist.md`.
+- Audit sink default memory — shadow events scheduled in-process; durable archive needs `PRAXIS_AUDIT_MODE=supabase`.

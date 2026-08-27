@@ -1,5 +1,5 @@
 {
-  "$schema_note": "Machine-readable Del Pilar Nexus Roboflow shadow workflow. Governance unlocked 2026-08-27 (Broser). Live quality gate stays on Universe pins until FOOT_VISION_CANARY_PERCENT > 0.",
+  "$schema_note": "Machine-readable Del Pilar Nexus Roboflow shadow workflow. Governance unlocked 2026-08-27 (Broser). Live quality gate defaults to Universe pins; FOOT_VISION_CANARY_PERCENT=5 may select custom endpoints for a deterministic canary bucket.",
   "workspace": "michaelba2712-gmail-com",
   "workflow": {
     "id": "Z1TLmeAsa9GAWJg3xufe",
@@ -42,6 +42,6 @@
     "active_routing": false,
     "replaces_live_universe_pins": false,
     "clinical_copy": "Kandidatområde registreret; kræver kliniker-review.",
-    "notes": "Broser unlock 2026-08-27 (Michael Ambrosius): approved_for_active_routing=true + PRAXIS_ACTIVE_ROUTING_ENABLED; FOOT_VISION_CANARY_PERCENT=0 so Universe pins (foot-segmentation-ehn9q/1, foot-ulcer/1, wounds-detection/1, firtoz/trellis) remain quality-gate primary. SCAN_QUALITY_THRESHOLD=70. Landmarks still non-deployable. Rollback = current Universe pins. Promotion pack: docs/vision/promotion/."
+    "notes": "Broser unlock + finish order 2026-08-27 (Michael Ambrosius): approved_for_active_routing=true + PRAXIS_ACTIVE_ROUTING_ENABLED; FOOT_VISION_CANARY_PERCENT=5 (code max) so custom endpoints only in canary bucket; Universe pins (foot-segmentation-ehn9q/1, foot-ulcer/1, wounds-detection/1) remain default; firtoz/trellis live pin unchanged (TriView shadow fail-soft). SCAN_QUALITY_THRESHOLD=70. Landmarks still non-deployable. Suggestion-only clinical_copy. Rollback = Universe pins. Promotion pack: docs/vision/promotion/."
   }
 }

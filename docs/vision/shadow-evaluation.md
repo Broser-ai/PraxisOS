@@ -1,8 +1,8 @@
 # Shadow evaluation · Del Pilar Nexus
 
-**Status:** SHADOW_ONLY — live Universe primary at canary 0%  
+**Status:** SHADOW_ONLY parallel + live canary **5%** (Universe still default)  
 **Relateret:** `privacy-gate.md`, `model-governance.md`, `model-registry.md`,
-`privacy-unlock-audit-2026-08-27.md`,
+`privacy-unlock-audit-2026-08-27.md`, `broser-plantar-e2e-checklist.md`,
 `workflows/del-pilar-nexus-shadow-evaluation.json`
 
 ## What this does
@@ -32,7 +32,8 @@ Code: `lib/scanner/shadow-inference.ts` · wired fire-and-forget from
 
 Combined guard: `mayRunShadowOnlyImageInference()` (shadow-only config **and**
 open privacy-gate). Governance may set `approved_for_active_routing: true`
-while live Universe pins stay primary at `FOOT_VISION_CANARY_PERCENT=0`
+while live Universe pins stay **default**; `FOOT_VISION_CANARY_PERCENT=5`
+selects custom endpoints only inside the canary bucket
 (see `lib/scanner/active-routing.ts`).
 
 ## Privacy gate (required before any image upload)
@@ -67,7 +68,7 @@ Records use hashed `scan_ref` / `tenant_ref` — no raw base64 or CPR.
 
 - `approved_for_active_routing`: **true** (Broser 2026-08-27)
 - `governance.active_routing` / `replaces_live_universe_pins`: **false**
-- `FOOT_VISION_CANARY_PERCENT`: **0** (Universe quality-gate primary)
+- `FOOT_VISION_CANARY_PERCENT`: **5** (Universe quality-gate default ~95%)
 - `deployment_state`: **shadow_only**
 - Landmarks: **not deployable** / excluded from parallel inference
 - AI findings = suggestions only («Kandidatområde registreret; kræver kliniker-review.»)
@@ -76,12 +77,12 @@ Records use hashed `scan_ref` / `tenant_ref` — no raw base64 or CPR.
 
 1. Complete `privacy-gate.md` checklist and set the env vars above.
 2. Set `PRAXIS_SHADOW_EVAL_ENABLED=true` on the evaluation host only.
-3. Confirm Universe pins unchanged and quality threshold still 70.
-4. Review audit sink for `vision.shadow.*` — never raise canary without
-   `docs/vision/promotion/` pack + Broser review.
+3. Confirm Universe pins remain default and quality threshold still 70.
+4. Review audit sink for `vision.shadow.*` — durable sink needs `PRAXIS_AUDIT_MODE=supabase`.
+5. Canary at safe max **5%** is Broser-approved for this host; full cutover still separate.
 
 > **Unlock audit:** `docs/vision/privacy-unlock-audit-2026-08-27.md`
-> (operational DPA accept; formal PDF pending).
+> (operational DPA accept; formal PDF pending — `dpa-operational-residual.md`).
 
 ## Clinician adjudication hook (ShadowFlywheel)
 
@@ -89,9 +90,10 @@ Schema placeholder: `lib/scanner/adjudication.ts`
 (`praxisos.candidate_adjudication.v1` — agree / disagree / unsure).
 
 - No fake clinical labels shipped
-- Live custom traffic still gated by canary percent (0 = Universe only)
+- Live custom traffic gated by canary percent (5 = safe max; Universe default)
 - Precision helper is a **proxy** for acceptance §C — not clinical GT
 - Landmarks remain excluded from parallel inference until trained
 
 Related: CaptureGate `docs/vision/capture-gate.md` · TriView
 `docs/vision/triview-lift.md` · Harness `docs/vision/harness-human-gate.md`
+· Manual E2E `docs/vision/broser-plantar-e2e-checklist.md`
