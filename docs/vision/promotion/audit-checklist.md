@@ -29,4 +29,4 @@
 
 - [x] Registry change log row added
 - [x] Audit event documented in `docs/vision/privacy-unlock-audit-2026-08-27.md`
-- [ ] Smoke verification recorded (host curl after env apply)
+- [x] Smoke verification recorded (host curl 2026-08-27: `liveReady: true`, privacy_gate_open, canary 0, threshold 70)
