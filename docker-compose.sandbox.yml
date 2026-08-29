@@ -1,0 +1,49 @@
+# PraxisOS · isolated SANDBOX (not Hetzner production clinical path)
+# Usage:
+#   cp .env.sandbox.example .env.sandbox
+#   docker compose -f docker-compose.sandbox.yml up --build
+# Binds 0.0.0.0:$PORT. Ephemeral volume — no patient data.
+#
+# If Docker is unavailable, use: npm run sandbox:verify
+
+services:
+  praxisos-sandbox:
+    build:
+      context: .
+      dockerfile: Dockerfile
+    image: praxisos:sandbox
+    container_name: praxisos_sandbox
+    ports:
+      - "${PRAXIS_SANDBOX_HOST_PORT:-3002}:3000"
+    env_file:
+      - .env.sandbox
+    environment:
+      PORT: "3000"
+      HOSTNAME: "0.0.0.0"
+      PRAXIS_SANDBOX: "1"
+      PRAXIS_DB: mock
+      NEXT_PUBLIC_BASE_URL: ${NEXT_PUBLIC_BASE_URL:-http://127.0.0.1:3002}
+      PRAXIS_DATA_DIR: /data
+      # Clinical production unlocks stay OFF
+      PRAXIS_SHADOW_EVAL_ENABLED: "false"
+      PRAXIS_ACTIVE_ROUTING_ENABLED: "false"
+      FOOT_VISION_CANARY_PERCENT: "0"
+      SCAN_QUALITY_THRESHOLD: "70"
+      NEXT_TELEMETRY_DISABLED: "1"
+    volumes:
+      - praxis_sandbox_data:/data
+    healthcheck:
+      test:
+        [
+          "CMD",
+          "node",
+          "-e",
+          "fetch('http://127.0.0.1:3000/api/agents/status').then(r=>process.exit(r.ok?0:1)).catch(()=>process.exit(1))",
+        ]
+      interval: 30s
+      timeout: 5s
+      retries: 5
+      start_period: 60s
+
+volumes:
+  praxis_sandbox_data:
