@@ -5,7 +5,7 @@
 
 # EPIC-3 · §DoD-Actual (appendiks)
 
-**Type:** appendiks der skal *tilføjes* nederst i eksisterende `docs/harness/EPIC-3-Neural-Configurator.md` (full 245-line contract not in Drive extract; this file is the DoD-Actual appendix only) (245 linjer). Filen her indeholder KUN den nye sektion — parent workflow appender den efter §9 "Rollback".
+**Type:** appendiks der skal *tilføjes* nederst i eksisterende `docs/harness/EPIC-3-Neural-Configurator.md` (full 245-line contract not in Drive extract; this file is the DoD-Actual appendix only). Filen her indeholder KUN den nye sektion — parent workflow appender den efter §9 "Rollback".
 
 **Baseline:** [`COMPLETE-AUDIT-REPORT.md`](../../COMPLETE-AUDIT-REPORT.md) §9 Sprint 3 tabellen + §2 blocker-liste + §C19/C22/C23, snapshot 2026-07-16.
 

@@ -5,7 +5,7 @@
 
 # EPIC-2 · §DoD-Actual (appendiks)
 
-**Type:** appendiks der skal *tilføjes* nederst i eksisterende `docs/harness/EPIC-2-Clinical-Scanner.md` (full 502-line contract not in Drive extract; this file is the DoD-Actual appendix only) (502 linjer). Filen her indeholder KUN den nye sektion — parent workflow appender den efter §12 "Definition of Done for denne kontrakt".
+**Type:** appendiks der skal *tilføjes* nederst i eksisterende `docs/harness/EPIC-2-Clinical-Scanner.md` (full 502-line contract not in Drive extract; this file is the DoD-Actual appendix only). Filen her indeholder KUN den nye sektion — parent workflow appender den efter §12 "Definition of Done for denne kontrakt".
 
 **Baseline:** [`COMPLETE-AUDIT-REPORT.md`](../../COMPLETE-AUDIT-REPORT.md) §9 Sprint 2 tabellen + §2 blocker-liste + REVISION-02 §3 (INV-CS-19/20/21), snapshot 2026-07-16.
 
