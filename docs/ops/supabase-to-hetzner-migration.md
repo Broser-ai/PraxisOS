@@ -5,7 +5,9 @@
 **Target host:** Hetzner `167.233.171.184` (EU) · durable Docker volume `praxis_pgdata`  
 **Cloud-projekt (læs-only dump):** `jajdtvduzkitjzcazcng` · region `eu-west-1` · status ACTIVE_HEALTHY  
 
-**Ikke gjort / må ikke gøres:** slet ikke production-data på Supabase Cloud · commit ikke `service_role` keys · sænk ikke `SCAN_QUALITY_THRESHOLD` · flip ikke vision pins.
+**Delete authorization (Broser):** OK to delete/pause **only** this Supabase project **after** the gate in [`supabase-delete-gate.md`](./supabase-delete-gate.md) passes. **Never** touch Hetzner / Replicate / Roboflow / GitHub / OpenAI / Bird / DNS / Traefik / `/data/secrets.json`.
+
+**Ikke gjort endnu:** cloud delete (gate FAIL · `DELETE_READY: no`) · commit ikke `service_role` keys · sænk ikke `SCAN_QUALITY_THRESHOLD` · flip ikke vision pins.
 
 ---
 
@@ -202,9 +204,10 @@ curl -sS http://127.0.0.1:3010/api/health | head
 - [ ] Ingen keys i git / PR
 - [ ] `SCAN_QUALITY_THRESHOLD=70` uændret
 - [ ] `FOOT_VISION_CANARY_PERCENT` / Trellis / Roboflow pins uændrede
-- [ ] Cloud-projekt **forbliver** ACTIVE (rollback-target) indtil Broser siger stop
+- [ ] Cloud-projekt ACTIVE som rollback indtil [`supabase-delete-gate.md`](./supabase-delete-gate.md) = PASS (`DELETE_READY: yes`)
 - [ ] `verify-rls.sh` grøn
 - [ ] Backup af `praxis_pgdata` (Hetzner snapshot eller `pg_dump` cron)
+- [ ] Inventory/pg_dump under `./backups/` documented (see `docs/ops/supabase-backup-pointers.md`)
 
 ### F. Rollback
 

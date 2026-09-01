@@ -6,7 +6,7 @@ Alt kører på Hetzner `167.233.171.184` — klinik + Bird SMS + AI agent-worker
 
 Se den fulde runbook: [`docs/ops/supabase-to-hetzner-migration.md`](docs/ops/supabase-to-hetzner-migration.md)
 
-Kort: `docker-compose.db.yml` (Postgres 17 + pgvector, volume `praxis_pgdata`) + valgfri supabase/docker Kong-stack. App forbliver `PRAXIS_DB=mock` indtil cutover. Cloud-projektet slettes ikke.
+Kort: `docker-compose.db.yml` (Postgres 17 + pgvector, volume `praxis_pgdata`) + valgfri supabase/docker Kong-stack. App forbliver `PRAXIS_DB=mock` indtil cutover. Cloud-projekt slettes **kun** når [`docs/ops/supabase-delete-gate.md`](docs/ops/supabase-delete-gate.md) er PASS (`DELETE_READY: yes`) — pt. **no**.
 
 ## Hurtigst (anbefalet) · Hetzner Console
 

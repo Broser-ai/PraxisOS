@@ -35,12 +35,25 @@ export type DbConfig = {
   pgvector: boolean;
 };
 
-function resolveUrl(): string {
+/** Cloud EU fallback — only for PRAXIS_DB=supabase-eu (rollback / dual-run). */
+const CLOUD_EU_URL = "https://jajdtvduzkitjzcazcng.supabase.co";
+
+function envSupabaseUrl(): string {
   return (
     process.env.SUPABASE_URL?.trim() ||
     process.env.NEXT_PUBLIC_SUPABASE_URL?.trim() ||
-    "https://jajdtvduzkitjzcazcng.supabase.co"
+    ""
   );
+}
+
+/** Runtime URL for the active DB_MODE (clients / ping). */
+function resolveUrl(): string {
+  const fromEnv = envSupabaseUrl();
+  if (fromEnv) return fromEnv;
+  // Self-host must set SUPABASE_URL explicitly — never silently use cloud.
+  if (DB_MODE === "supabase-eu") return CLOUD_EU_URL;
+  if (DB_MODE === "supabase-local") return "http://127.0.0.1:54321";
+  return "";
 }
 
 export const DB_CONFIGS: Record<DbMode, DbConfig> = {
@@ -55,7 +68,7 @@ export const DB_CONFIGS: Record<DbMode, DbConfig> = {
   },
   "supabase-local": {
     mode: "supabase-local",
-    url: process.env.SUPABASE_URL?.trim() || "http://127.0.0.1:54321",
+    url: envSupabaseUrl() || "http://127.0.0.1:54321",
     region: "lokal (docker)",
     rlsEnabled: true,
     poolMin: 2,
@@ -64,7 +77,7 @@ export const DB_CONFIGS: Record<DbMode, DbConfig> = {
   },
   "supabase-eu": {
     mode: "supabase-eu",
-    url: resolveUrl(),
+    url: envSupabaseUrl() || CLOUD_EU_URL,
     region: "eu-west-1 · Ireland",
     rlsEnabled: true,
     poolMin: 5,
@@ -73,7 +86,8 @@ export const DB_CONFIGS: Record<DbMode, DbConfig> = {
   },
   "supabase-selfhost": {
     mode: "supabase-selfhost",
-    url: resolveUrl(),
+    // Never fall back to cloud URL — requires explicit SUPABASE_URL (Kong / self-host).
+    url: envSupabaseUrl(),
     region: "eu · Hetzner self-host",
     rlsEnabled: true,
     poolMin: 5,
