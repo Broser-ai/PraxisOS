@@ -5,9 +5,16 @@ import { execFile } from "node:child_process";
 import { mkdirSync, existsSync, rmSync } from "node:fs";
 import { join } from "node:path";
 import { promisify } from "node:util";
+import { appendAgentLedger } from "@/lib/agents/ledger";
 import { getSwarmMemory } from "@/lib/swarm/memory";
 import { writeJournal } from "@/lib/swarm/journal";
 import { SWARM_INVARIANTS, type WorktreeJob } from "@/lib/swarm/types";
+import {
+  cleanupAgentWorktrees,
+  getWorktreeStatus,
+  listWorktrees,
+  type WorktreeStatus,
+} from "@/lib/worktree/manager";
 
 const execFileAsync = promisify(execFile);
 
@@ -30,6 +37,27 @@ async function git(args: string[], cwd = process.cwd()): Promise<string> {
 
 export async function listActiveWorktrees(): Promise<WorktreeJob[]> {
   return getSwarmMemory().worktrees.filter((w) => w.status === "active" || w.status === "ready_for_review");
+}
+
+/** All tracked swarm worktree jobs (any status). */
+export function listWorktreeJobs(opts?: {
+  status?: WorktreeJob["status"];
+}): WorktreeJob[] {
+  const jobs = getSwarmMemory().worktrees;
+  return opts?.status ? jobs.filter((j) => j.status === opts.status) : [...jobs];
+}
+
+/** Git porcelain + swarm job status for one task or branch. */
+export function getSwarmWorktreeStatus(
+  taskIdOrBranch: string,
+): { job: WorktreeJob | null; git: WorktreeStatus | null } {
+  const mem = getSwarmMemory();
+  const job =
+    mem.worktrees.find(
+      (w) => w.taskId === taskIdOrBranch || w.branchName === taskIdOrBranch,
+    ) ?? null;
+  const git = getWorktreeStatus(job?.path ?? job?.branchName ?? taskIdOrBranch);
+  return { job, git };
 }
 
 /**
@@ -89,6 +117,12 @@ export async function createWorktreeForTask(input: {
     taskId: input.taskId,
     content: `Worktree ready · ${branchName} @ ${path}`,
     meta: { branchName, path },
+  });
+  appendAgentLedger({
+    agent: "ATLAS_CODE",
+    workflow: "swarm_worktree",
+    event: "worktree_create",
+    payload: { taskId: input.taskId, branchName, path },
   });
   return job;
 }
@@ -159,6 +193,18 @@ export async function approveMergeWorktree(input: {
     content: `Human-approved by ${input.approvedBy} → open PR from ${job.branchName} into ${target} (no auto-merge executed)`,
     meta: { approvedBy: input.approvedBy, target, branchName: job.branchName },
   });
+  appendAgentLedger({
+    agent: "FREJ_GATE",
+    workflow: "swarm_worktree",
+    event: "human_approve_pr_intent",
+    payload: {
+      taskId: input.taskId,
+      approvedBy: input.approvedBy,
+      target,
+      branchName: job.branchName,
+      noAutoMerge: true,
+    },
+  });
   return { ok: true, mergedInto: target };
 }
 
@@ -181,4 +227,58 @@ export async function discardWorktree(taskId: string): Promise<void> {
     taskId,
     content: `Worktree discarded · ${job.branchName}`,
   });
+  appendAgentLedger({
+    agent: "SYSTEM",
+    workflow: "swarm_worktree",
+    event: "worktree_discard",
+    payload: { taskId, branchName: job.branchName },
+  });
+}
+
+/**
+ * Cleanup discarded/merged swarm jobs + orphaned git worktrees under .worktrees.
+ * Does not merge. Does not touch primary checkout.
+ */
+export async function cleanupSwarmWorktrees(opts?: {
+  discardReady?: boolean;
+  orphanedOnly?: boolean;
+}): Promise<{ discarded: string[]; removedGit: string[] }> {
+  const mem = getSwarmMemory();
+  const discarded: string[] = [];
+  const statuses: WorktreeJob["status"][] = opts?.discardReady
+    ? ["merged", "discarded", "ready_for_review"]
+    : ["merged", "discarded"];
+
+  for (const job of [...mem.worktrees]) {
+    if (!statuses.includes(job.status) && job.status !== "active") continue;
+    if (job.status === "active") {
+      // only drop active if path missing (orphan)
+      if (existsSync(job.path)) continue;
+    }
+    if (job.status === "ready_for_review" && !opts?.discardReady) continue;
+    if (job.status === "merged" || job.status === "discarded" || !existsSync(job.path)) {
+      await discardWorktree(job.taskId);
+      discarded.push(job.branchName);
+    }
+  }
+
+  const { removed } = cleanupAgentWorktrees({
+    branchIncludes: "swarm",
+    orphanedOnly: opts?.orphanedOnly ?? false,
+  });
+
+  // Reconcile memory against live git worktrees
+  const live = new Set(listWorktrees().map((t) => t.branch));
+  for (const job of mem.worktrees) {
+    if (
+      (job.status === "active" || job.status === "ready_for_review") &&
+      !live.has(job.branchName) &&
+      !existsSync(job.path)
+    ) {
+      job.status = "discarded";
+      discarded.push(job.branchName);
+    }
+  }
+
+  return { discarded: [...new Set(discarded)], removedGit: removed };
 }

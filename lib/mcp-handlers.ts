@@ -16,6 +16,16 @@ import {
   getJournalByBooking,
   ensureJournalForBooking,
 } from "@/lib/journal";
+import { getSwarmStatus } from "@/lib/swarm";
+import { getShadowGateSnapshot } from "@/lib/swarm/shadow-gates";
+import {
+  cleanupSwarmWorktrees,
+  listWorktreeJobs,
+} from "@/lib/swarm/worktree-manager";
+import type { WorktreeJob } from "@/lib/swarm/types";
+import { runPrimeCycle } from "@/lib/prime/agent";
+import { getPrimeSwarmStatus } from "@/lib/prime/swarm-bridge";
+import { getQuizItem, listQuizItems } from "@/lib/prime/quiz-pack";
 
 export type ToolResult = {
   ok: boolean;
@@ -414,6 +424,108 @@ export async function executeMcpTool(
           response: agent
             ? `${agent.greeting}\n\nAng. dit spørgsmål («${message.slice(0, 120)}»): jeg tager det i ${agent.role.toLowerCase()}-sporet. ${agent.signature.replace("{clinic}", "bypilar")}`
             : "Ingen agent fundet.",
+        },
+      };
+    }
+
+    case "swarm_status": {
+      const tenant = asString(args.tenant, "bypilar");
+      return {
+        ok: true,
+        data: {
+          tenant,
+          ...getSwarmStatus(),
+          shadowGates: getShadowGateSnapshot(),
+          note: "NO_AUTO_MERGE / suggestion-only clinical — human gate required",
+        },
+      };
+    }
+
+    case "list_swarm_worktrees": {
+      const status = asString(args.status) as WorktreeJob["status"] | "";
+      const jobs = listWorktreeJobs(
+        status
+          ? { status: status as WorktreeJob["status"] }
+          : undefined,
+      );
+      return {
+        ok: true,
+        data: {
+          count: jobs.length,
+          worktrees: jobs,
+        },
+      };
+    }
+
+    case "cleanup_swarm_worktrees": {
+      const result = await cleanupSwarmWorktrees({
+        discardReady: Boolean(args.discardReady),
+        orphanedOnly: Boolean(args.orphanedOnly),
+      });
+      return {
+        ok: true,
+        data: {
+          ...result,
+          noAutoMerge: true,
+          tenant: asString(args.tenant, "bypilar"),
+        },
+      };
+    }
+
+    case "prime_rlvr_quiz": {
+      const tenant = asString(args.tenant, "bypilar");
+      const itemId = asString(args.itemId);
+      const answer = asString(args.answer);
+      if (itemId) {
+        const item = getQuizItem(itemId);
+        if (!item) {
+          return { ok: false, data: { error: "quiz_item_not_found", itemId } };
+        }
+        const result = runPrimeCycle({
+          tenantSlug: tenant,
+          brief: "MCP prime_rlvr_quiz · class_0",
+          attempts: [{ itemId, answer }],
+          proposePolicy: true,
+        });
+        return {
+          ok: result.ok,
+          data: {
+            ...result,
+            item: { id: item.id, domain: item.domain, prompt: item.prompt },
+            note: "Verifiable reward only — no model training, no diagnosis",
+          },
+        };
+      }
+      const sampleSize = Math.min(
+        20,
+        Math.max(1, asNumber(args.sampleSize, 5) || 5),
+      );
+      const result = runPrimeCycle({
+        tenantSlug: tenant,
+        brief: "MCP prime_rlvr_quiz probe · class_0",
+        sampleSize,
+        proposePolicy: true,
+      });
+      return {
+        ok: result.ok,
+        data: {
+          ...result,
+          availableItems: listQuizItems()
+            .slice(0, 8)
+            .map((q) => q.id),
+          note: "Probe without answers → reward 0 · pass itemId+answer to score",
+        },
+      };
+    }
+
+    case "prime_status": {
+      const tenant = asString(args.tenant, "bypilar");
+      return {
+        ok: true,
+        data: {
+          tenant,
+          ...getPrimeSwarmStatus(tenant),
+          note: "Prime = RLVR class_0 · human adjudication for policy · pathology shadow",
         },
       };
     }

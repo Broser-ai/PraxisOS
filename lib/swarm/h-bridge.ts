@@ -8,6 +8,11 @@ import {
 } from "@/lib/data/repo";
 import { createDefaultLLMCaller, createStubLLMCaller } from "@/lib/llm-adapter";
 import { buildOrchestrator, isOrchestrationEnabled } from "@/lib/orchestrator";
+import {
+  asClinicalSuggestion,
+  CLINICAL_POLICY,
+  CLINICAL_SUGGESTION_DISCLAIMER,
+} from "@/lib/swarm/clinical-policy";
 import { writeJournal } from "@/lib/swarm/journal";
 import type { SwarmTask } from "@/lib/swarm/types";
 
@@ -85,11 +90,20 @@ export async function runHBridge(
       tenantMdrStatus: "none",
     });
 
+    const clinical = asClinicalSuggestion({
+      bookingId: booking.id,
+      orchStatus: result.status,
+      steps: result.steps.length,
+      note: "Clinic pulse is operational telemetry — not a clinical diagnosis",
+    });
+
     const summary = [
       `booking=${booking.id}`,
       `orch=${result.status}`,
       `steps=${result.steps.length}`,
+      `clinical=${CLINICAL_POLICY.clinical_status}`,
       result.error ? `err=${result.error.code}` : null,
+      CLINICAL_SUGGESTION_DISCLAIMER,
     ]
       .filter(Boolean)
       .join(" · ");
@@ -103,6 +117,7 @@ export async function runHBridge(
         bookingId: booking.id,
         orchStatus: result.status,
         steps: result.steps.length,
+        clinical,
       },
     });
 

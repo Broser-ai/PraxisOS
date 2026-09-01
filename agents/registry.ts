@@ -1,9 +1,15 @@
-// PraxisOS swarm specialist registry · NINA, FELIX, LUNA (+ S-Agent)
+// PraxisOS swarm specialist registry · NINA, FELIX, LUNA, PRIME (+ S-Agent)
 import { NINA_ID } from "@/agents/specialists/DR-NINA";
 import { FELIX_ID } from "@/agents/specialists/FELIX-self-coder";
 import { LUNA_ID } from "@/agents/specialists/LUNA-harvester";
+import { PRIME_ID } from "@/agents/specialists/PRIME-rl";
 
-export type SpecialistId = typeof NINA_ID | typeof FELIX_ID | typeof LUNA_ID | "s-agent";
+export type SpecialistId =
+  | typeof NINA_ID
+  | typeof FELIX_ID
+  | typeof LUNA_ID
+  | typeof PRIME_ID
+  | "s-agent";
 
 export type SpecialistRecord = {
   id: SpecialistId;
@@ -33,6 +39,13 @@ const REGISTRY: SpecialistRecord[] = [
     name: "Luna",
     role: "arXiv harvester 24/7",
     module: "agents/specialists/LUNA-harvester.ts",
+    status: "online",
+  },
+  {
+    id: PRIME_ID,
+    name: "Prime",
+    role: "RLVR · verifiable-reward e-learning (class_0) · no clinical autonomy",
+    module: "agents/specialists/PRIME-rl.ts",
     status: "online",
   },
   {

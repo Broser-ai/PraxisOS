@@ -49,6 +49,12 @@ const AGENDA: AgendaItem[] = [
     brief: "Harvest actionable improvements for booking, e-learning verifiable rewards, and MDR-safe clinical UX.",
   },
   {
+    type: "rl_eval",
+    title: "PRIME · RLVR quiz probe",
+    brief:
+      "Run class_0 verifiable-reward quiz sample; propose education-only policy nudges for human adjudication. No model training, no diagnosis.",
+  },
+  {
     type: "improve",
     title: "FELIX · self-improve proposals",
     brief: "Propose measurable upgrades to working-core, swarm journals, and test coverage.",

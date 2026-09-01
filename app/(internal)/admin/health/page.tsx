@@ -16,7 +16,7 @@ const INTEGRATIONS: { name: string; modul: string; status: Status; note: string;
   { name: "Sygesikringen danmark", modul: "EDIFACT D04A", status: "stub", note: "webservice-aftale" },
   { name: "PraxisOS Pay", modul: "egen-built", status: "live", note: "9 metoder · PraxisRisk + Trust 2", href: "/admin/payments" },
   { name: "AI · Aria/Niels/Sigrid", modul: "9 humaniserede agenter", status: "live", note: "mock-svar · OpenAI key for prod", href: "/admin/agents" },
-  { name: "MCP-server", modul: "JSON-RPC 2.0", status: "live", note: "19 tools eksponeret", href: "/admin/mcp" },
+  { name: "MCP-server", modul: "JSON-RPC 2.0", status: "live", note: "25 tools eksponeret", href: "/admin/mcp" },
   { name: "Modul-tilvalg", modul: "Kerne + tilvalg", status: "live", note: "aktivering ✓", href: "/admin/marketplace" },
 ];
 

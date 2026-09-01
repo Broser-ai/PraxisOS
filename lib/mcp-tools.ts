@@ -307,6 +307,88 @@ export const MCP_TOOLS: McpTool[] = [
       required: ["message"],
     },
   },
+  {
+    name: "swarm_status",
+    description:
+      "Hent S-H swarm status: tasks, worktrees, invariants, shadow gates. Merge/deploy er aldrig automatisk.",
+    category: "agents",
+    requiresScope: "read:bookings",
+    inputSchema: {
+      type: "object",
+      properties: {
+        tenant: { type: "string", description: "Tenant-slug" },
+      },
+      required: ["tenant"],
+    },
+  },
+  {
+    name: "list_swarm_worktrees",
+    description: "List aktive/tracked git worktrees for swarm agent-sessions (create/list/status).",
+    category: "agents",
+    requiresScope: "read:bookings",
+    inputSchema: {
+      type: "object",
+      properties: {
+        tenant: { type: "string", description: "Tenant-slug" },
+        status: {
+          type: "string",
+          description: "Filter",
+          enum: ["active", "ready_for_review", "merged", "discarded"],
+        },
+      },
+      required: ["tenant"],
+    },
+  },
+  {
+    name: "cleanup_swarm_worktrees",
+    description:
+      "Ryd discarded/merged (valgfrit ready) swarm-worktrees. Merger ALDRIG til main. Kræver owner-scope.",
+    category: "agents",
+    requiresScope: "write:bookings",
+    inputSchema: {
+      type: "object",
+      properties: {
+        tenant: { type: "string", description: "Tenant-slug" },
+        discardReady: { type: "boolean", description: "Også discard ready_for_review (default false)" },
+        orphanedOnly: { type: "boolean", description: "Kun orphaned paths" },
+      },
+      required: ["tenant"],
+    },
+  },
+  {
+    name: "prime_rlvr_quiz",
+    description:
+      "Prime RLVR: score class_0 e-learning quiz answers (verifiable rewards). Aldrig diagnose/behandling; ingen model-træning.",
+    category: "agents",
+    requiresScope: "read:bookings",
+    inputSchema: {
+      type: "object",
+      properties: {
+        tenant: { type: "string", description: "Tenant-slug" },
+        itemId: { type: "string", description: "Quiz item-id (fx q_anat_01)" },
+        answer: { type: "string", description: "Elevens svar" },
+        sampleSize: {
+          type: "number",
+          description: "Hvis itemId udelades: probe N items uden svar (default 5)",
+        },
+      },
+      required: ["tenant"],
+    },
+  },
+  {
+    name: "prime_status",
+    description:
+      "Prime RL status: quiz-pack stats, policy proposals, ledger, invariants (NO_MODEL_TRAINING, suggestion-only).",
+    category: "agents",
+    requiresScope: "read:bookings",
+    inputSchema: {
+      type: "object",
+      properties: {
+        tenant: { type: "string", description: "Tenant-slug" },
+      },
+      required: ["tenant"],
+    },
+  },
 
   // Admin
   {

@@ -169,8 +169,9 @@ export const db = {
 export const MIGRATIONS = [
   { version: "0001", name: "initial_schema", description: "Tabeller, RLS, hash-chain audit, pgvector", status: "ready" },
   { version: "0002", name: "seed_demo_data", description: "Seed bypilar + nordlys + demo users/clients", status: "ready" },
-  { version: "0003", name: "agent_ledger", description: "Agent-aktivitets-log + LLM-call-metrics", status: "planned" },
-  { version: "0004", name: "scan_meshes", description: "Object storage refs for 3D-fod-meshes", status: "planned" },
+  { version: "0003", name: "swarm_snapshots_and_memory", description: "Swarm durability + vector memory", status: "ready" },
+  { version: "0004", name: "agent_ledger", description: "Agent-aktivitets-log + LLM-call-metrics", status: "ready" },
+  { version: "0005", name: "scan_meshes", description: "Object storage refs for 3D-fod-meshes", status: "planned" },
 ];
 
 export const TABLES = [

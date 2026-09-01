@@ -30,6 +30,8 @@ function routeToAgent(type: SwarmTaskType, brief: string): SAgentId | "H_BRIDGE"
       return "FREJ_GATE";
     case "clinical_h":
       return "H_BRIDGE";
+    case "rl_eval":
+      return "PRIME_RL";
     default: {
       const _exhaustive: never = type;
       void _exhaustive;
@@ -37,6 +39,7 @@ function routeToAgent(type: SwarmTaskType, brief: string): SAgentId | "H_BRIDGE"
       const lower = brief.toLowerCase();
       if (lower.includes("research") || lower.includes("paper")) return "LUNA_RESEARCH";
       if (lower.includes("book") || lower.includes("journal")) return "H_BRIDGE";
+      if (/\brl\b|rlvr|quiz|verifiable.?reward/.test(lower)) return "PRIME_RL";
       return "ATLAS_CODE";
     }
   }

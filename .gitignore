@@ -46,6 +46,11 @@ Thumbs.db
 # Screenshots (lokale tests)
 screenshots/
 
+# Swarm / agent worktrees (ephemeral parallel sessions)
+.worktrees/
+.praxis-worktrees/
+.swarm-data/
+
 # Word-doc · sendes separat til ma@keap.me
 PraxisOS-Forarbejde.docx
 

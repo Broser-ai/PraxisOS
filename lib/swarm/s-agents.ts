@@ -9,8 +9,11 @@ import {
   runResearchHarvest,
 } from "@/lib/alphaxiv";
 import type { ResearchTrackId } from "@/lib/alphaxiv/types";
+import { runPrimeForSwarmTask } from "@/lib/prime/swarm-bridge";
+import { CLINICAL_POLICY } from "@/lib/swarm/clinical-policy";
 import { writeJournal } from "@/lib/swarm/journal";
-import type { SAgentId, SwarmTask } from "@/lib/swarm/types";
+import { getShadowGateSnapshot } from "@/lib/swarm/shadow-gates";
+import { SWARM_INVARIANTS, type SAgentId, type SwarmTask } from "@/lib/swarm/types";
 import {
   createWorktreeForTask,
   markWorktreeReadyForReview,
@@ -199,16 +202,69 @@ async function felixImprove(task: SwarmTask): Promise<SAgentResult> {
 }
 
 async function frejGate(task: SwarmTask): Promise<SAgentResult> {
+  const shadow = getShadowGateSnapshot();
+  const checks = [
+    SWARM_INVARIANTS.NO_AUTO_MERGE === true,
+    SWARM_INVARIANTS.NO_AUTO_DEPLOY === true,
+    CLINICAL_POLICY.clinical_status === "suggestion_only",
+    CLINICAL_POLICY.approved_for_active_routing === false,
+    shadow.safeForNonVisionSwarm === true,
+  ];
+  const ok = checks.every(Boolean);
+
   writeJournal({
     agent: "FREJ_GATE",
     kind: "gate",
     taskId: task.id,
-    content:
-      "Compliance gate: verify NO_AUTO_MERGE + tenant isolation + no Class IIa without CE + no auto-implement from Alphaxiv papers",
+    content: ok
+      ? `Compliance gate OK · clinical=${CLINICAL_POLICY.clinical_status} · shadowFlag=${shadow.shadowEvalFlag} · privacy=${shadow.privacyAllowed} · visionWouldRun=${shadow.visionShadowWouldRun}`
+      : "Compliance gate FAIL — invariant or clinical policy broken",
+    meta: {
+      shadow,
+      clinicalPolicy: CLINICAL_POLICY,
+      invariants: SWARM_INVARIANTS,
+    },
   });
+
   return {
-    summary: "FREJ gate OK — human approval still required for merge/deploy",
-    artifacts: [],
+    summary: ok
+      ? "FREJ gate OK — suggestion-only clinical · human approval still required for merge/deploy · shadow gates read-only"
+      : "FREJ gate FAIL — do not approve",
+    artifacts: [`shadow_gates/${task.id}.json`],
+    needsHuman: true,
+  };
+}
+
+async function primeRl(task: SwarmTask): Promise<SAgentResult> {
+  writeJournal({
+    agent: "PRIME_RL",
+    kind: "thought",
+    taskId: task.id,
+    content: `RLVR cycle · class_0 education · NO_MODEL_TRAINING · ${task.title}`,
+  });
+
+  const signal = runPrimeForSwarmTask(task);
+
+  writeJournal({
+    agent: "PRIME_RL",
+    kind: "learning",
+    taskId: task.id,
+    content: signal.result.summary,
+    meta: {
+      meanReward: signal.result.meanReward,
+      proposals: signal.result.proposals.map((p) => p.id),
+      pack: signal.pack,
+      ok: signal.result.ok,
+      clinical_status: CLINICAL_POLICY.clinical_status,
+    },
+  });
+
+  return {
+    summary: signal.result.summary,
+    artifacts: [
+      `prime/rlvr/${task.id}.json`,
+      ...signal.result.proposals.map((p) => `prime/policy/${p.id}`),
+    ],
     needsHuman: true,
   };
 }
@@ -223,6 +279,8 @@ export async function runSAgent(agent: SAgentId, task: SwarmTask): Promise<SAgen
       return felixImprove(task);
     case "FREJ_GATE":
       return frejGate(task);
+    case "PRIME_RL":
+      return primeRl(task);
     case "ARIA_META":
       return {
         summary: "ARIA_META routes only — use meta-harness",

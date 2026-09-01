@@ -1,4 +1,6 @@
-// PraxisOS parallel Git worktree manager (Felix)
+// PraxisOS parallel Git worktree manager (Felix + Swarm sessions)
+// create / list / status / cleanup — merge to main is NEVER automatic.
+
 import { execFileSync, spawnSync } from "node:child_process";
 import { existsSync, mkdirSync, rmSync } from "node:fs";
 import { join, resolve } from "node:path";
@@ -10,6 +12,16 @@ export type WorktreeInfo = {
   bare: boolean;
 };
 
+export type WorktreeStatus = WorktreeInfo & {
+  dirty: boolean;
+  ahead: number;
+  behind: number;
+  lastCommitAt: string | null;
+  existsOnDisk: boolean;
+};
+
+export type AgentSessionKind = "felix" | "swarm" | "atlas" | "generic";
+
 function repoRoot(): string {
   try {
     return execFileSync("git", ["rev-parse", "--show-toplevel"], {
@@ -20,9 +32,12 @@ function repoRoot(): string {
   }
 }
 
-function worktreeBase(): string {
+function worktreeBase(kind: AgentSessionKind = "felix"): string {
   const root = repoRoot();
-  const base = join(root, ".praxis-worktrees");
+  const base =
+    kind === "swarm" || kind === "atlas"
+      ? join(root, ".worktrees")
+      : join(root, ".praxis-worktrees");
   if (!existsSync(base)) mkdirSync(base, { recursive: true });
   return base;
 }
@@ -50,13 +65,28 @@ export function listWorktrees(): WorktreeInfo[] {
   return items;
 }
 
-export function createAgentWorktree(agentId: string, baseBranch = "main"): WorktreeInfo {
+function existsRemote(branch: string): boolean {
+  const r = spawnSync("git", ["rev-parse", "--verify", `origin/${branch}`], {
+    cwd: repoRoot(),
+  });
+  return r.status === 0;
+}
+
+export function createAgentWorktree(
+  agentId: string,
+  baseBranch = "main",
+  opts?: { kind?: AgentSessionKind; branchName?: string },
+): WorktreeInfo {
+  const kind = opts?.kind ?? "felix";
   const safe = agentId.replace(/[^a-z0-9_-]/gi, "-").toLowerCase();
   const stamp = new Date().toISOString().replace(/[:.]/g, "").slice(0, 15);
-  const branch = `cursor/felix-${safe}-${stamp}-2c11`.toLowerCase();
-  const path = resolve(worktreeBase(), `${safe}-${stamp}`);
+  const branch =
+    opts?.branchName ??
+    (kind === "swarm" || kind === "atlas"
+      ? `cursor/swarm-${safe}-${stamp}-2c11`.toLowerCase()
+      : `cursor/felix-${safe}-${stamp}-2c11`.toLowerCase());
+  const path = resolve(worktreeBase(kind), `${safe}-${stamp}`);
 
-  // Ensure base exists locally
   spawnSync("git", ["fetch", "origin", baseBranch], { cwd: repoRoot() });
   const startPoint = existsRemote(baseBranch) ? `origin/${baseBranch}` : baseBranch;
 
@@ -74,11 +104,56 @@ export function createAgentWorktree(agentId: string, baseBranch = "main"): Workt
   };
 }
 
-function existsRemote(branch: string): boolean {
-  const r = spawnSync("git", ["rev-parse", "--verify", `origin/${branch}`], {
-    cwd: repoRoot(),
-  });
-  return r.status === 0;
+export function getWorktreeStatus(pathOrBranch: string): WorktreeStatus | null {
+  const trees = listWorktrees();
+  const match = trees.find(
+    (t) =>
+      t.path === pathOrBranch ||
+      t.branch === pathOrBranch ||
+      t.path.endsWith(pathOrBranch) ||
+      t.branch.endsWith(pathOrBranch),
+  );
+  if (!match) return null;
+
+  const existsOnDisk = existsSync(match.path);
+  let dirty = false;
+  let ahead = 0;
+  let behind = 0;
+  let lastCommitAt: string | null = null;
+
+  if (existsOnDisk) {
+    try {
+      const porcelain = execFileSync("git", ["status", "--porcelain"], {
+        cwd: match.path,
+        encoding: "utf8",
+      });
+      dirty = porcelain.trim().length > 0;
+    } catch {
+      dirty = false;
+    }
+    try {
+      const counts = execFileSync(
+        "git",
+        ["rev-list", "--left-right", "--count", "HEAD...@{upstream}"],
+        { cwd: match.path, encoding: "utf8" },
+      ).trim();
+      const [a, b] = counts.split(/\s+/).map((n) => Number(n) || 0);
+      ahead = a ?? 0;
+      behind = b ?? 0;
+    } catch {
+      // no upstream
+    }
+    try {
+      lastCommitAt = execFileSync("git", ["log", "-1", "--format=%cI"], {
+        cwd: match.path,
+        encoding: "utf8",
+      }).trim();
+    } catch {
+      lastCommitAt = null;
+    }
+  }
+
+  return { ...match, dirty, ahead, behind, lastCommitAt, existsOnDisk };
 }
 
 export function removeAgentWorktree(pathOrBranch: string): void {
@@ -97,6 +172,38 @@ export function removeAgentWorktree(pathOrBranch: string): void {
   } catch {
     // already removed
   }
+}
+
+/**
+ * Remove agent worktrees under .praxis-worktrees / .worktrees that match filter.
+ * Never touches the primary checkout. Never merges.
+ */
+export function cleanupAgentWorktrees(opts?: {
+  /** Only remove branches matching this substring (default: felix|swarm) */
+  branchIncludes?: string;
+  /** Also remove when path missing on disk */
+  orphanedOnly?: boolean;
+}): { removed: string[] } {
+  const needle = (opts?.branchIncludes ?? "felix|swarm").toLowerCase();
+  const patterns = needle.split("|").map((p) => p.trim()).filter(Boolean);
+  const removed: string[] = [];
+  const primary = repoRoot();
+
+  for (const t of listWorktrees()) {
+    if (t.path === primary || t.bare) continue;
+    const hit = patterns.some(
+      (p) => t.branch.toLowerCase().includes(p) || t.path.toLowerCase().includes(p),
+    );
+    if (!hit) continue;
+    if (opts?.orphanedOnly && existsSync(t.path)) continue;
+    try {
+      removeAgentWorktree(t.path);
+      removed.push(t.branch);
+    } catch {
+      // best-effort
+    }
+  }
+  return { removed };
 }
 
 export function runInWorktree(path: string, command: string, args: string[]): string {

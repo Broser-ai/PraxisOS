@@ -4,7 +4,13 @@
 
 export type SwarmAgentKind = "S" | "H";
 
-export type SAgentId = "ARIA_META" | "ATLAS_CODE" | "LUNA_RESEARCH" | "FELIX_IMPROVE" | "FREJ_GATE";
+export type SAgentId =
+  | "ARIA_META"
+  | "ATLAS_CODE"
+  | "LUNA_RESEARCH"
+  | "FELIX_IMPROVE"
+  | "FREJ_GATE"
+  | "PRIME_RL";
 
 export type SwarmTaskType =
   | "research"
@@ -12,7 +18,8 @@ export type SwarmTaskType =
   | "improve"
   | "clinical_h"
   | "audit"
-  | "worktree_exec";
+  | "worktree_exec"
+  | "rl_eval";
 
 export type SwarmTaskStatus =
   | "queued"
@@ -53,6 +60,18 @@ export type JournalEntry = {
   content: string;
   meta?: Record<string, unknown>;
 };
+
+/** Documented agent roles for S-H + Prime + Autonom stack */
+export const SWARM_AGENT_ROLES = {
+  ARIA_META: "Meta-harness router · enqueue/execute · never auto-merge",
+  ATLAS_CODE: "S-agent · savage worktree plans (human PR gate)",
+  LUNA_RESEARCH: "S-agent · Alphaxiv harvest (citations only)",
+  FELIX_IMPROVE: "S-agent · measurable self-improve proposals",
+  FREJ_GATE: "S-agent · compliance gate before human approve",
+  PRIME_RL: "S-agent · RLVR quiz rewards + policy suggestions (class_0)",
+  H_BRIDGE: "H-agent bridge · clinic personas via LangGraph (ops pulse)",
+  AUTONOM: "Daemon · recurring agenda ticks (NO_AUTO_MERGE/DEPLOY)",
+} as const;
 
 export type WorktreeJob = {
   taskId: string;

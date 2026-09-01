@@ -7,3 +7,5 @@ export * from "@/lib/swarm/h-bridge";
 export * from "@/lib/swarm/meta-harness";
 export * from "@/lib/swarm/events";
 export * from "@/lib/swarm/daemon";
+export * from "@/lib/swarm/clinical-policy";
+export * from "@/lib/swarm/shadow-gates";
