@@ -1,0 +1,26 @@
+# Archive port from Drive praxisos/docs/qms — historical snapshot; verify against current deps before regulatory use.
+package,version,license,purpose,risk_class,verified_at
+@langchain/anthropic,^1.5.1,MIT,"LLM provider integration (Anthropic Claude) for AI reasoning",SOUP-A,2026-07-12
+@langchain/core,^1.2.2,MIT,"LangChain core framework for LLM orchestration",SOUP-A,2026-07-12
+@langchain/langgraph,^1.4.7,MIT,"Stateful agent/graph orchestration for LLM workflows",SOUP-A,2026-07-12
+@mkkellogg/gaussian-splats-3d,^0.4.7,MIT,"3D Gaussian splatting renderer",SOUP-B,2026-07-12
+@react-three/drei,^10.7.7,MIT,"Helper components for react-three-fiber (three.js)",SOUP-B,2026-07-12
+@react-three/fiber,^9.6.1,MIT,"React renderer for three.js scenes",SOUP-B,2026-07-12
+@types/three,^0.185.1,MIT,"TypeScript type definitions for three.js (build-time only, no runtime code)",N/A,2026-07-12
+next,^16.2.7,MIT,"React web application framework",SOUP-B,2026-07-12
+react,^19.2.7,MIT,"UI component library",SOUP-B,2026-07-12
+react-dom,^19.2.7,MIT,"React DOM renderer",SOUP-B,2026-07-12
+safety-kit,github:Broser-ai/safety-kit#v0.1.0,UNLICENSED,"Internal safety toolkit: credential redaction/broker, quality gates, proof-ledger, RLS policy enforcement (infra safety layer)",SOUP-B,2026-07-12
+three,^0.185.1,MIT,"3D rendering engine (WebGL)",SOUP-B,2026-07-12
+three-custom-shader-material,^6.4.0,MIT,"Custom shader material extension for three.js",SOUP-B,2026-07-12
+zod,^4.4.3,MIT,"Runtime schema validation (incl. clinical data schemas)",SOUP-A,2026-07-12
+@tailwindcss/postcss,^4.3.0,MIT,"Tailwind CSS PostCSS plugin (build tooling)",N/A,2026-07-12
+@types/node,22.10.7,MIT,"TypeScript type definitions for Node.js (build-time only)",N/A,2026-07-12
+@types/react,19.0.7,MIT,"TypeScript type definitions for React (build-time only)",N/A,2026-07-12
+@types/react-dom,19.0.3,MIT,"TypeScript type definitions for React DOM (build-time only)",N/A,2026-07-12
+@vitest/coverage-v8,^4.0.11,MIT,"Code coverage instrumentation plugin for Vitest",N/A,2026-07-12
+fast-check,^4.5.0,MIT,"Property-based testing library",N/A,2026-07-12
+postcss,8.5.1,MIT,"CSS transformation tooling (build-time)",N/A,2026-07-12
+tailwindcss,^4.3.0,MIT,"Utility-first CSS framework (build tooling)",N/A,2026-07-12
+typescript,5.7.3,Apache-2.0,"TypeScript compiler (build-time tooling)",N/A,2026-07-12
+vitest,^4.0.11,MIT,"Test runner / execution framework",SOUP-B,2026-07-12
