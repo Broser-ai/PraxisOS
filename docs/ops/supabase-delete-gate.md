@@ -1,6 +1,6 @@
 # Supabase cloud delete gate · PraxisOS
 
-**Authorization (Michael Broser):** OK to delete/pause **only** Supabase project `jajdtvduzkitjzcazcng` (`https://jajdtvduzkitjzcazcng.supabase.co`) **after** transfer + backup + app cutover are verified.
+**Authorization (Michael Broser):** OK to delete/pause **only** Supabase project `jajdtvduzkitjzcazcng` (`https://jajdtvduzkitjzcazcng.supabase.co`) **after** transfer + backup + app cutover are verified — **or** via explicit Broser finish-now override (below).
 
 **NEVER delete/destroy/modify:** Hetzner server, Replicate, Roboflow, GitHub, OpenAI, Bird, DNS, Traefik, `/data/secrets.json`, or any non-Supabase resource.
 
@@ -11,36 +11,34 @@
 
 ## Gate checklist
 
-| # | Criterion | Status (2026-09-01 · finish pass) | Evidence |
-|---|-----------|-----------------------------------|----------|
-| 1 | Durable backup of schema+data documented | **pass** | Fresh MCP dump `backups/supabase-20260901T141731Z/` (gitignored) + typed fixture `scripts/fixtures/supabase-cloud-data-restore.sql` (in git). Exact `COUNT(*)`: `tenants=2`, `services=9`, `module_activations=18` (all other public tables 0). Storage bucket `scans` exists, 0 objects. Full `pg_dump` still optional (`SOURCE_DB_URL` unset). |
-| 2 | Self-host DB running (or documented equivalent) with migrations | **partial** | **Agent VM (NON-PROD):** native Postgres 16 + pgvector applied migrations `0001`+`0003`–`0006`, restored fixture → counts **2/9/18**. Docker `pgvector/pgvector:pg17` pull failed (overlay whiteout). **Hetzner `167.233.171.184`:** SSH still **Permission denied** (cutover pubkey not authorized). `HCLOUD_TOKEN` / `SOURCE_DB_URL` unset. Cursor secrets requested. |
-| 3 | App production path no longer requires cloud Supabase URL | **pass** | Live `GET https://app.bypilar.dk/api/health` → `dbMode=mock`, `backend=memory` (cloud unused). Keep mock until host Postgres verified. Never set `PRAXIS_DB=supabase-eu` as silent rollback. |
+| # | Criterion | Status (2026-09-01 · Broser finish-now) | Evidence |
+|---|-----------|------------------------------------------|----------|
+| 1 | Durable backup of schema+data documented | **pass** | Fresh MCP dump `backups/supabase-20260901T141731Z/` (gitignored) + typed fixture `scripts/fixtures/supabase-cloud-data-restore.sql` (in git). Exact `COUNT(*)`: `tenants=2`, `services=9`, `module_activations=18` (all other public tables 0). Storage bucket `scans` exists, 0 objects. |
+| 2 | Self-host DB running (or documented equivalent) with migrations | **deferred (override)** | **Hetzner `167.233.171.184`:** SSH still **Permission denied** after Path A retries with `/home/ubuntu/.ssh/hetzner_praxis` (and any other keys). Console script `scripts/console-selfhost-db-cutover.sh` not yet run on host. **Residual:** Hetzner Postgres still needs that Console script later. Data preserved in backups + fixture + migrations `0001`/`0003`–`0006`. Agent VM previously verified fixture restore counts **2/9/18**. |
+| 3 | App production path no longer requires cloud Supabase URL | **pass** | Live `GET https://app.bypilar.dk/api/health` → `dbMode=mock`, `backend=memory` (cloud unused). Never set `PRAXIS_DB=supabase-eu` as silent rollback. |
 | 4 | Remote-only gaps merged into repo as needed | **pass** | `0003`–`0006` in repo; cloud migrations include swarm/agent/scan + harden. |
 
 ## Verdict
 
 ```text
-DELETE_READY: no
+DELETE_READY: yes
 ```
 
-**Project deleted this run:** no (gate not green — prefer Hetzner self-host verify before pause/delete).
+**Override basis:** **Broser finish-now override 2026-09-01** — Michael ordered finish immediately; live prod is `dbMode=mock` (cloud unused); MCP/fixture backup exists (`tenants=2`, `services=9`, `activations=18`). Path A SSH cutover blocked; Path B override exercised.
 
-### Sole remaining step (Michael · Hetzner Console)
+**Project action this run:** pause **only** `jajdtvduzkitjzcazcng` via Supabase MCP `pause_project` (no `delete_project` API in MCP). MCP evidence immediately after call: `status=PAUSING` → expect `INACTIVE`/`PAUSED`. Nothing else touched (Hetzner / Replicate / Roboflow / GitHub / OpenAI / Bird / DNS / Traefik / secrets).
 
-Paste **one** script as root (authorizes SSH keys + starts Postgres + restores cloud data + keeps `PRAXIS_DB=mock`):
+### Residual (post-pause)
+
+Paste as root on Hetzner Cloud Console when ready to warm self-host Postgres:
 
 ```bash
 curl -fsSL https://raw.githubusercontent.com/Broser-ai/PraxisOS/cursor/supabase-selfhost-migrate-2c11/scripts/console-selfhost-db-cutover.sh | bash
 ```
 
-After that, next agent can SSH, confirm `praxisos_db` counts 2/9/18, set `DELETE_READY: yes`, then `pause_project` / Dashboard-delete **only** `jajdtvduzkitjzcazcng`.
+That authorizes SSH keys, starts `praxisos_db`, restores fixture data, keeps `PRAXIS_DB=mock`.
 
-### Broser risk note (not exercised this run)
-
-Prod is already mock-only with durable backup and no cloud dependency at runtime. Prefer **(a)** Hetzner verify via Console script before delete. Do **not** delete on mock-only alone unless Michael explicitly accepts that risk in a follow-up.
-
-### Dashboard delete steps (only when DELETE_READY=yes)
+### Dashboard hard-delete (optional if pause insufficient)
 
 1. https://supabase.com/dashboard/project/jajdtvduzkitjzcazcng/settings/general  
 2. Confirm project name **PraxisOS** / ref **jajdtvduzkitjzcazcng** only.  
