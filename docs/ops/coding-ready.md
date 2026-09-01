@@ -12,8 +12,9 @@ This is **not** a claim that the foot scanner / clinical path is 100% PASS. Resi
 | Check | Result |
 |-------|--------|
 | Merge order | PR #27 (Prime+docs) → #28 DoD wording → #26 research gap → setup glue |
-| `npx tsc --noEmit` | run on tip before merge declare |
-| `npx vitest run tests/prime tests/swarm` | run on tip before merge declare |
+| `npx tsc --noEmit` | **PASS** |
+| `npx vitest run tests/prime tests/swarm` | **PASS** — 4 files / 20 tests |
+| `npx tsx scripts/awaken.ts` | smoke OK · daemon running · training=forbidden |
 | Clinical gates | suggestion-only · shadow pathology · `NO_AUTO_MERGE` / `NO_AUTO_DEPLOY` |
 
 ## Setup path
