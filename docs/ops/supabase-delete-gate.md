@@ -14,7 +14,7 @@
 | # | Criterion | Status (2026-09-01 · Broser finish-now) | Evidence |
 |---|-----------|------------------------------------------|----------|
 | 1 | Durable backup of schema+data documented | **pass** | Fresh MCP dump `backups/supabase-20260901T141731Z/` (gitignored) + typed fixture `scripts/fixtures/supabase-cloud-data-restore.sql` (in git). Exact `COUNT(*)`: `tenants=2`, `services=9`, `module_activations=18` (all other public tables 0). Storage bucket `scans` exists, 0 objects. |
-| 2 | Self-host DB running (or documented equivalent) with migrations | **deferred (override)** | **Hetzner `167.233.171.184`:** SSH still **Permission denied** after Path A retries with `/home/ubuntu/.ssh/hetzner_praxis` (and any other keys). Console script `scripts/console-selfhost-db-cutover.sh` not yet run on host. **Residual:** Hetzner Postgres still needs that Console script later. Data preserved in backups + fixture + migrations `0001`/`0003`–`0006`. Agent VM previously verified fixture restore counts **2/9/18**. |
+| 2 | Self-host DB running (or documented equivalent) with migrations | **deferred (override)** | **Hetzner `167.233.171.184`:** agent execute-yourself pass 2026-09-01 still **Permission denied**. Present key is cutover pubkey (`cursor-praxisos-cutover-2026-09-01`) — **not** authorized on host. Legacy authorized key (`cursor-hetzner-praxisos`) private material **missing**. No `HCLOUD_TOKEN`. See [`hetzner-cutover-execution-2026-09-01.md`](./hetzner-cutover-execution-2026-09-01.md). Data preserved in backups + fixture + migrations `0001`/`0003`–`0006`. |
 | 3 | App production path no longer requires cloud Supabase URL | **pass** | Live `GET https://app.bypilar.dk/api/health` → `dbMode=mock`, `backend=memory` (cloud unused). Never set `PRAXIS_DB=supabase-eu` as silent rollback. |
 | 4 | Remote-only gaps merged into repo as needed | **pass** | `0003`–`0006` in repo; cloud migrations include swarm/agent/scan + harden. |
 
@@ -30,15 +30,14 @@ DELETE_READY: yes
 
 **PR #25:** commit pushed on `cursor/supabase-selfhost-migrate-2c11`; `gh pr edit/comment` blocked (integration read-only) — title/body may still say gate not green until edited in GitHub UI.
 
-### Residual (post-pause)
+### Residual (post-pause · agent execute-yourself)
 
-Paste as root on Hetzner Cloud Console when ready to warm self-host Postgres:
+Host Postgres cutover is **blocked on credentials**, not on missing scripts. Inject into Cloud Agent env (either):
 
-```bash
-curl -fsSL https://raw.githubusercontent.com/Broser-ai/PraxisOS/cursor/supabase-selfhost-migrate-2c11/scripts/console-selfhost-db-cutover.sh | bash
-```
+- `HETZNER_PRAXIS_SSH_PRIVATE_KEY` (legacy authorized private key), or
+- `HCLOUD_TOKEN` (API → authorize cutover pubkey / remote)
 
-That authorizes SSH keys, starts `praxisos_db`, restores fixture data, keeps `PRAXIS_DB=mock`.
+Then re-run agent execution; script on branch: `scripts/console-selfhost-db-cutover.sh` (SSH keys + `praxisos_db` + fixture restore · keeps `PRAXIS_DB=mock`). Details: [`hetzner-cutover-execution-2026-09-01.md`](./hetzner-cutover-execution-2026-09-01.md).
 
 ### Dashboard hard-delete (optional if pause insufficient)
 
