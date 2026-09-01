@@ -26,7 +26,9 @@ DELETE_READY: yes
 
 **Override basis:** **Broser finish-now override 2026-09-01** — Michael ordered finish immediately; live prod is `dbMode=mock` (cloud unused); MCP/fixture backup exists (`tenants=2`, `services=9`, `activations=18`). Path A SSH cutover blocked; Path B override exercised.
 
-**Project action this run:** pause **only** `jajdtvduzkitjzcazcng` via Supabase MCP `pause_project` (no `delete_project` API in MCP). MCP evidence immediately after call: `status=PAUSING` → expect `INACTIVE`/`PAUSED`. Nothing else touched (Hetzner / Replicate / Roboflow / GitHub / OpenAI / Bird / DNS / Traefik / secrets).
+**Project action this run:** pause **only** `jajdtvduzkitjzcazcng` via Supabase MCP `pause_project` (no `delete_project` API in MCP). MCP evidence: `status=PAUSING` → **`status=INACTIVE`** (paused). Nothing else touched (Hetzner / Replicate / Roboflow / GitHub / OpenAI / Bird / DNS / Traefik / secrets).
+
+**PR #25:** commit pushed on `cursor/supabase-selfhost-migrate-2c11`; `gh pr edit/comment` blocked (integration read-only) — title/body may still say gate not green until edited in GitHub UI.
 
 ### Residual (post-pause)
 
