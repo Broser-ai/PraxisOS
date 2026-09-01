@@ -5,7 +5,7 @@
 
 # EPIC-4 · §DoD-Actual (appendiks)
 
-**Type:** appendiks der skal *tilføjes* nederst i eksisterende `docs/harness/EPIC-4-ELearning.md` (full 161-line contract not in Drive extract; this file is the DoD-Actual appendix only) (161 linjer). Filen her indeholder KUN den nye sektion — parent workflow appender den efter §7 "Rollback".
+**Type:** appendiks der skal *tilføjes* nederst i eksisterende `docs/harness/EPIC-4-ELearning.md` (full 161-line contract not in Drive extract; this file is the DoD-Actual appendix only). Filen her indeholder KUN den nye sektion — parent workflow appender den efter §7 "Rollback".
 
 **Baseline:** [`COMPLETE-AUDIT-REPORT.md`](../../COMPLETE-AUDIT-REPORT.md) §9 Sprint 5 tabellen + §C5/C9/H-REG-1/UX-12, snapshot 2026-07-16.
 
