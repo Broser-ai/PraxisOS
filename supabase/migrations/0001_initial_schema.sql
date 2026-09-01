@@ -366,7 +366,7 @@ begin
     ])
   loop
     execute format(
-      'create policy %I_tenant_isolated on %I for all using (tenant_id = current_setting(''app.tenant_id'')::uuid)',
+      'create policy %I on %I for all using (tenant_id = current_setting(''app.tenant_id'')::uuid)',
       t || '_isolation', t
     );
   end loop;

@@ -1,15 +1,25 @@
 // Supabase client + mode switcher.
 //
 // PRAXIS_DB:
-//   mock            — in-memory durable store (lib/data)
-//   supabase-local  — local Supabase CLI
-//   supabase-eu     — production EU project
+//   mock                 — in-memory durable store (lib/data)
+//   supabase-local       — local Supabase CLI
+//   supabase-eu          — hosted Supabase EU project (jajdtvduzkitjzcazcng)
+//   supabase-selfhost    — Hetzner / own Kong+PostgREST (or supabase/docker)
 
 import { createClient, type SupabaseClient } from "@supabase/supabase-js";
 
-export type DbMode = "mock" | "supabase-local" | "supabase-eu";
+export type DbMode =
+  | "mock"
+  | "supabase-local"
+  | "supabase-eu"
+  | "supabase-selfhost";
 
-const VALID_MODES: ReadonlyArray<DbMode> = ["mock", "supabase-local", "supabase-eu"];
+const VALID_MODES: ReadonlyArray<DbMode> = [
+  "mock",
+  "supabase-local",
+  "supabase-eu",
+  "supabase-selfhost",
+];
 const _rawMode = process.env.PRAXIS_DB?.trim() ?? "mock";
 export const DB_MODE: DbMode = VALID_MODES.includes(_rawMode as DbMode)
   ? (_rawMode as DbMode)
@@ -59,6 +69,15 @@ export const DB_CONFIGS: Record<DbMode, DbConfig> = {
     rlsEnabled: true,
     poolMin: 5,
     poolMax: 50,
+    pgvector: true,
+  },
+  "supabase-selfhost": {
+    mode: "supabase-selfhost",
+    url: resolveUrl(),
+    region: "eu · Hetzner self-host",
+    rlsEnabled: true,
+    poolMin: 5,
+    poolMax: 40,
     pgvector: true,
   },
 };
@@ -169,14 +188,16 @@ export const db = {
 export const MIGRATIONS = [
   { version: "0001", name: "initial_schema", description: "Tabeller, RLS, hash-chain audit, pgvector", status: "ready" },
   { version: "0002", name: "seed_demo_data", description: "Seed bypilar + nordlys + demo users/clients", status: "ready" },
-  { version: "0003", name: "agent_ledger", description: "Agent-aktivitets-log + LLM-call-metrics", status: "planned" },
-  { version: "0004", name: "scan_meshes", description: "Object storage refs for 3D-fod-meshes", status: "planned" },
+  { version: "0003", name: "remote_parity_rls", description: "Remote RLS parity + tenants.trial + modality UTF-8", status: "ready" },
+  { version: "0004", name: "swarm_snapshots_and_memory", description: "swarm_snapshots + swarm_memory (kode krævede dem)", status: "ready" },
+  { version: "0005", name: "agent_ledger", description: "Agent-aktivitets-log + LLM-call-metrics", status: "ready" },
+  { version: "0006", name: "scan_meshes_and_storage", description: "scan_meshes + storage bucket scans", status: "ready" },
 ];
 
 export const TABLES = [
   { name: "tenants", rows: 2, sizeKb: 4, rls: true },
-  { name: "users", rows: 6, sizeKb: 5, rls: false },
-  { name: "memberships", rows: 7, sizeKb: 2, rls: false },
+  { name: "users", rows: 6, sizeKb: 5, rls: true },
+  { name: "memberships", rows: 7, sizeKb: 2, rls: true },
   { name: "services", rows: 9, sizeKb: 8, rls: true },
   { name: "clients", rows: 5, sizeKb: 12, rls: true },
   { name: "bookings", rows: 14, sizeKb: 24, rls: true },
@@ -192,4 +213,9 @@ export const TABLES = [
   { name: "module_activations", rows: 22, sizeKb: 6, rls: true },
   { name: "api_keys", rows: 5, sizeKb: 3, rls: true },
   { name: "webhook_subscriptions", rows: 2, sizeKb: 2, rls: true },
+  { name: "swarm_snapshots", rows: 0, sizeKb: 4, rls: true },
+  { name: "swarm_memory", rows: 0, sizeKb: 8, rls: true },
+  { name: "agent_ledger", rows: 0, sizeKb: 4, rls: true },
+  { name: "llm_call_metrics", rows: 0, sizeKb: 4, rls: true },
+  { name: "scan_meshes", rows: 0, sizeKb: 4, rls: true },
 ];

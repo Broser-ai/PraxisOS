@@ -1,4 +1,7 @@
 # PraxisOS · self-host on Hetzner (binds 0.0.0.0:$PORT for Render/Docker norms)
+# Durable Postgres (optional): docker-compose.db.yml → volume praxis_pgdata
+# Cutover runbook: docs/ops/supabase-to-hetzner-migration.md
+# Keep PRAXIS_DB=mock until Kong/PostgREST + verify-rls are green.
 services:
   praxisos:
     build: .
