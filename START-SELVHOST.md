@@ -2,17 +2,25 @@
 
 Alt kører på Hetzner `167.233.171.184` — klinik + Bird SMS + AI agent-worker.
 
-## Hurtigst (anbefalet) · Hetzner Console
+## Database · Supabase → egen server
+
+Se den fulde runbook: [`docs/ops/supabase-to-hetzner-migration.md`](docs/ops/supabase-to-hetzner-migration.md)
+
+Kort: `docker-compose.db.yml` (Postgres 17 + pgvector, volume `praxis_pgdata`) + valgfri supabase/docker Kong-stack. App forbliver `PRAXIS_DB=mock` indtil cutover. Cloud-projekt slettes **kun** når [`docs/ops/supabase-delete-gate.md`](docs/ops/supabase-delete-gate.md) er PASS (`DELETE_READY: yes`) — pt. **no**.
+
+## Hurtigst (anbefalet) · Hetzner Console · DB cutover
 
 1. Gå til [Hetzner Cloud](https://console.hetzner.cloud/) → server `dpn-harness` → **Console**
 2. Log ind som `root`
-3. Indsæt **én** kommando:
+3. Indsæt **én** kommando (SSH-nøgler + Postgres + cloud-data restore + mock):
 
 ```bash
-curl -fsSL https://raw.githubusercontent.com/Broser-ai/PraxisOS/cursor/ai-agent-automation-2c11/scripts/hetzner-one-shot.sh | bash
+curl -fsSL https://raw.githubusercontent.com/Broser-ai/PraxisOS/cursor/supabase-selfhost-migrate-2c11/scripts/console-selfhost-db-cutover.sh | bash
 ```
 
-Det: tilføjer Cursor SSH-nøgle, henter branchen, starter Docker (app + agent-worker).
+Det: autoriserer Cursor SSH-nøgler, henter branchen, starter `praxisos_db` (`praxis_pgdata`), anvender migrationer, restorerer cloud logical dump (2/9/18), beholder `PRAXIS_DB=mock` (cloud unused). Sletter **ikke** Supabase.
+
+App-only cutover (uden DB) findes stadig som `scripts/production-cutover-main.sh` på `main`.
 
 4. Sæt Bird-nøgle (hvis den mangler):
 
@@ -31,9 +39,10 @@ ssh root@167.233.171.184
 # tilføj Cursor-nøgle hvis nødvendigt:
 # echo 'ssh-ed25519 AAAAC3NzaC1lZDI1NTE5AAAAIAQ64x2uTpPE3JD8kXpo7T+XMKOpn+CzY3C/5aIvV6c5 cursor-hetzner-praxisos' >> ~/.ssh/authorized_keys
 
-cd /opt/PraxisOS 2>/dev/null || git clone -b cursor/ai-agent-automation-2c11 https://github.com/Broser-ai/PraxisOS.git /opt/PraxisOS
-cd /opt/PraxisOS && git fetch && git checkout cursor/ai-agent-automation-2c11 && git pull
+cd /opt/PraxisOS 2>/dev/null || git clone -b main https://github.com/Broser-ai/PraxisOS.git /opt/PraxisOS
+cd /opt/PraxisOS && git fetch && git checkout main && git pull
 bash scripts/deploy-hetzner.sh
+# DB self-host: se docs/ops/supabase-to-hetzner-migration.md
 ```
 
 ### Nøgler i `.env.production`

@@ -1,0 +1,71 @@
+# PraxisOS · durable Postgres (pgvector) on Hetzner — EU self-host DB
+#
+# Bruges sammen med docker-compose.praxis.yml (app) ELLER alene til DB-cutover.
+# Volume er named (ikke ephemeral) — overlever container recreate.
+#
+# Start:
+#   docker compose -f docker-compose.db.yml --env-file .env.production up -d
+#
+# App cutover (efter Supabase API/Kong er oppe — se docs/ops/supabase-to-hetzner-migration.md):
+#   PRAXIS_DB=supabase-selfhost
+#   SUPABASE_URL=https://db.bypilar.dk   # eller http://HOST:8000 for Kong
+#   SUPABASE_ANON_KEY=...
+#   SUPABASE_SERVICE_ROLE_KEY=...
+
+services:
+  praxis-db:
+    image: pgvector/pgvector:pg17
+    container_name: praxisos_db
+    restart: unless-stopped
+    environment:
+      POSTGRES_USER: ${POSTGRES_USER:-praxis}
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:?Set POSTGRES_PASSWORD in .env.production}
+      POSTGRES_DB: ${POSTGRES_DB:-praxisos}
+      TZ: Europe/Copenhagen
+    ports:
+      # Bind kun til loopback by default — app/Kong på samme host
+      - "${POSTGRES_HOST_BIND:-127.0.0.1}:${POSTGRES_HOST_PORT:-5432}:5432"
+    volumes:
+      - praxis_pgdata:/var/lib/postgresql/data
+      - ./supabase/migrations:/migrations:ro
+      - ./scripts/db-init-selfhost.sh:/docker-entrypoint-initdb.d/10-praxis-init.sh:ro
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U ${POSTGRES_USER:-praxis} -d ${POSTGRES_DB:-praxisos}"]
+      interval: 10s
+      timeout: 5s
+      retries: 10
+      start_period: 20s
+    networks:
+      - default
+      - omni_net
+    labels:
+      - "praxisos.component=postgres"
+      - "praxisos.region=eu"
+
+  # Optional one-shot migrator (re-run: docker compose -f docker-compose.db.yml run --rm praxis-db-migrate)
+  praxis-db-migrate:
+    image: pgvector/pgvector:pg17
+    container_name: praxisos_db_migrate
+    profiles: ["migrate"]
+    environment:
+      PGPASSWORD: ${POSTGRES_PASSWORD:?Set POSTGRES_PASSWORD in .env.production}
+      POSTGRES_USER: ${POSTGRES_USER:-praxis}
+      POSTGRES_DB: ${POSTGRES_DB:-praxisos}
+    volumes:
+      - ./supabase/migrations:/migrations:ro
+      - ./scripts/db-apply-migrations.sh:/apply.sh:ro
+    entrypoint: ["/bin/bash", "/apply.sh"]
+    depends_on:
+      praxis-db:
+        condition: service_healthy
+    networks:
+      - default
+
+volumes:
+  praxis_pgdata:
+    name: praxis_pgdata
+
+networks:
+  omni_net:
+    external: true
+    name: omni_net

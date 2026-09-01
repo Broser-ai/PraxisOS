@@ -1,15 +1,25 @@
 // Supabase client + mode switcher.
 //
 // PRAXIS_DB:
-//   mock            — in-memory durable store (lib/data)
-//   supabase-local  — local Supabase CLI
-//   supabase-eu     — production EU project
+//   mock                 — in-memory durable store (lib/data)
+//   supabase-local       — local Supabase CLI
+//   supabase-eu          — hosted Supabase EU project (jajdtvduzkitjzcazcng)
+//   supabase-selfhost    — Hetzner / own Kong+PostgREST (or supabase/docker)
 
 import { createClient, type SupabaseClient } from "@supabase/supabase-js";
 
-export type DbMode = "mock" | "supabase-local" | "supabase-eu";
+export type DbMode =
+  | "mock"
+  | "supabase-local"
+  | "supabase-eu"
+  | "supabase-selfhost";
 
-const VALID_MODES: ReadonlyArray<DbMode> = ["mock", "supabase-local", "supabase-eu"];
+const VALID_MODES: ReadonlyArray<DbMode> = [
+  "mock",
+  "supabase-local",
+  "supabase-eu",
+  "supabase-selfhost",
+];
 const _rawMode = process.env.PRAXIS_DB?.trim() ?? "mock";
 export const DB_MODE: DbMode = VALID_MODES.includes(_rawMode as DbMode)
   ? (_rawMode as DbMode)
@@ -25,12 +35,25 @@ export type DbConfig = {
   pgvector: boolean;
 };
 
-function resolveUrl(): string {
+/** Cloud EU fallback — only for PRAXIS_DB=supabase-eu (rollback / dual-run). */
+const CLOUD_EU_URL = "https://jajdtvduzkitjzcazcng.supabase.co";
+
+function envSupabaseUrl(): string {
   return (
     process.env.SUPABASE_URL?.trim() ||
     process.env.NEXT_PUBLIC_SUPABASE_URL?.trim() ||
-    "https://jajdtvduzkitjzcazcng.supabase.co"
+    ""
   );
+}
+
+/** Runtime URL for the active DB_MODE (clients / ping). */
+function resolveUrl(): string {
+  const fromEnv = envSupabaseUrl();
+  if (fromEnv) return fromEnv;
+  // Self-host must set SUPABASE_URL explicitly — never silently use cloud.
+  if (DB_MODE === "supabase-eu") return CLOUD_EU_URL;
+  if (DB_MODE === "supabase-local") return "http://127.0.0.1:54321";
+  return "";
 }
 
 export const DB_CONFIGS: Record<DbMode, DbConfig> = {
@@ -45,7 +68,7 @@ export const DB_CONFIGS: Record<DbMode, DbConfig> = {
   },
   "supabase-local": {
     mode: "supabase-local",
-    url: process.env.SUPABASE_URL?.trim() || "http://127.0.0.1:54321",
+    url: envSupabaseUrl() || "http://127.0.0.1:54321",
     region: "lokal (docker)",
     rlsEnabled: true,
     poolMin: 2,
@@ -54,11 +77,21 @@ export const DB_CONFIGS: Record<DbMode, DbConfig> = {
   },
   "supabase-eu": {
     mode: "supabase-eu",
-    url: resolveUrl(),
+    url: envSupabaseUrl() || CLOUD_EU_URL,
     region: "eu-west-1 · Ireland",
     rlsEnabled: true,
     poolMin: 5,
     poolMax: 50,
+    pgvector: true,
+  },
+  "supabase-selfhost": {
+    mode: "supabase-selfhost",
+    // Never fall back to cloud URL — requires explicit SUPABASE_URL (Kong / self-host).
+    url: envSupabaseUrl(),
+    region: "eu · Hetzner self-host",
+    rlsEnabled: true,
+    poolMin: 5,
+    poolMax: 40,
     pgvector: true,
   },
 };
@@ -169,14 +202,16 @@ export const db = {
 export const MIGRATIONS = [
   { version: "0001", name: "initial_schema", description: "Tabeller, RLS, hash-chain audit, pgvector", status: "ready" },
   { version: "0002", name: "seed_demo_data", description: "Seed bypilar + nordlys + demo users/clients", status: "ready" },
-  { version: "0003", name: "agent_ledger", description: "Agent-aktivitets-log + LLM-call-metrics", status: "planned" },
-  { version: "0004", name: "scan_meshes", description: "Object storage refs for 3D-fod-meshes", status: "planned" },
+  { version: "0003", name: "remote_parity_rls", description: "Remote RLS parity + tenants.trial + modality UTF-8", status: "ready" },
+  { version: "0004", name: "swarm_snapshots_and_memory", description: "swarm_snapshots + swarm_memory (kode krævede dem)", status: "ready" },
+  { version: "0005", name: "agent_ledger", description: "Agent-aktivitets-log + LLM-call-metrics", status: "ready" },
+  { version: "0006", name: "scan_meshes_and_storage", description: "scan_meshes + storage bucket scans", status: "ready" },
 ];
 
 export const TABLES = [
   { name: "tenants", rows: 2, sizeKb: 4, rls: true },
-  { name: "users", rows: 6, sizeKb: 5, rls: false },
-  { name: "memberships", rows: 7, sizeKb: 2, rls: false },
+  { name: "users", rows: 6, sizeKb: 5, rls: true },
+  { name: "memberships", rows: 7, sizeKb: 2, rls: true },
   { name: "services", rows: 9, sizeKb: 8, rls: true },
   { name: "clients", rows: 5, sizeKb: 12, rls: true },
   { name: "bookings", rows: 14, sizeKb: 24, rls: true },
@@ -192,4 +227,9 @@ export const TABLES = [
   { name: "module_activations", rows: 22, sizeKb: 6, rls: true },
   { name: "api_keys", rows: 5, sizeKb: 3, rls: true },
   { name: "webhook_subscriptions", rows: 2, sizeKb: 2, rls: true },
+  { name: "swarm_snapshots", rows: 0, sizeKb: 4, rls: true },
+  { name: "swarm_memory", rows: 0, sizeKb: 8, rls: true },
+  { name: "agent_ledger", rows: 0, sizeKb: 4, rls: true },
+  { name: "llm_call_metrics", rows: 0, sizeKb: 4, rls: true },
+  { name: "scan_meshes", rows: 0, sizeKb: 4, rls: true },
 ];
