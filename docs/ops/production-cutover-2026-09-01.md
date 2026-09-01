@@ -20,14 +20,15 @@
 | Item | Result |
 |------|--------|
 | SSH key `/home/ubuntu/.ssh/hetzner_praxis` in this agent env | **missing** at start (prior agents had it; snapshot/env no longer ships the legacy private key) |
-| Host code sync / container rebuild this run | **blocked pending SSH** |
+| Cutover script on `main` | `bde72f0` (and branch `cursor/production-cutover-c901`) |
+| Host code sync / container rebuild this run | **blocked pending SSH / Console one-liner** |
 | Cutover script (console one-shot) | `scripts/production-cutover-main.sh` on `cursor/production-cutover-c901` — adds agent deploy pubkey, `git reset --hard origin/main`, rebuilds compose, **preserves** `.env.production` + Docker `/data` secrets volume |
 | Secrets wipe | **not done** (script explicitly preserves) |
 
 ### Console one-liner (root on Hetzner Cloud Console)
 
 ```bash
-curl -fsSL https://raw.githubusercontent.com/Broser-ai/PraxisOS/cursor/production-cutover-c901/scripts/production-cutover-main.sh | bash
+curl -fsSL https://raw.githubusercontent.com/Broser-ai/PraxisOS/main/scripts/production-cutover-main.sh | bash
 ```
 
 After that (or after restoring legacy `hetzner_praxis` private key as secret `HETZNER_PRAXIS_SSH_PRIVATE_KEY`), agent can re-verify host SHA.
