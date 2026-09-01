@@ -19,10 +19,14 @@ export default function ModuleMarketplace() {
     <div className="mx-auto max-w-[1320px]">
       <div className="rise flex flex-wrap items-end justify-between gap-3">
         <div>
-          <Link href="/admin/tenants" className="kicker hover:underline">← Tenants</Link>
-          <h1 className="display mt-2 text-[32px] font-semibold leading-none">Module Marketplace</h1>
-          <p className="mt-2 text-[13.5px] text-muted">
-            Modulær platform · klinikken vælger præcis det de har brug for · alle moduler har 14-30 dages gratis prøve.
+          <Link href="/admin/tenants" className="kicker hover:underline">← Tenants (Broser)</Link>
+          <h1 className="display mt-2 text-[32px] font-semibold leading-none">Modul-tilvalg</h1>
+          <p className="mt-2 max-w-[560px] text-[13.5px] text-muted">
+            Kundens tilvalg. Nyt pakke-udkast:{" "}
+            <Link href="/admin/packaging" className="font-medium text-ink underline-offset-2 hover:underline">
+              Produktpakke · udkast
+            </Link>
+            {" "}— kerne obligatorisk, tilvalg (inkl. fod-scan), API skjult for kunden.
           </p>
         </div>
         <div className="flex flex-col items-end gap-1">

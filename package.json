@@ -6,20 +6,43 @@
   "scripts": {
     "dev": "next dev",
     "build": "next build",
-    "start": "next start"
+    "start": "next start",
+    "smoke": "node scripts/smoke-core.mjs",
+    "typecheck": "tsc --noEmit",
+    "sandbox:verify": "bash ./scripts/sandbox-verify.sh",
+    "sandbox:up": "docker compose -f docker-compose.sandbox.yml up --build",
+    "test": "vitest run",
+    "harness:human-gate": "node scripts/harness-human-gate.mjs",
+    "agent:worker": "node scripts/agent-worker.mjs",
+    "agent:tick": "node -e \"fetch(process.env.PRAXIS_BASE_URL||'http://127.0.0.1:3000'+'/api/agents/tick',{method:'POST',headers:{'Content-Type':'application/json','x-agent-worker-secret':process.env.AGENT_WORKER_SECRET||''},body:JSON.stringify({force:true})}).then(r=>r.json()).then(console.log)\"",
+    "swarm": "bash ./swarm.sh",
+    "swarm:up": "bash ./swarm.sh up"
   },
   "dependencies": {
-    "next": "^16.2.7",
-    "react": "^19.2.7",
-    "react-dom": "^19.2.7"
+    "@anthropic-ai/sdk": "^0.62.0",
+    "@langchain/anthropic": "^1.5.2",
+    "@langchain/core": "^1.2.4",
+    "@langchain/langgraph": "^1.4.8",
+    "@react-three/drei": "^10.7.4",
+    "@react-three/fiber": "^9.3.0",
+    "@supabase/supabase-js": "^2.111.0",
+    "next": "^16.2.12",
+    "react": "^19.2.8",
+    "react-dom": "^19.2.8",
+    "three": "^0.179.1",
+    "zod": "^3.25.76"
   },
   "devDependencies": {
-    "@tailwindcss/postcss": "^4.3.0",
+    "@tailwindcss/postcss": "^4.3.3",
     "@types/node": "22.10.7",
     "@types/react": "19.0.7",
     "@types/react-dom": "19.0.3",
+    "@types/three": "^0.179.0",
+    "fast-check": "^4.9.0",
     "postcss": "8.5.1",
-    "tailwindcss": "^4.3.0",
-    "typescript": "5.7.3"
+    "tailwindcss": "^4.3.3",
+    "tsx": "^4.20.4",
+    "typescript": "5.7.3",
+    "vitest": "^3.2.7"
   }
 }

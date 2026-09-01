@@ -45,7 +45,6 @@ export default async function TenantLayout({
               <Link href={`/t/${t.slug}/gavekort`} className="hover:underline">Gavekort</Link>
               <Link href={`/t/${t.slug}/portal`} className="hover:underline">Min side</Link>
               <Link href={`/t/${t.slug}/onboarding`} className="hover:underline">Bliv kunde</Link>
-              <span className="mono text-[11px] text-faint">drevet af PraxisOS</span>
             </nav>
             <Link
               href={`/t/${t.slug}/book`}

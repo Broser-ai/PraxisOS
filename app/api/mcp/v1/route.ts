@@ -13,6 +13,7 @@
 //   - ping
 import { NextResponse } from "next/server";
 import { MCP_TOOLS } from "@/lib/mcp-tools";
+import { executeMcpTool } from "@/lib/mcp-handlers";
 import { listTenants } from "@/lib/tenants";
 import { AGENTS } from "@/lib/agents";
 
@@ -89,12 +90,36 @@ export async function POST(req: Request) {
       const tool = MCP_TOOLS.find((t) => t.name === name);
       if (!tool) return rpcErr(body.id, -32601, `Unknown tool: ${name}`);
 
-      // Stub-implementering — i prod kalder vi den ægte handler
-      const sample = simulateToolResult(name, args);
-      return rpcOk(body.id, {
-        content: [{ type: "text", text: JSON.stringify(sample, null, 2) }],
-        isError: false,
-      });
+      try {
+        const result = await executeMcpTool(
+          name,
+          (args ?? {}) as Record<string, unknown>,
+          { tenant: "bypilar" },
+        );
+        return rpcOk(body.id, {
+          content: [{ type: "text", text: JSON.stringify(result, null, 2) }],
+          isError: Boolean((result as { isError?: boolean }).isError),
+        });
+      } catch (err) {
+        const sample = simulateToolResult(name, args);
+        return rpcOk(body.id, {
+          content: [
+            {
+              type: "text",
+              text: JSON.stringify(
+                {
+                  fallback: true,
+                  error: err instanceof Error ? err.message : String(err),
+                  sample,
+                },
+                null,
+                2,
+              ),
+            },
+          ],
+          isError: true,
+        });
+      }
     }
 
     case "resources/list":

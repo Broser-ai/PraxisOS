@@ -63,7 +63,7 @@ const NAV = [
   { label: "Aria-agent", href: "/agent", hint: "Autonom booking-agent" },
   { label: "Fod-scan", href: "/scan", hint: "Physical AI" },
   { label: "Fod-scan · live", href: "/scan/start", hint: "Start nyt scan" },
-  { label: "Felt-service", href: "/felt", hint: "Offline-first rute" },
+  { label: "Ruteplanlægning", href: "/felt", hint: "Offline-first rute" },
   { label: "Tenants", href: "/admin/tenants", hint: "Multi-tenant control plane" },
   { label: "Ydelses-katalog", href: "/admin/services", hint: "Rediger ydelser" },
   { label: "Behandlere", href: "/admin/staff", hint: "Staff-mgmt" },

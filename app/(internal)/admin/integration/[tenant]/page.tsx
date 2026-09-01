@@ -7,7 +7,7 @@ export default async function IntegrationGuide({ params }: { params: Promise<{ t
   const t = getTenant(slug);
   if (!t) notFound();
 
-  const origin = "http://localhost:3001"; // erstattes med tenant-domæne i prod
+  const origin = process.env.NEXT_PUBLIC_BASE_URL || "http://127.0.0.1:3002";
   const embedSrc = `${origin}/embed/v1/${t.slug}`;
   const firstSvc = t.services[0]?.id ?? "fod-med";
 

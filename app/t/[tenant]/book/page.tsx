@@ -457,7 +457,7 @@ function BookPageInner({ params }: { params: Promise<{ tenant: string }> }) {
               <div className="border-t border-line bg-paper-2/40 px-5 py-3 text-[11px] text-faint">
                 <span className="kicker !text-[9px]">Betalingsmetode</span>
                 <div className="mt-0.5 text-ink">
-                  {PAYMENT_METHOD_LABEL[paymentResult.method]} · ref {paymentResult.pspRef} · PraxisTrust verificeret
+                  {PAYMENT_METHOD_LABEL[paymentResult.method]} · ref {paymentResult.pspRef} · verificeret
                 </div>
               </div>
             )}

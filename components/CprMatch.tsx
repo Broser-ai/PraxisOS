@@ -2,7 +2,7 @@
 
 import { useState } from "react";
 
-// CPR Match — påkrævet for private SaaS som PraxisOS.
+// CPR Match — påkrævet når klinikken ikke kan hente CPR direkte fra MitID.
 // MitID giver os navn + fødselsdato. Patient taster CPR selv.
 // Vi verificerer at CPR-formatet er gyldigt og at fødselsdato matcher de første 6 cifre.
 
@@ -87,9 +87,8 @@ export function CprMatch({ mitidName, mitidBirthdate, onMatch }: Props) {
         </button>
 
         <p className="mt-3 text-[10.5px] text-faint">
-          <b>Hvorfor taster jeg CPR selv?</b> PraxisOS er en privat virksomhed og kan derfor ikke
-          hente dit CPR direkte fra MitID. Vi tjekker at det matcher din MitID-identitet
-          og opbevarer det krypteret (hash).
+          <b>Hvorfor taster jeg CPR selv?</b> Klinikken kan ikke hente dit CPR direkte fra MitID.
+          Vi tjekker at det matcher din MitID-identitet og opbevarer det krypteret (hash).
         </p>
       </div>
     </div>

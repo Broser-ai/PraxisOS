@@ -1,0 +1,76 @@
+# PraxisOS · self-host on Hetzner (binds 0.0.0.0:$PORT for Render/Docker norms)
+services:
+  praxisos:
+    build: .
+    image: praxisos:local
+    container_name: praxisos_app
+    restart: unless-stopped
+    ports:
+      - "${PRAXIS_HOST_PORT:-3010}:3000"
+    env_file:
+      - .env.production
+    environment:
+      PORT: "3000"
+      HOSTNAME: "0.0.0.0"
+      NEXT_PUBLIC_BASE_URL: ${NEXT_PUBLIC_BASE_URL:-http://167.233.171.184:3010}
+      PRAXIS_DATA_DIR: /data
+    volumes:
+      - praxis_data:/data
+    user: "0:0"
+    labels:
+      - "traefik.enable=true"
+      - "traefik.docker.network=omni_net"
+      - "traefik.http.middlewares.praxisos-https-redirect.redirectscheme.scheme=https"
+      - "traefik.http.middlewares.praxisos-https-redirect.redirectscheme.permanent=true"
+      - "traefik.http.routers.praxisos.rule=Host(`app.bypilar.dk`) || Host(`praxis.bypilar.dk`) || PathPrefix(`/praxis`)"
+      - "traefik.http.routers.praxisos.entrypoints=web"
+      - "traefik.http.routers.praxisos.middlewares=praxisos-https-redirect"
+      - "traefik.http.routers.praxisos-secure.rule=Host(`app.bypilar.dk`) || Host(`praxis.bypilar.dk`)"
+      - "traefik.http.routers.praxisos-secure.entrypoints=websecure"
+      - "traefik.http.routers.praxisos-secure.tls=true"
+      - "traefik.http.routers.praxisos-secure.tls.certresolver=le"
+      - "traefik.http.services.praxisos.loadbalancer.server.port=3000"
+    networks:
+      - default
+      - omni_net
+    healthcheck:
+      test:
+        [
+          "CMD",
+          "node",
+          "-e",
+          "fetch('http://127.0.0.1:3000/api/agents/status').then(r=>process.exit(r.ok?0:1)).catch(()=>process.exit(1))",
+        ]
+      interval: 30s
+      timeout: 5s
+      retries: 5
+      start_period: 40s
+
+  agent-worker:
+    image: node:22-alpine
+    container_name: praxisos_agent_worker
+    restart: unless-stopped
+    working_dir: /worker
+    volumes:
+      - ./scripts/agent-worker.mjs:/worker/agent-worker.mjs:ro
+    env_file:
+      - .env.production
+    environment:
+      PRAXIS_BASE_URL: http://praxisos:3000
+      AGENT_TICK_MS: ${AGENT_TICK_MS:-60000}
+      AGENT_FORCE_FIRST_TICK: ${AGENT_FORCE_FIRST_TICK:-1}
+      PRAXIS_DEFAULT_TENANT: bypilar
+    command: ["node", "agent-worker.mjs"]
+    depends_on:
+      praxisos:
+        condition: service_started
+    networks:
+      - default
+
+volumes:
+  praxis_data:
+
+networks:
+  omni_net:
+    external: true
+    name: omni_net

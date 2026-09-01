@@ -1,0 +1,47 @@
+{
+  "$schema_note": "Machine-readable Del Pilar Nexus Roboflow shadow workflow. Governance unlocked 2026-08-27 (Broser). Live quality gate defaults to Universe pins; FOOT_VISION_CANARY_PERCENT=5 may select custom endpoints for a deterministic canary bucket.",
+  "workspace": "michaelba2712-gmail-com",
+  "workflow": {
+    "id": "Z1TLmeAsa9GAWJg3xufe",
+    "slug": "del-pilar-nexus-shadow-evaluation-1787761439900",
+    "deployment_state": "shadow_only",
+    "approved_for_active_routing": true
+  },
+  "models": {
+    "segmentation": {
+      "endpoint": "praxisos-foot-seg",
+      "task": "instance-segmentation",
+      "status": "canary",
+      "classes": ["foot", "toes_region", "heel_region"]
+    },
+    "candidates": {
+      "endpoint": "praxisos-foot-candidates",
+      "task": "object-detection",
+      "status": "canary",
+      "classes": [
+        "candidate_open_wound",
+        "candidate_localised_hyperkeratosis",
+        "candidate_heel_fissure"
+      ]
+    },
+    "landmarks": {
+      "endpoint": "praxisos",
+      "task": "keypoint-detection",
+      "deployment_state": "candidate_untrained",
+      "status": "disabled",
+      "deployable": false,
+      "shadow_parallel_inference": "skipped",
+      "training_brief": "docs/vision/landmarks-training-brief.md"
+    }
+  },
+  "video": {
+    "sources": ["live_smartphone_frames", "recorded_video"],
+    "frame_sampling_fps": 3
+  },
+  "governance": {
+    "active_routing": false,
+    "replaces_live_universe_pins": false,
+    "clinical_copy": "Kandidatområde registreret; kræver kliniker-review.",
+    "notes": "Broser unlock + finish order 2026-08-27 (Michael Ambrosius): approved_for_active_routing=true + PRAXIS_ACTIVE_ROUTING_ENABLED; FOOT_VISION_CANARY_PERCENT=5 (code max) so custom endpoints only in canary bucket; Universe pins (foot-segmentation-ehn9q/1, foot-ulcer/1, wounds-detection/1) remain default; firtoz/trellis live pin unchanged (TriView shadow fail-soft). SCAN_QUALITY_THRESHOLD=70. Landmarks still non-deployable. Suggestion-only clinical_copy. Rollback = Universe pins. Promotion pack: docs/vision/promotion/."
+  }
+}

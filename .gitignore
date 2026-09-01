@@ -48,3 +48,7 @@ screenshots/
 
 # Word-doc · sendes separat til ma@keap.me
 PraxisOS-Forarbejde.docx
+
+# Sandbox local (never commit)
+.env.sandbox
+.sandbox-verify/

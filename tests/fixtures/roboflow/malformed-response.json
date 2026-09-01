@@ -1,0 +1,5 @@
+{
+  "status": 500,
+  "message": "Internal inference error",
+  "predictions": "not-an-array"
+}

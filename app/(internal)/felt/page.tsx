@@ -11,7 +11,7 @@ export default function Felt() {
       <div className="rise flex items-end justify-between">
         <div>
           <div className="kicker">Mobil · offline-first</div>
-          <h1 className="display mt-2 text-[30px] font-semibold leading-none">Felt-service</h1>
+          <h1 className="display mt-2 text-[30px] font-semibold leading-none">Ruteplanlægning</h1>
           <p className="mt-2.5 text-[14px] text-muted">ML-optimeret rute · fungerer uden netværk · synker når du er online igen.</p>
         </div>
         <span className="chip !border-amber/40 text-amber">
