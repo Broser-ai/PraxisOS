@@ -72,6 +72,15 @@ if [[ -f .env.production ]]; then
   echo "=> .env.production backed up to ${ENV_BAK}"
 fi
 
+# Preserve Traefik ACME store across checkout (untracked, but reboot/register can drop certs)
+ACME_PATH="omnichannel-swarm/traefik/letsencrypt/acme.json"
+ACME_BAK=""
+if [[ -f "${ACME_PATH}" ]]; then
+  ACME_BAK="/tmp/praxisos.acme.json.bak-$(date -u +%Y%m%dT%H%M%SZ)"
+  cp -a "${ACME_PATH}" "${ACME_BAK}"
+  echo "=> acme.json backed up to ${ACME_BAK}"
+fi
+
 git config remote.origin.fetch "+refs/heads/*:refs/remotes/origin/*"
 git fetch origin "${BRANCH}" || git fetch origin
 git checkout -B "${BRANCH}" "origin/${BRANCH}" 2>/dev/null || \
@@ -81,6 +90,12 @@ echo "=> Deployed SHA: $(git rev-parse HEAD)"
 
 if [[ -n "${ENV_BAK}" && -f "${ENV_BAK}" ]]; then
   cp -a "${ENV_BAK}" .env.production
+fi
+if [[ -n "${ACME_BAK}" && -f "${ACME_BAK}" ]]; then
+  mkdir -p "$(dirname "${ACME_PATH}")"
+  cp -a "${ACME_BAK}" "${ACME_PATH}"
+  chmod 600 "${ACME_PATH}"
+  echo "=> acme.json restored"
 fi
 
 # Ensure production env exists with safe defaults
@@ -150,7 +165,8 @@ for i in $(seq 1 90); do
 done
 
 echo "=> Truncating public tables (replace seed UUIDs with cloud dump)…"
-docker exec praxisos_db psql -U praxis -d praxisos -v ON_ERROR_STOP=1 <<'SQL'
+# NOTE: docker exec requires -i so the heredoc reaches psql stdin
+docker exec -i praxisos_db psql -U praxis -d praxisos -v ON_ERROR_STOP=1 <<'SQL'
 SET row_security = off;
 DO $$
 DECLARE r record;
