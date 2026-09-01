@@ -3,7 +3,7 @@
 # PraxisOS · production cutover to main (alm tilstand)
 # =============================================================================
 # Run as root on Hetzner (Cloud Console paste, or):
-#   curl -fsSL https://raw.githubusercontent.com/Broser-ai/PraxisOS/cursor/production-cutover-c901/scripts/production-cutover-main.sh | bash
+#   curl -fsSL https://raw.githubusercontent.com/Broser-ai/PraxisOS/main/scripts/production-cutover-main.sh | bash
 #
 # Preserves .env.production and /data/secrets.json (Docker volume).
 # Does NOT lower SCAN_QUALITY_THRESHOLD, enable landmarks, or invent DPA.
