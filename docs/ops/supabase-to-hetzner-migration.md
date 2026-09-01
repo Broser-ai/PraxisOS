@@ -87,12 +87,15 @@ Realtime: ikke brugt i app-kode. Edge Functions: **0** på remote.
 | Isolation policy names | `*_isolation` | buggy `%I_tenant_isolated` | **fix** → 0001 |
 | `swarm_snapshots` / `swarm_memory` | nej | nej (kun kode) | **merge** → 0004 |
 | `agent_ledger` / `llm_call_metrics` | nej | planned | **merge** → 0005 |
-| `scan_meshes` + storage `scans` | nej / ingen buckets | planned | **merge** → 0006 |
+| `scan_meshes` + storage `scans` | nej / ingen buckets | planned | **merge** → 0006 (+ applied on cloud) |
 | Edge functions | ingen | ingen | leave |
 | Realtime subscriptions | ikke brugt | — | leave |
 | Auth schema (GoTrue) | system | — | leave (app bruger egen auth) |
 | `pg_cron` | ikke installeret | kommenteret i 0001 | leave indtil der er jobs |
-| Advisors | `audit_hash_chain` search_path · vector i public | — | search_path **fixed** i 0003; vector schema move leave |
+| Advisors | `audit_hash_chain` search_path · vector i public | — | search_path **fixed** i 0003 (+ cloud); vector schema move leave |
+
+**Cloud efter merge (MCP apply_migration, data urørt):**  
+`swarm_snapshots`, `swarm_memory`, `agent_ledger`, `llm_call_metrics`, `scan_meshes` + bucket `scans` · modality/search_path hardened. Row counts stadig **0**.
 
 ### Gap-beslutning (merge vs leave)
 
