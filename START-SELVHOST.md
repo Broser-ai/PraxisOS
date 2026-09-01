@@ -52,11 +52,14 @@ OPENAI_API_KEY=         # valgfri
 
 - Setup: http://167.233.171.184:3010/setup  
 - **Agent-automation:** http://167.233.171.184:3010/admin/agents/automation  
+- **Swarm / Meta harness:** http://167.233.171.184:3010/admin/swarm  
 - Bird UI: http://167.233.171.184:3010/admin/bird  
 - Agent-chat: http://167.233.171.184:3010/agent  
 - Klinik: http://167.233.171.184:3010/dashboard  
 
 På automation-siden: tryk **«Kør alle workflows»**.
+
+Agent-stack env (`PRAXIS_SWARM_ENABLED`, `SWARM_APPROVE_TOKEN`, …) og LoRA-status: [`docs/ops/agent-stack-setup.md`](docs/ops/agent-stack-setup.md). Compose starter `praxisos` + `agent-worker` (tick → Nexus/Autonom); ingen auto-merge/deploy.
 
 ## DNS (valgfrit)
 

@@ -1,36 +1,42 @@
-# PraxisOS · Coding ready (integrate tip)
+# PraxisOS · Coding ready (agent stack on main)
 
-**Verdict: YES — resume Broser programming on `cursor/integrate-all-superb-2c11`.**
+**Verdict: YES — Broser programming on `main` after agent-stack merge.**
 
-This is **not** a claim that the foot scanner / clinical path is 100% PASS. Sandbox + live gate are green; residuals remain before production clinical sign-off.
+Layers wired: **Prime RL · S-H · Swarm · Worktree · Meta AI harness**.  
+**LoRA:** not shipped — see [lora-status.md](../vision/lora-status.md) (`NO_MODEL_TRAINING`).
 
-## Green checks (2026-08-31)
+This is **not** a claim that the foot scanner / clinical path is 100% PASS. Residuals remain before production clinical sign-off.
+
+## Green checks (agent-stack merge)
 
 | Check | Result |
 |-------|--------|
-| Branch | `cursor/integrate-all-superb-2c11` (clean tip) |
-| `PRAXIS_SANDBOX_FORCE_LOCAL=1 npm run sandbox:verify` | **PASS** (`overall_exit=0`, path=`local-npm`) |
-| `tsc --noEmit` | PASS |
-| vitest | PASS — 16 files / 83 tests |
-| `next build` | PASS |
-| Live `GET /api/scan/config` | `ok: true`, **`liveReady: true`**, `blockers: []` |
-| Live `llmReady` | true |
+| Merge order | PR #27 (Prime+docs) → #28 DoD wording → #26 research gap → setup glue |
+| `npx tsc --noEmit` | run on tip before merge declare |
+| `npx vitest run tests/prime tests/swarm` | run on tip before merge declare |
+| Clinical gates | suggestion-only · shadow pathology · `NO_AUTO_MERGE` / `NO_AUTO_DEPLOY` |
 
-Do **not** merge to `main` on this signal alone.
+## Setup path
 
-## Residuals (still open — not coding blockers)
+Full runbook: **[agent-stack-setup.md](./agent-stack-setup.md)**
+
+```bash
+git checkout main && git pull origin main
+npm install
+npm run typecheck
+npx vitest run tests/prime tests/swarm
+npm run swarm:awaken          # autonom daemon (no auto-merge)
+npm run harness:human-gate    # ranked spike only
+```
+
+Env flags: `PRAXIS_SWARM_ENABLED`, `SWARM_APPROVE_TOKEN`, `PRIME_APPROVE_TOKEN`, `SWARM_ALLOW_MAIN_MERGE`, `SWARM_INTERVAL_MS`, `AGENT_WORKER_SECRET` — listed in `.env.example`.
+
+## Residuals (still open — not coding blockers for agent stack)
 
 1. **Replicate billing** — resolve 402/429 before live GLB / Trellis clinical PASS
 2. **Custom Roboflow** — train/deploy `praxisos-foot-*` v1 (currently undeployed; fail-soft to Universe)
 3. **Formal DPA** — PDF / legal sign-off (do not invent)
 4. **Plantar E2E** — clinical end-to-end sign-off on production path
+5. **LoRA** — external research only (Tinker); no in-repo trainer until Broser unlock
 
-## How to continue
-
-```bash
-git checkout cursor/integrate-all-superb-2c11
-git pull origin cursor/integrate-all-superb-2c11
-PRAXIS_SANDBOX_FORCE_LOCAL=1 npm run sandbox:verify   # before claiming green again
-```
-
-See also: [sandbox-verify.md](./sandbox-verify.md).
+See also: [sandbox-verify.md](./sandbox-verify.md) · [swarm-worktree-runtime.md](../swarm-worktree-runtime.md) · [prime-agent-rl.md](../vision/prime-agent-rl.md).

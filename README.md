@@ -20,6 +20,18 @@ Du lander på **`/`** (public landing). Staff-tour: **`/review`**. Login: `pilar
 
 > Fonts loades fra Google Fonts (kræver internet i browseren).
 
+### Agent stack (Prime RL · S-H · Swarm · Worktree · Meta harness)
+
+Setup: [`docs/ops/agent-stack-setup.md`](docs/ops/agent-stack-setup.md) · coding-ready: [`docs/ops/coding-ready.md`](docs/ops/coding-ready.md)
+
+```bash
+npm run swarm:awaken          # autonom daemon (NO_AUTO_MERGE)
+npm run harness:human-gate    # ranked spike · no merge
+npx vitest run tests/prime tests/swarm
+```
+
+LoRA er **ikke** i repo (`NO_MODEL_TRAINING`) — se [`docs/vision/lora-status.md`](docs/vision/lora-status.md).
+
 ---
 
 ## De 5 ting du skal se

@@ -27,10 +27,14 @@
 npx vitest run tests/swarm
 
 # Local awaken / daemon (non-Vercel)
-npx tsx scripts/awaken.ts
+npm run swarm:awaken
+# or: npx tsx scripts/awaken.ts
 
 # One human-gate pass (no merge)
-node scripts/harness-human-gate.mjs
+npm run harness:human-gate
+
+# Setup runbook (Prime + LoRA status + env)
+# docs/ops/agent-stack-setup.md
 
 # API (owner session cookie required)
 # GET  /api/v1/bypilar/swarm?view=worktrees
