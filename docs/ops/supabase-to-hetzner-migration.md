@@ -7,7 +7,11 @@
 
 **Delete authorization (Broser):** OK to delete/pause **only** this Supabase project **after** the gate in [`supabase-delete-gate.md`](./supabase-delete-gate.md) passes. **Never** touch Hetzner / Replicate / Roboflow / GitHub / OpenAI / Bird / DNS / Traefik / `/data/secrets.json`.
 
-**Ikke gjort endnu:** cloud delete (gate FAIL · `DELETE_READY: no`) · commit ikke `service_role` keys · sænk ikke `SCAN_QUALITY_THRESHOLD` · flip ikke vision pins.
+**Ikke gjort endnu:** cloud delete (gate FAIL · `DELETE_READY: no`) · host self-host Postgres (SSH blocked) · full `pg_dump` · commit ikke `service_role` keys · sænk ikke `SCAN_QUALITY_THRESHOLD` · flip ikke vision pins.
+
+**Production (2026-09-01 recheck):** `https://app.bypilar.dk/api/health` → `dbMode=mock` / `backend=memory` (cloud unused at runtime). Intentional mock until self-host is verified.
+
+**Data correction:** Exact `COUNT(*)` on cloud is **not** empty — `tenants=2`, `services=9`, `module_activations=18`. Earlier pg_stat/list_tables “0 rows” was wrong. Logical MCP dump in `backups/supabase-20260901T131449Z/` (gitignored).
 
 ---
 
@@ -30,11 +34,12 @@ Only this one project is accessible on the linked Supabase account.
 | `20260616074641` | `initial_schema` (includes `tenants.trial`, ASCII modality, `tenants_select`, isolation policies, triggers) |
 | `20260616074751` | `enable_rls_core_tables` (RLS on tenants/users/memberships + anon/auth policies) |
 
-### Public tables (all RLS ON · **0 rows each**)
+### Public tables (all RLS ON · exact `COUNT(*)` 2026-09-01 recheck)
 
-`tenants`, `users`, `memberships`, `services`, `clients`, `bookings`, `journals`, `journal_entries`, `scans`, `payments`, `vouchers`, `subsidy_schemes`, `reports`, `events`, `audit_log`, `module_activations`, `api_keys`, `webhook_subscriptions`
+Non-empty: **`tenants=2`**, **`services=9`**, **`module_activations=18`**.  
+Empty (0): `users`, `memberships`, `clients`, `bookings`, `journals`, `journal_entries`, `scans`, `payments`, `vouchers`, `subsidy_schemes`, `reports`, `events`, `audit_log`, `api_keys`, `webhook_subscriptions`, plus post-merge `swarm_snapshots`, `swarm_memory`, `agent_ledger`, `llm_call_metrics`, `scan_meshes`.
 
-Missing on remote (but used / planned in app): `swarm_snapshots`, `swarm_memory`, `agent_ledger`, `llm_call_metrics`, `scan_meshes`.
+> Do not trust `list_tables` approx / `pg_stat` alone — verify with `COUNT(*)`.
 
 ### Edge functions / storage / extensions / schemas
 
@@ -204,16 +209,16 @@ curl -sS http://127.0.0.1:3010/api/health | head
 - [ ] Ingen keys i git / PR
 - [ ] `SCAN_QUALITY_THRESHOLD=70` uændret
 - [ ] `FOOT_VISION_CANARY_PERCENT` / Trellis / Roboflow pins uændrede
-- [ ] Cloud-projekt ACTIVE som rollback indtil [`supabase-delete-gate.md`](./supabase-delete-gate.md) = PASS (`DELETE_READY: yes`)
+- [ ] Cloud-projekt ACTIVE indtil [`supabase-delete-gate.md`](./supabase-delete-gate.md) = PASS (`DELETE_READY: yes`). App rollback = keep `PRAXIS_DB=mock` (not `supabase-eu`) until self-host is ready.
 - [ ] `verify-rls.sh` grøn
 - [ ] Backup af `praxis_pgdata` (Hetzner snapshot eller `pg_dump` cron)
 - [ ] Inventory/pg_dump under `./backups/` documented (see `docs/ops/supabase-backup-pointers.md`)
 
 ### F. Rollback
 
-1. Sæt `PRAXIS_DB=mock` eller `supabase-eu` + gamle cloud-URL/keys i `.env.production`
+1. Prefer `PRAXIS_DB=mock` (current production). Only use `supabase-eu` + cloud URL/keys if deliberately dual-running before delete.
 2. `docker compose -f docker-compose.praxis.yml --env-file .env.production up -d`
-3. Cloud-data er urørt
+3. Cloud-data urørt indtil gate PASS + explicit pause/delete of **only** `jajdtvduzkitjzcazcng`
 
 ---
 
@@ -229,8 +234,8 @@ Hvis Cursor-agent får `Permission denied (publickey)`:
 
 ## 5. Residual risks
 
-1. **SSH blocked** fra denne agent — host-cutover kræver Console / autoriseret nøgle.  
-2. **Tom cloud-DB** — der er intet patientdata at migrere pt.; risiko er primært schema-drift fremover.  
+1. **SSH blocked** fra denne agent — host-cutover kræver Console / autoriseret nøgle (`Permission denied` reconfirmed 2026-09-01).  
+2. **Cloud-DB ikke tom** — demo/tenant seed live (`tenants`/`services`/`module_activations`); ingen patient journals/scans endnu; dump før delete.  
 3. **Uden Kong/PostgREST** kan app ikke bruge `supabase-js` mod ren Postgres — hold `mock` eller kør supabase/docker.  
 4. **Storage** — bucket SQL kræver `storage`-schema (Supabase stack); plain Postgres springer bucket-delen over.  
 5. **Modality constraint** på cloud brugte ASCII; app forventer `Hjemmebesøg` — rettet i 0003 ved restore/apply.  
@@ -245,7 +250,7 @@ Confirmed via Supabase MCP against Michael’s PraxisOS project (URL `https://ja
 | Surface | Result |
 |---------|--------|
 | Migrations | `20260616074641_initial_schema`, `20260616074751_enable_rls_core_tables` (matches screenshot hint `enable_rls_cor…`) |
-| Public tables | 18 · all `relrowsecurity=true` · **0 rows** each |
+| Public tables | 23 · RLS on · exact non-empty: tenants=2, services=9, module_activations=18 |
 | Edge functions | none |
 | Storage buckets | none |
 | Advisors | `audit_hash_chain` mutable search_path (fixed in repo `0003`); `vector` in `public` (left) |
