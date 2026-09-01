@@ -7,11 +7,11 @@
 
 **Delete authorization (Broser):** OK to delete/pause **only** this Supabase project **after** the gate in [`supabase-delete-gate.md`](./supabase-delete-gate.md) passes. **Never** touch Hetzner / Replicate / Roboflow / GitHub / OpenAI / Bird / DNS / Traefik / `/data/secrets.json`.
 
-**Ikke gjort endnu:** cloud delete (gate FAIL · `DELETE_READY: no`) · host self-host Postgres (SSH blocked) · full `pg_dump` · commit ikke `service_role` keys · sænk ikke `SCAN_QUALITY_THRESHOLD` · flip ikke vision pins.
+**Ikke gjort endnu:** cloud delete (gate FAIL · `DELETE_READY: no`) · host self-host Postgres (SSH blocked — Console one-shot klar) · full `pg_dump` · commit ikke `service_role` keys · sænk ikke `SCAN_QUALITY_THRESHOLD` · flip ikke vision pins.
 
-**Production (2026-09-01 recheck):** `https://app.bypilar.dk/api/health` → `dbMode=mock` / `backend=memory` (cloud unused at runtime). Intentional mock until self-host is verified.
+**Production (2026-09-01 finish pass):** `https://app.bypilar.dk/api/health` → `dbMode=mock` / `backend=memory` (cloud unused at runtime). Intentional mock until Hetzner Postgres is verified. Agent VM non-prod restore verified 2/9/18.
 
-**Data correction:** Exact `COUNT(*)` on cloud is **not** empty — `tenants=2`, `services=9`, `module_activations=18`. Earlier pg_stat/list_tables “0 rows” was wrong. Logical MCP dump in `backups/supabase-20260901T131449Z/` (gitignored).
+**Data correction:** Exact `COUNT(*)` on cloud is **not** empty — `tenants=2`, `services=9`, `module_activations=18`. Earlier pg_stat/list_tables “0 rows” was wrong. Latest MCP dump: `backups/supabase-20260901T141731Z/` (gitignored) + git fixture `scripts/fixtures/supabase-cloud-data-restore.sql`.
 
 ---
 
@@ -234,10 +234,10 @@ Hvis Cursor-agent får `Permission denied (publickey)`:
 
 ## 5. Residual risks
 
-1. **SSH blocked** fra denne agent — host-cutover kræver Console / autoriseret nøgle (`Permission denied` reconfirmed 2026-09-01).  
+1. **SSH blocked** fra denne agent — host-cutover kræver **én** Console paste: `scripts/console-selfhost-db-cutover.sh` (nøgler + Postgres + restore).  
 2. **Cloud-DB ikke tom** — demo/tenant seed live (`tenants`/`services`/`module_activations`); ingen patient journals/scans endnu; dump før delete.  
-3. **Uden Kong/PostgREST** kan app ikke bruge `supabase-js` mod ren Postgres — hold `mock` eller kør supabase/docker.  
-4. **Storage** — bucket SQL kræver `storage`-schema (Supabase stack); plain Postgres springer bucket-delen over.  
+3. **Uden Kong/PostgREST** kan app ikke bruge `supabase-js` mod ren Postgres — hold `mock` (cloud unused) eller kør supabase/docker. Rollback = `PRAXIS_DB=mock` — **ikke** `supabase-eu`.  
+4. **Storage** — bucket SQL kræver `storage`-schema (Supabase stack); plain Postgres springer bucket-delen over (`scans` bucket exists on cloud, 0 objects).  
 5. **Modality constraint** på cloud brugte ASCII; app forventer `Hjemmebesøg` — rettet i 0003 ved restore/apply.  
 6. Kliniske vision-thresholds må ikke røres under DB-cutover.
 
@@ -252,7 +252,7 @@ Confirmed via Supabase MCP against Michael’s PraxisOS project (URL `https://ja
 | Migrations | `20260616074641_initial_schema`, `20260616074751_enable_rls_core_tables` (matches screenshot hint `enable_rls_cor…`) |
 | Public tables | 23 · RLS on · exact non-empty: tenants=2, services=9, module_activations=18 |
 | Edge functions | none |
-| Storage buckets | none |
+| Storage buckets | `scans` (public, 0 objects) |
 | Advisors | `audit_hash_chain` mutable search_path (fixed in repo `0003`); `vector` in `public` (left) |
 
 **Tables (RLS on):** `tenants`, `users`, `memberships`, `services`, `clients`, `bookings`, `journals`, `journal_entries`, `scans`, `payments`, `vouchers`, `subsidy_schemes`, `reports`, `events`, `audit_log`, `module_activations`, `api_keys`, `webhook_subscriptions`.
