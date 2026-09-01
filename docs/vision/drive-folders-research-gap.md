@@ -205,6 +205,8 @@ genimportere `prototype/` eller 3 GB cache/weights.
 
 ## Relaterede filer
 
+- `docs/ops/praxisos-monorepo-research-gap.md` — deep research vs `praxisos-monorepo`
+  (Drive checkout + GitHub 404 access note; merge/port/ignore backlog)
 - `docs/vision/alphaxiv-aurelle-transcript-impact.md`
 - `docs/vision/alphaxiv-top3-spikes.md`
 - `docs/vision/harness-human-gate.md`
