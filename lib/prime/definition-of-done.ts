@@ -125,9 +125,13 @@ export function validateDefinitionOfDone(workstreamId: string): DodVerdict {
     if (!hasDomain) reasons.push("new_routes_need_domain_logic");
   }
 
-  // UI actions verified or disabled — require an explicit check note in limitations or human decision
-  const uiFiles = files.filter((f) => /\.(tsx)$/.test(f) && !/page\.tsx$/.test(f) === false);
-  if (uiFiles.some((f) => f.includes("components/") || f.includes("admin/"))) {
+  // UI actions verified or disabled — require explicit note when admin/components touched
+  const uiFiles = files.filter(
+    (f) =>
+      /\.(tsx)$/.test(f) &&
+      (f.includes("components/") || f.includes("/admin/")),
+  );
+  if (uiFiles.length) {
     const verified =
       evidence.humanDecisions.some((d) => /ui.*(verified|disabled)/i.test(d)) ||
       evidence.limitations.some((l) => /ui.*(verified|disabled)/i.test(l)) ||

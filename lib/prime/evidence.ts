@@ -114,7 +114,7 @@ export function appendEvidence(input: {
   }
 
   auditLog("prime.evidence_updated", {
-    tenant_id: next.missionId,
+    tenant_id: getWorkstream(input.workstreamId)?.tenantSlug,
     target_ref: `evidence/${next.id}`,
     workstreamId: next.workstreamId,
     files: next.files.length,
