@@ -10,6 +10,11 @@ import { getTenant } from "@/lib/tenants";
 import { findClientByEmail } from "@/lib/clients";
 import { calculateSubsidies, patientProfiles, SCHEME_LABEL, SCHEME_AUTHORITY } from "@/lib/subsidies";
 import { listVouchers } from "@/lib/vouchers";
+import {
+  bookingRateLimit,
+  clientIp,
+  bookingAllowedOrigin,
+} from "@/lib/public-booking-kit";
 
 export async function GET(
   req: Request,
@@ -19,13 +24,26 @@ export async function GET(
   const t = getTenant(slug);
   if (!t) return NextResponse.json({ error: "tenant_not_found" }, { status: 404 });
 
+  // Rate-limit per IP + tenant (PII email enumeration control — no login).
+  const limit = bookingRateLimit(clientIp(req), slug);
+  if (!limit.ok) {
+    return NextResponse.json(
+      { error: "rate_limited", retryAfter: limit.retryAfter },
+      { status: 429, headers: { "retry-after": String(limit.retryAfter) } },
+    );
+  }
+
   const url = new URL(req.url);
   const email = url.searchParams.get("email") ?? "";
   const serviceId = url.searchParams.get("service");
 
+  const headers: Record<string, string> = { "cache-control": "no-store", vary: "Origin" };
+  const allowed = bookingAllowedOrigin(req, slug);
+  if (allowed) headers["access-control-allow-origin"] = allowed;
+
   const client = findClientByEmail(email);
   if (!client) {
-    return NextResponse.json({ known: false }, { headers: { "access-control-allow-origin": "*" } });
+    return NextResponse.json({ known: false }, { headers });
   }
 
   const service = t.services.find((s) => s.id === serviceId);
@@ -61,9 +79,6 @@ export async function GET(
     subsidies,
     vouchers,
   }, {
-    headers: {
-      "cache-control": "no-store",
-      "access-control-allow-origin": "*",
-    },
+    headers,
   });
 }

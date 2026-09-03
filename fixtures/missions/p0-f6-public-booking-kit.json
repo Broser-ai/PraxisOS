@@ -1,0 +1,36 @@
+{
+  "id": "p0-f6-public-booking-kit",
+  "title": "P0 F6 · public booking kit (CORS allowlist + rate-limit)",
+  "goal": "Protect by-Pilar embed booking WITHOUT staff login via per-tenant origin allowlist (lib/tenants domains + PRAXIS_BOOKING_CORS_ORIGINS) replacing access-control-allow-origin: *, plus per-IP+tenant rate-limit on bookings POST, lookup, voucher. services/availability stay public. Never require praxis_session on patient booking.",
+  "riskLevel": "yellow",
+  "platformScope": ["clinic_ops", "prime"],
+  "acceptanceCriteria": [
+    { "text": "POST /api/v1/[tenant]/bookings without cookie still returns 201 (by Pilar embed regression)" },
+    { "text": "Allowlisted tenant domain origin is echoed in ACAO; non-allowlisted origin gets no ACAO header" },
+    { "text": "Per-IP+tenant rate-limit returns 429 with retry-after on bookings/lookup/voucher abuse" },
+    { "text": "services + availability remain public (CORS *); vitest covers allowlist + rate-limit; tsc green" }
+  ],
+  "allowedPaths": [
+    "lib/public-booking-kit.ts",
+    "app/api/v1/[tenant]/bookings/route.ts",
+    "app/api/v1/[tenant]/lookup/route.ts",
+    "app/api/v1/[tenant]/voucher/route.ts",
+    "tests/f6-public-booking-kit.test.ts",
+    "tests/prime/p0-slice-missions.test.ts",
+    "fixtures/missions/p0-f6-public-booking-kit.json"
+  ],
+  "forbiddenPaths": [
+    ".env",
+    ".env.production",
+    "docker-compose.praxis.yml",
+    "supabase/migrations/",
+    "app/api/journal/",
+    "app/api/bird/"
+  ],
+  "workstreams": [
+    { "role": "scout", "title": "Scout · public booking surface" },
+    { "role": "builder", "title": "Builder · CORS allowlist + rate-limit kit" },
+    { "role": "verifier", "title": "Verifier · f6 booking-kit tests" },
+    { "role": "reviewer", "title": "Reviewer · embed-compat + abuse policy" }
+  ]
+}

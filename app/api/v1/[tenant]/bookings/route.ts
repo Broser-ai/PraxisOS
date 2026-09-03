@@ -4,8 +4,14 @@ import {
   dataBackend,
 } from "@/lib/data/repo";
 import { getTenant } from "@/lib/tenants";
+import {
+  bookingRateLimit,
+  clientIp,
+  bookingAllowedOrigin,
+} from "@/lib/public-booking-kit";
 
 // POST /api/v1/{tenant}/bookings — persists booking (memory or Supabase)
+// Public-by-design (patient) — protected by CORS allowlist + rate-limit, NOT login.
 
 export async function POST(
   req: Request,
@@ -15,6 +21,16 @@ export async function POST(
   const t = getTenant(slug);
   if (!t) {
     return NextResponse.json({ error: "tenant_not_found" }, { status: 404 });
+  }
+
+  // Rate-limit per IP + tenant (abuse control — does not require login).
+  const ip = clientIp(req);
+  const limit = bookingRateLimit(ip, slug);
+  if (!limit.ok) {
+    return NextResponse.json(
+      { error: "rate_limited", retryAfter: limit.retryAfter },
+      { status: 429, headers: { "retry-after": String(limit.retryAfter) } },
+    );
   }
 
   let body: {
@@ -60,6 +76,10 @@ export async function POST(
 
   const idempotencyKey = req.headers.get("idempotency-key") ?? booking.id;
 
+  const headers: Record<string, string> = { vary: "Origin" };
+  const allowed = bookingAllowedOrigin(req, t.slug);
+  if (allowed) headers["access-control-allow-origin"] = allowed;
+
   return NextResponse.json(
     {
       id: booking.id,
@@ -88,19 +108,20 @@ export async function POST(
           "Booking er gemt. E-mail/SMS-påmindelse aktiveres når messaging er koblet på.",
       },
     },
-    { status: 201, headers: { "access-control-allow-origin": "*" } },
+    { status: 201, headers },
   );
 }
 
-export async function OPTIONS() {
-  return new Response(null, {
-    status: 204,
-    headers: {
-      "access-control-allow-origin": "*",
-      "access-control-allow-methods": "GET, POST, OPTIONS",
-      "access-control-allow-headers":
-        "content-type, idempotency-key, authorization",
-      "access-control-max-age": "86400",
-    },
-  });
+export async function OPTIONS(req: Request, { params }: { params: Promise<{ tenant: string }> }) {
+  const { tenant: slug } = await params;
+  const allowed = bookingAllowedOrigin(req, slug);
+  const headers: Record<string, string> = {
+    "access-control-allow-methods": "GET, POST, OPTIONS",
+    "access-control-allow-headers":
+      "content-type, idempotency-key, authorization",
+    "access-control-max-age": "86400",
+    vary: "Origin",
+  };
+  if (allowed) headers["access-control-allow-origin"] = allowed;
+  return new Response(null, { status: 204, headers });
 }

@@ -213,4 +213,30 @@ describe("PEC · P0 slice missions (Prime Execution Control)", () => {
     // eslint-disable-next-line no-console
     console.log(`[PEC] F5 mission=${mission.id} builder_status=${mergeMark.status}`);
   });
+
+  it("F6 · public booking kit (CORS allowlist + rate-limit) → approved_for_merge intent", () => {
+    const sliceFiles = changedFilesSinceMain().filter((f) =>
+      [
+        "lib/public-booking-kit.ts",
+        "app/api/v1/[tenant]/bookings/route.ts",
+        "app/api/v1/[tenant]/lookup/route.ts",
+        "app/api/v1/[tenant]/voucher/route.ts",
+        "tests/f6-public-booking-kit.test.ts",
+        "fixtures/missions/p0-f6-public-booking-kit.json",
+        "tests/prime/p0-slice-missions.test.ts",
+      ].includes(f),
+    );
+    expect(sliceFiles.length).toBeGreaterThan(0);
+
+    const { mission, mergeMark } = driveSliceToApprovedForMerge(
+      "p0-f6-public-booking-kit",
+      sliceFiles,
+    );
+
+    expect(mission.id).toMatch(/^msn_/);
+    expect(getMission(mission.id)?.status).toBe("running");
+    expect(mergeMark.status).toBe("approved_for_merge");
+    // eslint-disable-next-line no-console
+    console.log(`[PEC] F6 mission=${mission.id} builder_status=${mergeMark.status}`);
+  });
 });
