@@ -40,6 +40,27 @@ type Journal = {
   content: string;
 };
 
+type MissionRow = {
+  id: string;
+  title: string;
+  status: string;
+  riskLevel: string;
+  usage: { totalTokens: number };
+  budgets: { maxTotalTokens: number };
+  humanDecisions: { kind: string; detail: string; actor: string }[];
+  workstreamIds: string[];
+};
+
+type WorkstreamRow = {
+  id: string;
+  title: string;
+  status: string;
+  role: string;
+  blockedReason?: string;
+  branchName?: string;
+  missionId: string;
+};
+
 export default function SwarmAdminPage() {
   const [tenant, setTenant] = useState<string | null>(null);
   const [status, setStatus] = useState<SwarmStatus | null>(null);
@@ -50,6 +71,12 @@ export default function SwarmAdminPage() {
   const [msg, setMsg] = useState<string | null>(null);
   const [title, setTitle] = useState("Savage improve · booking persistence");
   const [type, setType] = useState("improve");
+  const [missions, setMissions] = useState<MissionRow[]>([]);
+  const [workstreams, setWorkstreams] = useState<WorkstreamRow[]>([]);
+  const [missionTitle, setMissionTitle] = useState("Prime execution · hardening");
+  const [missionGoal, setMissionGoal] = useState(
+    "Ship BudgetGuard + DoD without auto-merge",
+  );
 
   useEffect(() => {
     void fetchStaffSession().then((me) => {
@@ -59,14 +86,20 @@ export default function SwarmAdminPage() {
 
   const refresh = useCallback(async () => {
     if (!tenant) return;
-    const [s, t, j] = await Promise.all([
+    const [s, t, j, m, w] = await Promise.all([
       fetch(`/api/v1/${tenant}/swarm`).then((r) => r.json()),
       fetch(`/api/v1/${tenant}/swarm?view=tasks`).then((r) => r.json()),
       fetch(`/api/v1/${tenant}/swarm?view=journals`).then((r) => r.json()),
+      fetch(`/api/v1/${tenant}/prime/missions`).then((r) => r.json()).catch(() => ({ data: [] })),
+      fetch(`/api/v1/${tenant}/prime/missions?view=workstreams`)
+        .then((r) => r.json())
+        .catch(() => ({ data: [] })),
     ]);
     setStatus(s);
     setTasks(t.data ?? []);
     setJournals(j.data ?? []);
+    setMissions(m.data ?? []);
+    setWorkstreams(w.data ?? []);
   }, [tenant]);
 
   useEffect(() => {
@@ -163,6 +196,25 @@ export default function SwarmAdminPage() {
     });
   };
 
+  const postMission = async (body: Record<string, unknown>) => {
+    if (!tenant) return;
+    setBusy(true);
+    setMsg(null);
+    try {
+      const res = await fetch(`/api/v1/${tenant}/prime/missions`, {
+        method: "POST",
+        headers: { "content-type": "application/json" },
+        body: JSON.stringify(body),
+      });
+      const json = await res.json();
+      if (!res.ok) setMsg(json.error ?? "mission_fejl");
+      else setMsg(JSON.stringify(json).slice(0, 200));
+      await refresh();
+    } finally {
+      setBusy(false);
+    }
+  };
+
   const daemon = status?.daemon;
 
   return (
@@ -192,6 +244,209 @@ export default function SwarmAdminPage() {
         <Stat label="Worktrees" value={String(status?.worktrees ?? 0)} />
         <Stat label="Interval" value={daemon ? `${Math.round(daemon.intervalMs / 1000)}s` : "—"} />
         <Stat label="NO_AUTO_MERGE" value={status?.invariants?.NO_AUTO_MERGE ? "ON" : "?"} />
+      </section>
+
+      <section className="card rise mt-3 p-5">
+        <h2 className="display text-[17px] font-semibold">
+          Prime Execution Control
+        </h2>
+        <p className="mt-1 text-[12.5px] text-muted">
+          Missions · budgets · evidence · blocked/human decisions. API:{" "}
+          <code className="text-[11px]">/api/v1/[tenant]/prime/missions</code>.
+          Merge forbliver manuel (NO_AUTO_MERGE). Ingen Merge/Deploy/Disable-clinical/Unlimited.
+        </p>
+        <div className="mt-3 flex flex-wrap gap-2">
+          <button
+            type="button"
+            disabled={busy}
+            className="rounded-[10px] border border-line bg-paper px-3 py-2 text-[12.5px] font-medium hover:bg-canvas disabled:opacity-50"
+            onClick={() =>
+              void postMission({
+                action: "seed_fixture",
+                fixtureId: "secure-journal-route-authorization",
+              })
+            }
+          >
+            Seed yellow journal-auth (draft only)
+          </button>
+        </div>
+        <div className="mt-4 flex flex-col gap-3 md:flex-row">
+          <input
+            value={missionTitle}
+            onChange={(e) => setMissionTitle(e.target.value)}
+            className="flex-1 rounded-[10px] border border-line bg-paper px-3 py-2 text-[13px]"
+            placeholder="Mission title"
+          />
+          <input
+            value={missionGoal}
+            onChange={(e) => setMissionGoal(e.target.value)}
+            className="flex-[1.4] rounded-[10px] border border-line bg-paper px-3 py-2 text-[13px]"
+            placeholder="Goal"
+          />
+          <button
+            type="button"
+            disabled={busy}
+            onClick={() =>
+              void postMission({
+                action: "draft",
+                title: missionTitle,
+                goal: missionGoal,
+                riskLevel: "green",
+              })
+            }
+            className="rounded-[10px] bg-ink px-4 py-2 text-[13px] font-medium text-paper disabled:opacity-50"
+          >
+            Draft mission
+          </button>
+        </div>
+        <div className="mt-4 grid gap-3 lg:grid-cols-2">
+          <div className="max-h-[280px] overflow-auto">
+            <div className="kicker mb-2">Missions / budgets</div>
+            {missions.length === 0 && (
+              <p className="text-[12.5px] text-faint">Ingen missions endnu.</p>
+            )}
+            {missions.slice(0, 8).map((m) => (
+              <div key={m.id} className="mb-2 rounded-[10px] border border-line p-3">
+                <div className="flex flex-wrap items-center justify-between gap-2">
+                  <span className="text-[13px] font-medium">{m.title}</span>
+                  <span className="mono text-[10px] text-faint">
+                    {m.status} · {m.riskLevel}
+                  </span>
+                </div>
+                <div className="mt-1 mono text-[11px] text-muted">
+                  tokens {m.usage?.totalTokens ?? 0}/{m.budgets?.maxTotalTokens ?? "—"}
+                </div>
+                {m.humanDecisions?.[0] && (
+                  <div className="mt-1 text-[11px] text-faint">
+                    last: {m.humanDecisions[0].kind} · {m.humanDecisions[0].detail}
+                  </div>
+                )}
+                <div className="mt-2 flex flex-wrap gap-1.5">
+                  {m.status === "draft" && (
+                    <button
+                      type="button"
+                      disabled={busy}
+                      className="rounded-[8px] border border-line px-2 py-1 text-[11px]"
+                      onClick={() =>
+                        void postMission({ action: "approve", missionId: m.id })
+                      }
+                    >
+                      Approve
+                    </button>
+                  )}
+                  {(m.status === "approved" || m.status === "paused") && (
+                    <button
+                      type="button"
+                      disabled={busy}
+                      className="rounded-[8px] border border-line px-2 py-1 text-[11px]"
+                      onClick={() =>
+                        void postMission({ action: "start", missionId: m.id })
+                      }
+                    >
+                      Start
+                    </button>
+                  )}
+                  {m.status === "running" && (
+                    <>
+                      <button
+                        type="button"
+                        disabled={busy}
+                        className="rounded-[8px] border border-line px-2 py-1 text-[11px]"
+                        onClick={() =>
+                          void postMission({ action: "pause", missionId: m.id })
+                        }
+                      >
+                        Pause
+                      </button>
+                      <button
+                        type="button"
+                        disabled={busy}
+                        className="rounded-[8px] border border-line px-2 py-1 text-[11px]"
+                        onClick={() =>
+                          void postMission({
+                            action: "spawn_flow",
+                            missionId: m.id,
+                            title: m.title,
+                            acceptanceCriteria: [
+                              { text: "BudgetGuard wired + tests green" },
+                            ],
+                          })
+                        }
+                      >
+                        Spawn flow
+                      </button>
+                      <button
+                        type="button"
+                        disabled={busy}
+                        className="rounded-[8px] border border-line px-2 py-1 text-[11px]"
+                        onClick={() => {
+                          const next = Number(m.budgets?.maxTotalTokens ?? 0) + 50_000;
+                          void postMission({
+                            action: "raise_budget",
+                            missionId: m.id,
+                            budgetPatch: { maxTotalTokens: next },
+                          });
+                        }}
+                      >
+                        +50k tokens
+                      </button>
+                    </>
+                  )}
+                  {m.status !== "cancelled" && m.status !== "completed" && (
+                    <button
+                      type="button"
+                      disabled={busy}
+                      className="rounded-[8px] border border-line px-2 py-1 text-[11px] text-muted"
+                      onClick={() =>
+                        void postMission({ action: "cancel", missionId: m.id })
+                      }
+                    >
+                      Cancel
+                    </button>
+                  )}
+                </div>
+              </div>
+            ))}
+          </div>
+          <div className="max-h-[280px] overflow-auto">
+            <div className="kicker mb-2">Workstreams / blocked</div>
+            {workstreams.length === 0 && (
+              <p className="text-[12.5px] text-faint">Ingen workstreams.</p>
+            )}
+            {workstreams.slice(0, 12).map((w) => (
+              <div key={w.id} className="mb-2 rounded-[10px] border border-line p-3">
+                <div className="flex items-center justify-between gap-2">
+                  <span className="text-[13px] font-medium">{w.title}</span>
+                  <span className="mono text-[10px] text-faint">{w.status}</span>
+                </div>
+                <div className="mt-1 text-[11px] text-muted">
+                  {w.role}
+                  {w.branchName ? ` · ${w.branchName}` : ""}
+                </div>
+                {w.blockedReason && (
+                  <div className="mt-1 text-[11px] text-signal">
+                    blocked: {w.blockedReason}
+                  </div>
+                )}
+                {w.status === "ready_for_review" && (
+                  <button
+                    type="button"
+                    disabled={busy}
+                    className="mt-2 rounded-[8px] border border-line px-2 py-1 text-[11px]"
+                    onClick={() =>
+                      void postMission({
+                        action: "mark_approved_for_merge",
+                        workstreamId: w.id,
+                      })
+                    }
+                  >
+                    Mark approved_for_merge (manual merge)
+                  </button>
+                )}
+              </div>
+            ))}
+          </div>
+        </div>
       </section>
 
       <section className="card rise mt-3 p-5">

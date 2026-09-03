@@ -1,17 +1,29 @@
 import { NextResponse } from "next/server";
-import { getJournalEntry, updateJournalEntry } from "@/lib/journal";
+import { updateJournalEntry } from "@/lib/journal";
+import { auditLog } from "@/lib/audit";
+import { jsonAuthFail, requireJournalAccess } from "@/lib/request-auth";
 
 export const runtime = "nodejs";
 
-export async function GET(_req: Request, ctx: { params: Promise<{ id: string }> }) {
+export async function GET(req: Request, ctx: { params: Promise<{ id: string }> }) {
   const { id } = await ctx.params;
-  const entry = getJournalEntry(id);
-  if (!entry) return NextResponse.json({ error: "not_found" }, { status: 404 });
-  return NextResponse.json({ entry });
+  const auth = requireJournalAccess(req, id, {
+    permissions: ["journal"],
+    roles: ["owner", "practitioner", "support"],
+  });
+  if (!auth.ok) return jsonAuthFail(auth);
+  return NextResponse.json({ entry: auth.entry });
 }
 
 export async function PATCH(req: Request, ctx: { params: Promise<{ id: string }> }) {
   const { id } = await ctx.params;
+  const auth = requireJournalAccess(req, id, {
+    permissions: ["journal"],
+    roles: ["owner", "practitioner", "support"],
+    write: true,
+  });
+  if (!auth.ok) return jsonAuthFail(auth);
+
   let body: {
     soap?: { S?: string; O?: string; A?: string; P?: string };
     codes?: string[];
@@ -28,8 +40,14 @@ export async function PATCH(req: Request, ctx: { params: Promise<{ id: string }>
   try {
     const entry = updateJournalEntry(id, body);
     if (!entry) return NextResponse.json({ error: "not_found" }, { status: 404 });
+    auditLog("journal.updated", {
+      tenant_id: entry.tenant,
+      actor_user_id: auth.accountId,
+      target_ref: `journal/${entry.id}`,
+    });
     return NextResponse.json({ ok: true, entry });
-  } catch (err: any) {
-    return NextResponse.json({ error: err?.message || "update_failed" }, { status: 400 });
+  } catch (err: unknown) {
+    const msg = err instanceof Error ? err.message : "update_failed";
+    return NextResponse.json({ error: msg }, { status: 400 });
   }
 }

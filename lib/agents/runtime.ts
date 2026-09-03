@@ -30,6 +30,10 @@ export type RunAgentInput = {
   eventId?: string;
   autoRoute?: boolean;
   maxToolRounds?: number;
+  /** Prime Execution Control — wires BudgetGuard into chatCompletions */
+  missionId?: string;
+  workstreamId?: string;
+  missionRole?: import("@/lib/prime/mission-types").MissionRole;
 };
 
 export type RunAgentResult = {
@@ -238,7 +242,22 @@ async function llmReply(
   tenant: string,
   runId: string,
   maxToolRounds: number,
-): Promise<{ reply: string; toolCalls: AgentToolCall[]; model: string }> {
+  budget?: {
+    missionId: string;
+    workstreamId?: string;
+    role?: import("@/lib/prime/mission-types").MissionRole;
+  },
+): Promise<{
+  reply: string;
+  toolCalls: AgentToolCall[];
+  model: string;
+  usage?: {
+    promptTokens: number;
+    completionTokens: number;
+    totalTokens: number;
+    estimated: boolean;
+  };
+}> {
   const agent = getAgent(agentId)!;
   const tools = toolsForAgent(agentId);
   const messages: LlmMessage[] = [
@@ -247,22 +266,38 @@ async function llmReply(
   ];
   const toolCalls: AgentToolCall[] = [];
   const oaTools = toOpenAiTools(tools);
+  let lastUsage:
+    | {
+        promptTokens: number;
+        completionTokens: number;
+        totalTokens: number;
+        estimated: boolean;
+      }
+    | undefined;
 
   for (let round = 0; round < maxToolRounds; round++) {
-    const res = await chatCompletions({ messages, tools: oaTools });
+    const res = await chatCompletions({
+      messages,
+      tools: oaTools,
+      budget: budget?.missionId ? budget : undefined,
+      toolCallsSoFar: toolCalls.length,
+    });
     if (!res.ok) {
       return {
         reply: `LLM-fejl: ${res.error}. Skifter til lokal heuristik.`,
         toolCalls,
         model: llmModel(),
+        usage: lastUsage,
       };
     }
+    if (res.usage) lastUsage = res.usage;
 
     if (res.toolCalls.length === 0) {
       return {
         reply: res.content?.trim() || "(tomt svar)",
         toolCalls,
         model: res.model,
+        usage: lastUsage,
       };
     }
 
@@ -297,6 +332,7 @@ async function llmReply(
     reply: "Jeg nåede tool-loftet — her er hvad jeg har indtil videre. Prøv igen for næste skridt.",
     toolCalls,
     model: llmModel(),
+    usage: lastUsage,
   };
 }
 
@@ -322,6 +358,8 @@ export async function runAgent(input: RunAgentInput): Promise<RunAgentResult> {
     model: preferLlm ? llmModel() : "heuristic-da-v1",
     mode: preferLlm ? "llm" : "heuristic",
     status: "running",
+    missionId: input.missionId,
+    workstreamId: input.workstreamId,
   });
 
   try {
@@ -329,19 +367,38 @@ export async function runAgent(input: RunAgentInput): Promise<RunAgentResult> {
     let toolCalls: AgentToolCall[] = [];
     let mode: "llm" | "heuristic" = "heuristic";
     let model = "heuristic-da-v1";
+    let tokenUsage: AgentRun["tokenUsage"];
+
+    const budget =
+      input.missionId
+        ? {
+            missionId: input.missionId,
+            workstreamId: input.workstreamId,
+            role: input.missionRole,
+          }
+        : undefined;
 
     if (preferLlm) {
-      const llm = await llmReply(agentId, input.message, tenant, run.id, input.maxToolRounds ?? 4);
+      const llm = await llmReply(
+        agentId,
+        input.message,
+        tenant,
+        run.id,
+        input.maxToolRounds ?? 4,
+        budget,
+      );
       if (llm.reply.startsWith("LLM-fejl:")) {
         const h = await heuristicReply(agentId, input.message, tenant, run.id, input.trigger ?? "chat");
         reply = `${llm.reply}\n\n${h.reply}`;
         toolCalls = [...llm.toolCalls, ...h.toolCalls];
         mode = "heuristic";
+        tokenUsage = llm.usage;
       } else {
         reply = llm.reply;
         toolCalls = llm.toolCalls;
         mode = "llm";
         model = llm.model;
+        tokenUsage = llm.usage;
       }
     } else {
       const h = await heuristicReply(agentId, input.message, tenant, run.id, input.trigger ?? "chat");
@@ -363,6 +420,7 @@ export async function runAgent(input: RunAgentInput): Promise<RunAgentResult> {
         model,
         finishedAt: new Date().toISOString(),
         requiresApproval: needsApproval,
+        tokenUsage,
       }) ?? run;
 
     return { run: updated, agentId, reply, mode };

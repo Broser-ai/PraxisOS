@@ -1,0 +1,39 @@
+# Secure journal route authorization
+# Yellow mission fixture — seed as draft only. Owner must approve + start.
+# Dispatcher will NOT run until status=running after human approve/start.
+
+id: secure-journal-route-authorization
+title: Secure journal route authorization
+riskLevel: yellow
+platformScope:
+  - auth_journal
+  - clinic_ops
+  - prime
+goal: >
+  Harden journal API/route authorization so tenant isolation and practitioner
+  auth are enforced before any read/write. Suggestion-only clinical posture;
+  no auto journal sign; no patient SMS autonomy.
+allowedPaths:
+  - app/api/
+  - lib/journal.ts
+  - lib/auth.ts
+  - tests/
+  - docs/ops/
+forbiddenPaths:
+  - .env
+  - .env.production
+  - secrets/
+acceptanceCriteria:
+  - text: Unauthenticated journal route requests return 401
+  - text: Cross-tenant journal access returns 403/404 (no leakage)
+  - text: Signed notes remain immutable (NO_AUTO_JOURNAL_SIGN)
+  - text: Vitest covers auth negative cases; typecheck green
+workstreams:
+  - role: scout
+    title: Scout · journal auth surface
+  - role: builder
+    title: Builder · route guards
+  - role: verifier
+    title: Verifier · auth tests
+  - role: reviewer
+    title: Reviewer · clinical/auth policy
