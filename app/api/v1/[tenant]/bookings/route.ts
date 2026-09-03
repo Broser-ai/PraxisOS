@@ -9,6 +9,7 @@ import {
   clientIp,
   bookingAllowedOrigin,
 } from "@/lib/public-booking-kit";
+import { auditLogWithContext } from "@/lib/audit";
 
 // POST /api/v1/{tenant}/bookings — persists booking (memory or Supabase)
 // Public-by-design (patient) — protected by CORS allowlist + rate-limit, NOT login.
@@ -27,6 +28,10 @@ export async function POST(
   const ip = clientIp(req);
   const limit = bookingRateLimit(ip, slug);
   if (!limit.ok) {
+    auditLogWithContext(req, "booking.rate_limited", {
+      tenant_id: slug,
+      target_ref: `ip:${ip}`,
+    });
     return NextResponse.json(
       { error: "rate_limited", retryAfter: limit.retryAfter },
       { status: 429, headers: { "retry-after": String(limit.retryAfter) } },
@@ -75,6 +80,13 @@ export async function POST(
   }
 
   const idempotencyKey = req.headers.get("idempotency-key") ?? booking.id;
+
+  // F62 · public booking mutation audit (no PII emails in meta)
+  auditLogWithContext(req, "booking.created", {
+    tenant_id: slug,
+    target_ref: booking.id,
+    auth_mode: "public",
+  });
 
   const headers: Record<string, string> = { vary: "Origin" };
   const allowed = bookingAllowedOrigin(req, t.slug);

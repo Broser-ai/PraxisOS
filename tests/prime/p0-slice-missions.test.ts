@@ -741,4 +741,82 @@ describe("PEC · P0 slice missions (Prime Execution Control)", () => {
     // eslint-disable-next-line no-console
     console.log(`[PEC] F55–F58 mission=${mission.id} builder_status=${mergeMark.status}`);
   });
+
+  it("F59 · MCP public rate-limit → approved_for_merge intent", () => {
+    const sliceFiles = changedFilesSinceMain().filter((f) =>
+      [
+        "app/api/mcp/v1/route.ts",
+        "tests/f59-mcp-public-ratelimit.test.ts",
+        "fixtures/missions/p0-f59-mcp-public-ratelimit.json",
+        "tests/prime/p0-slice-missions.test.ts",
+      ].includes(f),
+    );
+    expect(sliceFiles.length).toBeGreaterThan(0);
+
+    const { mission, mergeMark } = driveSliceToApprovedForMerge(
+      "p0-f59-mcp-public-ratelimit",
+      sliceFiles,
+    );
+
+    expect(mission.id).toMatch(/^msn_/);
+    expect(getMission(mission.id)?.status).toBe("running");
+    expect(mergeMark.status).toBe("approved_for_merge");
+    // eslint-disable-next-line no-console
+    console.log(`[PEC] F59 mission=${mission.id} builder_status=${mergeMark.status}`);
+  });
+
+  it("F60 · embed hardening → approved_for_merge intent", () => {
+    const sliceFiles = changedFilesSinceMain().filter((f) =>
+      [
+        "app/embed/v1/[tenant]/route.ts",
+        "tests/f60-embed-hardening.test.ts",
+        "fixtures/missions/p0-f60-embed-hardening.json",
+        "tests/prime/p0-slice-missions.test.ts",
+      ].includes(f),
+    );
+    expect(sliceFiles.length).toBeGreaterThan(0);
+
+    const { mission, mergeMark } = driveSliceToApprovedForMerge(
+      "p0-f60-embed-hardening",
+      sliceFiles,
+    );
+
+    expect(mission.id).toMatch(/^msn_/);
+    expect(getMission(mission.id)?.status).toBe("running");
+    expect(mergeMark.status).toBe("approved_for_merge");
+    // eslint-disable-next-line no-console
+    console.log(`[PEC] F60 mission=${mission.id} builder_status=${mergeMark.status}`);
+  });
+
+  it("F61–F64 · checklist/audit/captcha → approved_for_merge intent", () => {
+    const sliceFiles = changedFilesSinceMain().filter((f) =>
+      [
+        "docs/ops/p0-operator-checklist-merge-cutover.md",
+        "app/api/v1/[tenant]/bookings/route.ts",
+        "app/api/events/route.ts",
+        "app/api/agents/tick/route.ts",
+        "app/api/agents/workflows/route.ts",
+        "app/api/v1/[tenant]/swarm/route.ts",
+        "app/api/v1/[tenant]/research/ask/route.ts",
+        "app/api/v1/[tenant]/orchestrator/route.ts",
+        "lib/captcha.ts",
+        ".env.example",
+        "tests/f61-f64-checklist-audit-captcha.test.ts",
+        "fixtures/missions/p0-f61-f64-checklist-audit-captcha.json",
+        "tests/prime/p0-slice-missions.test.ts",
+      ].includes(f),
+    );
+    expect(sliceFiles.length).toBeGreaterThan(0);
+
+    const { mission, mergeMark } = driveSliceToApprovedForMerge(
+      "p0-f61-f64-checklist-audit-captcha",
+      sliceFiles,
+    );
+
+    expect(mission.id).toMatch(/^msn_/);
+    expect(getMission(mission.id)?.status).toBe("running");
+    expect(mergeMark.status).toBe("approved_for_merge");
+    // eslint-disable-next-line no-console
+    console.log(`[PEC] F61–F64 mission=${mission.id} builder_status=${mergeMark.status}`);
+  });
 });

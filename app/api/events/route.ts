@@ -20,6 +20,7 @@ import {
   resolveRequestAuth,
   type AuthOk,
 } from "@/lib/request-auth";
+import { auditLogWithContext } from "@/lib/audit";
 
 export const runtime = "nodejs";
 
@@ -29,8 +30,18 @@ export async function POST(req: Request) {
   const raw = await req.text();
 
   const isProd = process.env.NODE_ENV === "production";
-  if (!sig) return NextResponse.json({ error: "missing_signature" }, { status: 401 });
+  if (!sig) {
+    auditLogWithContext(req, "event.publish_unauthorized", {
+      target_ref: "missing_signature",
+      auth_mode: "hmac",
+    });
+    return NextResponse.json({ error: "missing_signature" }, { status: 401 });
+  }
   if (!verifyEventSignature(raw, sig) && isProd) {
+    auditLogWithContext(req, "event.publish_unauthorized", {
+      target_ref: "invalid_signature",
+      auth_mode: "hmac",
+    });
     return NextResponse.json({ error: "invalid_signature" }, { status: 401 });
   }
   // In non-prod, accept demo signature mismatch but prefer valid ones
@@ -51,6 +62,13 @@ export async function POST(req: Request) {
     tenant: evt.tenant,
     data: evt.data ?? {},
     source: evt.source ?? "api/events",
+  });
+
+  // F62 · mutation audit with request context
+  auditLogWithContext(req, "event.published", {
+    tenant_id: evt.tenant,
+    target_ref: stored.id,
+    auth_mode: "hmac",
   });
 
   return NextResponse.json({

@@ -8,6 +8,7 @@ import {
   requireTenantAccess,
   type GuardOk,
 } from "@/lib/request-auth";
+import { auditLogWithContext } from "@/lib/audit";
 
 /**
  * POST /api/v1/{tenant}/research/ask
@@ -50,6 +51,14 @@ export async function POST(
     question: body.question,
     trackId: body.trackId as ResearchTrackId | undefined,
     useAssistant: body.useAssistant,
+  });
+
+  // F64 · research ask mutation audit (no question text — avoid PII/prompt dump)
+  auditLogWithContext(req, "research.ask", {
+    tenant_id: tenant,
+    actor_user_id: session.accountId,
+    target_ref: body.trackId ?? "default",
+    auth_mode: "session",
   });
 
   if (body.journal !== false) {

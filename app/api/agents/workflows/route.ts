@@ -13,6 +13,7 @@ import {
   resolveRequestAuth,
   type AuthOk,
 } from "@/lib/request-auth";
+import { auditLogWithContext } from "@/lib/audit";
 
 export const runtime = "nodejs";
 
@@ -40,6 +41,9 @@ export async function GET(req: Request) {
 export async function POST(req: Request) {
   ensureWorkflowSubscription();
   if (!authorizeWorker(req).ok) {
+    auditLogWithContext(req, "agent.workflow_unauthorized", {
+      auth_mode: "worker_secret",
+    });
     return NextResponse.json({ error: "unauthorized" }, { status: 401 });
   }
 
@@ -56,6 +60,11 @@ export async function POST(req: Request) {
   switch (action) {
     case "tick": {
       const result = await tickAutomation({ tenant, force: body.force });
+      auditLogWithContext(req, "agent.workflow_run", {
+        tenant_id: tenant,
+        target_ref: "tick",
+        auth_mode: "worker_secret",
+      });
       return NextResponse.json(result);
     }
     case "run": {
@@ -63,10 +72,20 @@ export async function POST(req: Request) {
         return NextResponse.json({ error: "workflowId_required" }, { status: 400 });
       }
       const result = await runWorkflow(body.workflowId, { tenant, force: true });
+      auditLogWithContext(req, "agent.workflow_run", {
+        tenant_id: tenant,
+        target_ref: body.workflowId,
+        auth_mode: "worker_secret",
+      });
       return NextResponse.json({ ok: true, ...result });
     }
     case "run_all_due": {
       const result = await tickAutomation({ tenant, force: Boolean(body.force) });
+      auditLogWithContext(req, "agent.workflow_run", {
+        tenant_id: tenant,
+        target_ref: "run_all_due",
+        auth_mode: "worker_secret",
+      });
       return NextResponse.json(result);
     }
     default: {

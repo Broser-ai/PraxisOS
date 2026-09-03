@@ -32,6 +32,7 @@ import {
   requireTenantAccess,
   type GuardOk,
 } from "@/lib/request-auth";
+import { auditLogWithContext } from "@/lib/audit";
 
 export async function GET(
   req: Request,
@@ -140,6 +141,14 @@ export async function POST(
   }
 
   const action = body.action ?? "savage";
+
+  // F64 · staff swarm mutation audit (request context)
+  auditLogWithContext(req, "swarm.action", {
+    tenant_id: tenant,
+    target_ref: action,
+    actor_user_id: session.accountId,
+    auth_mode: "session",
+  });
 
   if (action === "daemon_start") {
     const state = startDaemon({

@@ -9,8 +9,20 @@
 //   <a data-praxis-book="nail-art" data-praxis-mode="popup">Book i nyt vindue</a>
 //
 // Programmatisk:  PraxisOS.open("fod-med"); PraxisOS.close();
+//
+// F60 · hardening: booking CORS alignment (ACAO allowlist), per-IP rate-limit,
+// postMessage origin check against ORIGIN (not just e.data.source).
 import { NextResponse } from "next/server";
 import { getTenant } from "@/lib/tenants";
+import { bookingAllowedOrigin, clientIp } from "@/lib/public-booking-kit";
+import { checkIpRateLimit } from "@/lib/rate-limit";
+
+function envInt(name: string, fallback: number): number {
+  const v = process.env[name];
+  if (!v) return fallback;
+  const n = Number(v);
+  return Number.isFinite(n) && n > 0 ? n : fallback;
+}
 
 export async function GET(
   req: Request,
@@ -19,6 +31,23 @@ export async function GET(
   const { tenant: slug } = await params;
   const t = getTenant(slug);
   if (!t) return new NextResponse("// tenant not found\n", { status: 404 });
+
+  // F60 · public embed rate-limit (script scrape / abuse)
+  const limit = checkIpRateLimit(clientIp(req), {
+    key: `embed-v1:${slug}`,
+    limit: envInt("PRAXIS_EMBED_RATE_LIMIT", 120),
+    windowMs: 15 * 60 * 1000,
+  });
+  if (!limit.ok) {
+    return new NextResponse("// rate_limited\n", {
+      status: 429,
+      headers: {
+        "content-type": "application/javascript; charset=utf-8",
+        "Retry-After": String(Math.ceil(limit.retryAfterMs / 1000)),
+        vary: "Origin",
+      },
+    });
+  }
 
   const url = new URL(req.url);
   const origin = `${url.protocol}//${url.host}`;
@@ -97,8 +126,9 @@ export async function GET(
   // ---- public API ----
   window.PraxisOS = { open: open, close: close, tenant: TENANT, origin: ORIGIN };
 
-  // ---- post-message handshake fra iframen ----
+  // ---- post-message handshake fra iframen (F60 · origin must match ORIGIN) ----
   window.addEventListener('message', function (e) {
+    if (e.origin !== ORIGIN) return;
     if (!e.data || e.data.source !== 'praxisos') return;
     if (e.data.type === 'close') close();
     if (e.data.type === 'booking_confirmed') {
@@ -128,12 +158,19 @@ export async function GET(
 })();
 `;
 
-  return new NextResponse(js, {
-    status: 200,
-    headers: {
-      "content-type": "application/javascript; charset=utf-8",
-      "cache-control": "public, max-age=300",
-      "access-control-allow-origin": "*",
-    },
-  });
+  // F60 · align ACAO with booking kit allowlist (omit when not allowlisted).
+  // Script tags load cross-origin without CORS, but fetch()/XHR consumers need ACAO.
+  const headers: Record<string, string> = {
+    "content-type": "application/javascript; charset=utf-8",
+    "cache-control": "public, max-age=300",
+    vary: "Origin",
+  };
+  const allowed = bookingAllowedOrigin(req, t.slug);
+  if (allowed) {
+    headers["access-control-allow-origin"] = allowed;
+  } else if (!req.headers.get("origin") && !req.headers.get("referer")) {
+    // Same-origin / curl smoke — no ACAO needed; leave unset.
+  }
+
+  return new NextResponse(js, { status: 200, headers });
 }

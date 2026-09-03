@@ -60,6 +60,45 @@ export function captchaKeysConfigured(provider?: CaptchaProvider): boolean {
   return false;
 }
 
+/**
+ * F63 · Public site-key config for login/signup widgets.
+ * Returns null when no site key is configured → UI must skip the widget.
+ * Prefers NEXT_PUBLIC_* (client-safe); falls back to server SITE_KEY env.
+ * Never exposes secret keys.
+ */
+export type CaptchaSiteConfig = {
+  provider: "turnstile" | "hcaptcha";
+  siteKey: string;
+};
+
+export function publicCaptchaSiteConfig(): CaptchaSiteConfig | null {
+  const turnstile =
+    process.env.NEXT_PUBLIC_TURNSTILE_SITE_KEY?.trim() ||
+    process.env.TURNSTILE_SITE_KEY?.trim() ||
+    "";
+  const hcaptcha =
+    process.env.NEXT_PUBLIC_HCAPTCHA_SITE_KEY?.trim() ||
+    process.env.HCAPTCHA_SITE_KEY?.trim() ||
+    "";
+
+  const provider = resolveCaptchaProvider();
+  if (provider === "turnstile" && turnstile) {
+    return { provider: "turnstile", siteKey: turnstile };
+  }
+  if (provider === "hcaptcha" && hcaptcha) {
+    return { provider: "hcaptcha", siteKey: hcaptcha };
+  }
+  // Auto: prefer whichever site key exists when provider is none/auto
+  if (turnstile) return { provider: "turnstile", siteKey: turnstile };
+  if (hcaptcha) return { provider: "hcaptcha", siteKey: hcaptcha };
+  return null;
+}
+
+/** True when a site key exists so the login/signup UI may render a widget. */
+export function captchaSiteKeyConfigured(): boolean {
+  return publicCaptchaSiteConfig() !== null;
+}
+
 function isProduction(): boolean {
   return process.env.NODE_ENV === "production";
 }

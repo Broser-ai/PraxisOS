@@ -17,6 +17,7 @@ import { executeMcpTool } from "@/lib/mcp-handlers";
 import { listTenants } from "@/lib/tenants";
 import { AGENTS } from "@/lib/agents";
 import { resolveApiKey } from "@/lib/api-keys";
+import { checkIpRateLimit } from "@/lib/rate-limit";
 
 const SERVER_INFO = {
   name: "praxisos",
@@ -27,6 +28,12 @@ const SERVER_INFO = {
 
 const PROTOCOL_VERSION = "2024-11-05";
 
+/** Open handshake methods — no API key, but rate-limited (F59). */
+const OPEN_METHODS = new Set(["initialize", "ping"]);
+
+/** Public discovery surfaces that need tighter abuse control (F59). */
+const PUBLIC_SURFACE_METHODS = new Set(["initialize", "ping", "tools/list"]);
+
 type JsonRpcRequest = {
   jsonrpc: "2.0";
   id?: string | number;
@@ -34,31 +41,103 @@ type JsonRpcRequest = {
   params?: any;
 };
 
-function rpcOk(id: any, result: any) {
+function clientIp(req: Request): string {
+  const xff = req.headers.get("x-forwarded-for");
+  if (xff) return xff.split(",")[0]!.trim();
+  return req.headers.get("x-real-ip") ?? "unknown";
+}
+
+/** F59/F64 · CORS: allowlist via PRAXIS_MCP_ORIGINS; wildcard only outside production. */
+function mcpCorsHeaders(req: Request): Record<string, string> {
+  const origin = req.headers.get("origin");
+  const list = (process.env.PRAXIS_MCP_ORIGINS ?? "")
+    .split(",")
+    .map((s) => s.trim())
+    .filter(Boolean);
+  const headers: Record<string, string> = { vary: "Origin" };
+  if (list.length > 0) {
+    if (origin && list.includes(origin)) {
+      headers["access-control-allow-origin"] = origin;
+    }
+    return headers;
+  }
+  if (process.env.NODE_ENV !== "production") {
+    headers["access-control-allow-origin"] = "*";
+  }
+  return headers;
+}
+
+function rpcOk(req: Request, id: any, result: any) {
   return NextResponse.json({ jsonrpc: "2.0", id, result }, {
-    headers: { "access-control-allow-origin": "*" },
+    headers: mcpCorsHeaders(req),
   });
 }
 
-function rpcErr(id: any, code: number, message: string, data?: any) {
+function rpcErr(req: Request, id: any, code: number, message: string, data?: any, httpStatus?: number) {
+  const status =
+    httpStatus ??
+    (code === -32600 ? 400 : code === -32029 ? 429 : 200);
   return NextResponse.json({ jsonrpc: "2.0", id, error: { code, message, data } }, {
-    status: code === -32600 ? 400 : 200,
-    headers: { "access-control-allow-origin": "*" },
+    status,
+    headers: {
+      ...mcpCorsHeaders(req),
+      ...(status === 429 && data?.retryAfterMs
+        ? { "Retry-After": String(Math.ceil(Number(data.retryAfterMs) / 1000)) }
+        : {}),
+    },
+  });
+}
+
+/**
+ * F59 · rate-limit MCP public surface.
+ * - initialize / ping: generous but finite (handshake abuse)
+ * - tools/list: stricter (catalog scrape even with valid key)
+ * - other methods: looser authenticated ceiling
+ */
+function mcpRateLimit(
+  req: Request,
+  method: string,
+): { ok: true } | { ok: false; retryAfterMs: number } {
+  const ip = clientIp(req);
+  if (PUBLIC_SURFACE_METHODS.has(method)) {
+    const open = method === "tools/list";
+    return checkIpRateLimit(ip, {
+      key: `mcp:${method}`,
+      limit: open ? 60 : 120,
+      windowMs: 15 * 60 * 1000,
+    });
+  }
+  return checkIpRateLimit(ip, {
+    key: "mcp:rpc",
+    limit: 300,
+    windowMs: 15 * 60 * 1000,
   });
 }
 
 export async function POST(req: Request) {
   let body: JsonRpcRequest;
-  try { body = await req.json(); } catch { return rpcErr(null, -32700, "Parse error"); }
+  try { body = await req.json(); } catch { return rpcErr(req, null, -32700, "Parse error"); }
 
-  if (body.jsonrpc !== "2.0") return rpcErr(body.id, -32600, "Invalid JSON-RPC version");
-  if (!body.method) return rpcErr(body.id, -32600, "Missing method");
+  if (body.jsonrpc !== "2.0") return rpcErr(req, body.id, -32600, "Invalid JSON-RPC version");
+  if (!body.method) return rpcErr(req, body.id, -32600, "Missing method");
+
+  // F59 · rate-limit before auth so open handshake cannot be abused cheaply.
+  const limited = mcpRateLimit(req, body.method);
+  if (!limited.ok) {
+    return rpcErr(
+      req,
+      body.id,
+      -32029,
+      "Rate limited",
+      { retryAfterMs: limited.retryAfterMs },
+      429,
+    );
+  }
 
   // Auth (P0 plan §F13): initialize + ping remain open (MCP handshake).
   // All other methods require a verified Bearer API key; the tenant is
   // resolved FROM the key (no tenant in the URL) and threaded into tool calls
   // instead of the previous hardcoded "bypilar".
-  const OPEN_METHODS = new Set(["initialize", "ping"]);
   let authedTenant: string | null = null;
   if (!OPEN_METHODS.has(body.method)) {
     const auth = req.headers.get("authorization") ?? "";
@@ -66,6 +145,7 @@ export async function POST(req: Request) {
     const resolved = resolveApiKey(token);
     if (!resolved.ok) {
       return rpcErr(
+        req,
         body.id,
         -32001,
         resolved.error === "no_token"
@@ -80,7 +160,7 @@ export async function POST(req: Request) {
 
   switch (body.method) {
     case "initialize":
-      return rpcOk(body.id, {
+      return rpcOk(req, body.id, {
         protocolVersion: PROTOCOL_VERSION,
         serverInfo: SERVER_INFO,
         capabilities: {
@@ -92,10 +172,10 @@ export async function POST(req: Request) {
       });
 
     case "ping":
-      return rpcOk(body.id, {});
+      return rpcOk(req, body.id, {});
 
     case "tools/list":
-      return rpcOk(body.id, {
+      return rpcOk(req, body.id, {
         tools: MCP_TOOLS.map((t) => ({
           name: t.name,
           description: t.description,
@@ -106,7 +186,7 @@ export async function POST(req: Request) {
     case "tools/call": {
       const { name, arguments: args } = body.params ?? {};
       const tool = MCP_TOOLS.find((t) => t.name === name);
-      if (!tool) return rpcErr(body.id, -32601, `Unknown tool: ${name}`);
+      if (!tool) return rpcErr(req, body.id, -32601, `Unknown tool: ${name}`);
 
       try {
         const result = await executeMcpTool(
@@ -114,13 +194,13 @@ export async function POST(req: Request) {
           (args ?? {}) as Record<string, unknown>,
           { tenant: authedTenant ?? "bypilar" },
         );
-        return rpcOk(body.id, {
+        return rpcOk(req, body.id, {
           content: [{ type: "text", text: JSON.stringify(result, null, 2) }],
           isError: Boolean((result as { isError?: boolean }).isError),
         });
       } catch (err) {
         const sample = simulateToolResult(name, args);
-        return rpcOk(body.id, {
+        return rpcOk(req, body.id, {
           content: [
             {
               type: "text",
@@ -141,7 +221,7 @@ export async function POST(req: Request) {
     }
 
     case "resources/list":
-      return rpcOk(body.id, {
+      return rpcOk(req, body.id, {
         resources: [
           ...listTenants().map((t) => ({
             uri: `praxisos://tenant/${t.slug}`,
@@ -163,32 +243,49 @@ export async function POST(req: Request) {
       if (uri.startsWith("praxisos://tenant/")) {
         const slug = uri.replace("praxisos://tenant/", "");
         const t = listTenants().find((x) => x.slug === slug);
-        if (!t) return rpcErr(body.id, -32602, "Resource not found");
-        return rpcOk(body.id, {
+        if (!t) return rpcErr(req, body.id, -32602, "Resource not found");
+        return rpcOk(req, body.id, {
           contents: [{ uri, mimeType: "application/json", text: JSON.stringify(t, null, 2) }],
         });
       }
       if (uri.startsWith("praxisos://agent/")) {
         const id = uri.replace("praxisos://agent/", "");
         const a = AGENTS.find((x) => x.id === id);
-        if (!a) return rpcErr(body.id, -32602, "Resource not found");
-        return rpcOk(body.id, {
+        if (!a) return rpcErr(req, body.id, -32602, "Resource not found");
+        return rpcOk(req, body.id, {
           contents: [{ uri, mimeType: "application/json", text: JSON.stringify(a, null, 2) }],
         });
       }
-      return rpcErr(body.id, -32602, "Unknown resource scheme");
+      return rpcErr(req, body.id, -32602, "Unknown resource scheme");
     }
 
     case "prompts/list":
-      return rpcOk(body.id, { prompts: [] });
+      return rpcOk(req, body.id, { prompts: [] });
 
     default:
-      return rpcErr(body.id, -32601, `Method not found: ${body.method}`);
+      return rpcErr(req, body.id, -32601, `Method not found: ${body.method}`);
   }
 }
 
-// GET = MCP-discovery (manifest)
-export async function GET() {
+// GET = MCP-discovery (manifest) · F59 rate-limit + F64 CORS allowlist
+export async function GET(req: Request) {
+  const limited = checkIpRateLimit(clientIp(req), {
+    key: "mcp:discovery",
+    limit: 120,
+    windowMs: 15 * 60 * 1000,
+  });
+  if (!limited.ok) {
+    return NextResponse.json(
+      { error: "rate_limited", retryAfterMs: limited.retryAfterMs },
+      {
+        status: 429,
+        headers: {
+          ...mcpCorsHeaders(req),
+          "Retry-After": String(Math.ceil(limited.retryAfterMs / 1000)),
+        },
+      },
+    );
+  }
   return NextResponse.json({
     name: SERVER_INFO.name,
     version: SERVER_INFO.version,
@@ -205,7 +302,7 @@ export async function GET() {
     toolCount: MCP_TOOLS.length,
     resourceCount: listTenants().length + AGENTS.length,
     documentation: "/admin/mcp",
-  }, { headers: { "access-control-allow-origin": "*" } });
+  }, { headers: mcpCorsHeaders(req) });
 }
 
 // Mock tool-results (i prod: kald ægte handlers)

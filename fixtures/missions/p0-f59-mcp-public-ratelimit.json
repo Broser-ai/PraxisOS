@@ -1,0 +1,29 @@
+{
+  "id": "p0-f59-mcp-public-ratelimit",
+  "title": "P0 F59 · MCP public surface rate-limit",
+  "goal": "Rate-limit MCP initialize/ping/tools/list + GET discovery; CORS allowlist via PRAXIS_MCP_ORIGINS. Suggestion_only; no auto merge/deploy.",
+  "riskLevel": "yellow",
+  "platformScope": ["clinic_ops", "prime"],
+  "acceptanceCriteria": [
+    { "text": "initialize/ping rate-limited per IP" },
+    { "text": "tools/list rate-limited (stricter)" },
+    { "text": "GET discovery rate-limited" },
+    { "text": "vitest covers; tsc green" }
+  ],
+  "allowedPaths": [
+    "app/api/mcp/v1/route.ts",
+    "tests/f59-mcp-public-ratelimit.test.ts",
+    "tests/prime/p0-slice-missions.test.ts",
+    "fixtures/missions/p0-f59-mcp-public-ratelimit.json",
+    "docs/ops/p0-secure-clinical-core-plan.md",
+    "CODE-MAP.md",
+    ".env.example"
+  ],
+  "forbiddenPaths": [".env", ".env.production", "clinical-policy"],
+  "workstreams": [
+    { "role": "scout", "title": "Scout · MCP public surface abuse" },
+    { "role": "builder", "title": "Builder · F59 rate-limit" },
+    { "role": "verifier", "title": "Verifier · f59 tests" },
+    { "role": "reviewer", "title": "Reviewer · no deploy" }
+  ]
+}

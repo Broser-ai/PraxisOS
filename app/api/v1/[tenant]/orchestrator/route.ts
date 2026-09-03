@@ -27,6 +27,7 @@ import {
   requireTenantAccess,
   type GuardOk,
 } from "@/lib/request-auth";
+import { auditLogWithContext } from "@/lib/audit";
 
 // Shared with GET …/orchestrator/runs/[runId]
 const { inflight: inflightRuns, completed: completedRuns } = orchRunMaps();
@@ -78,6 +79,14 @@ export async function POST(
   // at typen `Role` fra agents.ts er identisk med `AuthRole` fra lib/auth.ts.
   // API-key callers without a role default to practitioner (least-privilege staff).
   const actorRole: Role = (session.role ?? "practitioner") as AuthRole as Role;
+
+  // F64 · orchestrator mutation audit (no message content)
+  auditLogWithContext(req, "orchestrator.invoke", {
+    tenant_id: tenant,
+    actor_user_id: session.accountId,
+    target_ref: body.origin ?? "api",
+    auth_mode: "session",
+  });
 
   const origin: Origin = body.origin ?? "api";
   const messages: OrchestratorMessage[] =

@@ -617,6 +617,12 @@ Små mergeable commits. **Booking-flow regressiones-testes i hvert commit der r�
 | **F56** | Agents/status `agent.status_viewed` audit | Done |
 | **F57** | Health GET generous rate-limit | Done |
 | **F58** | Logout/status/health PEC + F29 marker hygiene | Done |
+| **F59** | MCP public surface rate-limit (initialize/ping/tools/list + GET) | Done |
+| **F60** | Embed hardening (`/embed/v1` CORS align + RL + postMessage origin) | Done |
+| **F61** | Operator checklist update for F49–F58 (+ F59–F64 smoke) | Done |
+| **F62** | Mutation-route audit gaps → `auditLogWithContext` | Done |
+| **F63** | Captcha sitekey UI skipped without keys; env placeholders + helper | Done |
+| **F64** | Stragglers: MCP CORS allowlist, swarm/research/orchestrator audits | Done |
 
 **Explicit out of scope for disse commits:** patient-chat, triage, nye AI-agents, LiveKit voice-consent audio, CE/MDR features, LoRA.
 

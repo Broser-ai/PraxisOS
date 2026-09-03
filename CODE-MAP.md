@@ -131,7 +131,8 @@ Auth notes: staff = session cookie; public = rate-limit / HMAC / allowlist as no
 | `/api/dawa/autocomplete` | GET | Public | DAWA-adresser |
 | `/api/events` | GET | Staff | Event-log (F19) |
 | `/api/events` | POST | HMAC | Publish event (`x-praxis-signature`) |
-| `/api/mcp/v1` | POST | API key | MCP JSON-RPC · verifyApiKey (F13) |
+| `/api/mcp/v1` | POST | API key + RL | MCP JSON-RPC · verifyApiKey (F13) · **F59** public RL |
+| `/api/mcp/v1` | GET | Public+rate | MCP discovery manifest · **F59** |
 | `/api/license` | GET/POST | Owner/support | License · **F23 audit** · **F24 tenant scope** |
 | `/api/tenant/setup` | POST | Owner | Tenant setup · **F23 audit context** |
 | `/api/scan/config` | GET | Public+rate | Scan readiness · **F33** · **F44 rate** |
@@ -156,7 +157,7 @@ Auth notes: staff = session cookie; public = rate-limit / HMAC / allowlist as no
 | `/api/v1/scan/process` | POST | Staff+consent | Foot-scan process · **F23 audit** |
 | `/api/v1/[tenant]/availability` | GET | Public+rate | Ledige slots · **F51** |
 | `/api/v1/[tenant]/services` | GET | Public+rate | Tenant services · **F51** |
-| `/api/v1/[tenant]/bookings` | POST | Public+kit | Opret booking (CORS+rate-limit) |
+| `/api/v1/[tenant]/bookings` | POST | Public+kit | Opret booking (CORS+rate-limit) · **F62 audit** |
 | `/api/v1/[tenant]/bookings/list` | GET | Staff/key | Liste bookings |
 | `/api/v1/[tenant]/clients` | GET/POST | Staff/key | Klient-CRUD |
 | `/api/v1/[tenant]/consent` | POST | Public+rate | Onboarding consent · **F17** · **F43 audit** |
@@ -166,7 +167,7 @@ Auth notes: staff = session cookie; public = rate-limit / HMAC / allowlist as no
 | `/api/v1/[tenant]/orchestrator` | * | Staff | Orchestrator · **F41** |
 | `/api/v1/[tenant]/swarm` | * | Staff | Swarm control · **F41** |
 | `/api/v1/[tenant]/research` | * | Staff | Research tools · **F41** |
-| `/embed/v1/[tenant]` | GET | Public | JS booking snippet |
+| `/embed/v1/[tenant]` | GET | Public+rate | JS booking snippet · **F60** CORS+RL+origin |
 
 ## Components
 
