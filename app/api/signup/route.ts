@@ -1,7 +1,11 @@
 import { NextResponse } from "next/server";
 import { registerOwnerAccount } from "@/lib/auth";
 import { dataBackend, signupTenantInSupabase } from "@/lib/data/repo";
-import { getBackoffMs, recordAttempt } from "@/lib/rate-limit";
+import {
+  getBackoffMs,
+  recordAttempt,
+  requiresCaptcha,
+} from "@/lib/rate-limit";
 import { isSupabaseConfigured } from "@/lib/supabase";
 import { getTenant, registerTenant } from "@/lib/tenants";
 import { auditLogWithContext } from "@/lib/audit";
@@ -15,6 +19,7 @@ type SignupBody = {
   contactName?: string;
   slug?: string;
   plan?: string;
+  captcha?: string;
 };
 
 function slugify(s: string): string {
@@ -71,6 +76,21 @@ export async function POST(req: Request) {
       meta: { reason: "invalid_cvr" },
     });
     return NextResponse.json({ error: "invalid_cvr" }, { status: 400 });
+  }
+
+  // F34 · captcha step-up before backoff (clearer abuse UX than rate_limited alone)
+  if (requiresCaptcha(ip, email) && !body.captcha) {
+    auditLogWithContext(req, "signup.failure", {
+      auth_mode: "public",
+      meta: { reason: "captcha_required" },
+    });
+    return NextResponse.json(
+      {
+        error: "captcha_required",
+        hint: "For mange forsøg — løs CAPTCHA og prøv igen",
+      },
+      { status: 429 },
+    );
   }
 
   const backoff = getBackoffMs(ip, email);

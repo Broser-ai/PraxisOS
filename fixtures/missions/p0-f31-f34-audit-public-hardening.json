@@ -1,0 +1,34 @@
+{
+  "id": "p0-f31-f34-audit-public-hardening",
+  "title": "P0 F31–F34 · mutation audit, CVR/DAWA rate-limit, hint strip, signup captcha",
+  "goal": "Wire auditLogWithContext on remaining mutations; rate-limit CVR/DAWA; strip key hints from public bird/scan config GET; signup captcha step-up. Suggestion_only; no auto merge/deploy.",
+  "riskLevel": "yellow",
+  "platformScope": ["clinic_ops", "prime"],
+  "acceptanceCriteria": [
+    { "text": "bird/scan secrets + clients audits carry request context" },
+    { "text": "checkIpRateLimit trips; CVR/DAWA wire checkIpRateLimit" },
+    { "text": "public bird/scan config GET has no *Hint fields" },
+    { "text": "signup without captcha after ≥3 failures → 429 captcha_required" },
+    { "text": "vitest covers; tsc green" }
+  ],
+  "allowedPaths": [
+    "lib/rate-limit.ts",
+    "app/api/signup/route.ts",
+    "app/api/bird/config/route.ts",
+    "app/api/bird/send/route.ts",
+    "app/api/scan/config/route.ts",
+    "app/api/v1/[tenant]/clients/route.ts",
+    "app/api/cvr/lookup/route.ts",
+    "app/api/dawa/autocomplete/route.ts",
+    "tests/f31-f34-audit-public-hardening.test.ts",
+    "tests/prime/p0-slice-missions.test.ts",
+    "fixtures/missions/p0-f31-f34-audit-public-hardening.json"
+  ],
+  "forbiddenPaths": [".env", ".env.production", "clinical-policy"],
+  "workstreams": [
+    { "role": "scout", "title": "Scout · public proxy + hint gaps" },
+    { "role": "builder", "title": "Builder · audit/rate/captcha" },
+    { "role": "verifier", "title": "Verifier · f31–f34 tests" },
+    { "role": "reviewer", "title": "Reviewer · no deploy" }
+  ]
+}

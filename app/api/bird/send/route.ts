@@ -1,6 +1,6 @@
 import { NextRequest, NextResponse } from "next/server";
 import { isBirdConfigured, sendBirdSms, type BirdSmsCategory } from "@/lib/bird";
-import { auditLog } from "@/lib/audit";
+import { auditLogWithContext } from "@/lib/audit";
 import {
   jsonAuthFail,
   requireRole,
@@ -92,10 +92,11 @@ export async function POST(req: NextRequest) {
     category,
   });
 
-  auditLog("sms.sent", {
+  auditLogWithContext(req, "sms.sent", {
     tenant_id: (auth as AuthOk).tenant,
     actor_user_id: (auth as AuthOk).accountId,
     target_ref: `sms/${to}`,
+    auth_mode: (auth as AuthOk).mode,
     meta: { category, ok: result.ok },
   });
 

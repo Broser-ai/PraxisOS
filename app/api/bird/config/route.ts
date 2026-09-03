@@ -2,7 +2,7 @@ import { NextResponse } from "next/server";
 import { writeSecrets, secretsPublicStatus, type PraxisSecrets } from "@/lib/secrets";
 import { getBirdPublicStatus, resolveBirdSmsChannelId } from "@/lib/bird";
 import { isLlmConfigured } from "@/lib/agents/llm";
-import { auditLog } from "@/lib/audit";
+import { auditLogWithContext } from "@/lib/audit";
 import {
   jsonAuthFail,
   requireRole,
@@ -12,11 +12,24 @@ import {
 
 export const runtime = "nodejs";
 
+/** Public readiness — booleans only (F33 · no key hints on public GET). */
 export async function GET() {
+  const secrets = secretsPublicStatus();
+  const bird = getBirdPublicStatus();
+  // Drop keyHint from public bird status (partial key material).
+  const { keyHint: _drop, ...birdPublic } = bird as typeof bird & {
+    keyHint?: string | null;
+  };
   return NextResponse.json({
-    bird: getBirdPublicStatus(),
+    bird: birdPublic,
     llm: { configured: isLlmConfigured() },
-    secrets: secretsPublicStatus(),
+    secrets: {
+      birdKey: secrets.birdKey,
+      birdChannel: secrets.birdChannel,
+      openai: secrets.openai,
+      liveScanReady: secrets.liveScanReady,
+      dataDir: secrets.dataDir,
+    },
   });
 }
 
@@ -56,9 +69,10 @@ export async function POST(req: Request) {
     // Persist first so resolve can see newly pasted API key / workspace.
     writeSecrets(patch);
 
-    auditLog("secrets.updated", {
+    auditLogWithContext(req, "secrets.updated", {
       actor_user_id: (auth as AuthOk).accountId,
       target_ref: "config/bird",
+      auth_mode: (auth as AuthOk).mode,
       meta: { fields: Object.keys(patch) },
     });
 

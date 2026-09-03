@@ -3,10 +3,20 @@
 // GET /api/cvr/lookup?q=by+pilar    → søg på navn
 //
 // Bruger cvrapi.dk's gratis-tier (1.000 req/dag). Returnerer normaliseret format.
+// F32 · per-IP rate-limit (signup abuse / scrape control).
 
 import { NextResponse } from "next/server";
+import { checkIpRateLimit } from "@/lib/rate-limit";
 
 const CVR_API = "https://cvrapi.dk/api";
+const CVR_LIMIT = 60; // / 15 min / IP
+const CVR_WINDOW_MS = 15 * 60 * 1000;
+
+function clientIp(req: Request): string {
+  const xff = req.headers.get("x-forwarded-for");
+  if (xff) return xff.split(",")[0]!.trim();
+  return req.headers.get("x-real-ip") ?? "unknown";
+}
 
 type CvrResult = {
   cvr: string;
@@ -76,6 +86,25 @@ const DEMO_RESULTS: Record<string, CvrResult> = {
 };
 
 export async function GET(req: Request) {
+  const ip = clientIp(req);
+  const limited = checkIpRateLimit(ip, {
+    key: "cvr",
+    limit: CVR_LIMIT,
+    windowMs: CVR_WINDOW_MS,
+  });
+  if (!limited.ok) {
+    return NextResponse.json(
+      { error: "rate_limited", retryAfterMs: limited.retryAfterMs },
+      {
+        status: 429,
+        headers: {
+          "Retry-After": Math.ceil(limited.retryAfterMs / 1000).toString(),
+          "access-control-allow-origin": "*",
+        },
+      },
+    );
+  }
+
   const url = new URL(req.url);
   const cvr = url.searchParams.get("cvr");
   const q = url.searchParams.get("q");

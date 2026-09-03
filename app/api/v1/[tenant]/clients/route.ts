@@ -9,7 +9,7 @@ import {
   listClientsForTenant,
 } from "@/lib/data/repo";
 import { getTenant } from "@/lib/tenants";
-import { auditLog } from "@/lib/audit";
+import { auditLogWithContext } from "@/lib/audit";
 import {
   jsonAuthFail,
   requireTenantAccess,
@@ -93,10 +93,11 @@ export async function POST(
     return NextResponse.json({ error: created.error }, { status: 400 });
   }
 
-  auditLog("client.created", {
+  auditLogWithContext(req, "client.created", {
     tenant_id: tenant,
     actor_user_id: auth.accountId,
     target_ref: `client/${created.id}`,
+    auth_mode: auth.mode,
   });
 
   return NextResponse.json(

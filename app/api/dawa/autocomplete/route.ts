@@ -5,11 +5,40 @@
 //   1) undgå CORS-issues på klient-siden
 //   2) tilføje caching (DAWA er gratis men har request-limits ved bursts)
 //   3) normalisere response til vores eget format
+// F32 · per-IP rate-limit (signup address scrape control).
 import { NextResponse } from "next/server";
+import { checkIpRateLimit } from "@/lib/rate-limit";
 
 const DAWA = "https://api.dataforsyningen.dk/autocomplete";
+const DAWA_LIMIT = 120; // / 15 min / IP
+const DAWA_WINDOW_MS = 15 * 60 * 1000;
+
+function clientIp(req: Request): string {
+  const xff = req.headers.get("x-forwarded-for");
+  if (xff) return xff.split(",")[0]!.trim();
+  return req.headers.get("x-real-ip") ?? "unknown";
+}
 
 export async function GET(req: Request) {
+  const ip = clientIp(req);
+  const limited = checkIpRateLimit(ip, {
+    key: "dawa",
+    limit: DAWA_LIMIT,
+    windowMs: DAWA_WINDOW_MS,
+  });
+  if (!limited.ok) {
+    return NextResponse.json(
+      { error: "rate_limited", retryAfterMs: limited.retryAfterMs, suggestions: [] },
+      {
+        status: 429,
+        headers: {
+          "Retry-After": Math.ceil(limited.retryAfterMs / 1000).toString(),
+          "access-control-allow-origin": "*",
+        },
+      },
+    );
+  }
+
   const url = new URL(req.url);
   const q = url.searchParams.get("q") ?? "";
   if (q.length < 2) return NextResponse.json({ suggestions: [] });

@@ -539,4 +539,34 @@ describe("PEC · P0 slice missions (Prime Execution Control)", () => {
     // eslint-disable-next-line no-console
     console.log(`[PEC] F25–F30 mission=${mission.id} builder_status=${mergeMark.status}`);
   });
+
+  it("F31–F34 · audit/public hardening → approved_for_merge intent", () => {
+    const sliceFiles = changedFilesSinceMain().filter((f) =>
+      [
+        "lib/rate-limit.ts",
+        "app/api/signup/route.ts",
+        "app/api/bird/config/route.ts",
+        "app/api/bird/send/route.ts",
+        "app/api/scan/config/route.ts",
+        "app/api/v1/[tenant]/clients/route.ts",
+        "app/api/cvr/lookup/route.ts",
+        "app/api/dawa/autocomplete/route.ts",
+        "tests/f31-f34-audit-public-hardening.test.ts",
+        "fixtures/missions/p0-f31-f34-audit-public-hardening.json",
+        "tests/prime/p0-slice-missions.test.ts",
+      ].includes(f),
+    );
+    expect(sliceFiles.length).toBeGreaterThan(0);
+
+    const { mission, mergeMark } = driveSliceToApprovedForMerge(
+      "p0-f31-f34-audit-public-hardening",
+      sliceFiles,
+    );
+
+    expect(mission.id).toMatch(/^msn_/);
+    expect(getMission(mission.id)?.status).toBe("running");
+    expect(mergeMark.status).toBe("approved_for_merge");
+    // eslint-disable-next-line no-console
+    console.log(`[PEC] F31–F34 mission=${mission.id} builder_status=${mergeMark.status}`);
+  });
 });

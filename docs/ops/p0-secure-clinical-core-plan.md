@@ -589,6 +589,10 @@ Sm√• mergeable commits. **Booking-flow regressiones-testes i hvert commit der r√
 | **F28** | Middleware strip identity headers edge cases | Done |
 | **F29** | `authorizeTenantRequest` / guard usage audit (grep + tests) | Done |
 | **F30** | Journal from-booking auth tests + audit context | Done |
+| **F31** | Remaining mutation audit context (bird/scan/SMS/clients) | Done |
+| **F32** | CVR / DAWA per-IP rate-limit | Done |
+| **F33** | Strip key hints from public bird/scan config GET | Done |
+| **F34** | Signup captcha step-up (login-parity threshold) | Done |
 
 **Explicit out of scope for disse commits:** patient-chat, triage, nye AI-agents, LiveKit voice-consent audio, CE/MDR features, LoRA.
 
