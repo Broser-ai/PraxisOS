@@ -136,14 +136,17 @@ Se `/admin/*` sider i HANDOVER §5.4 — inkl. tenants, payments, vouchers, subs
 | `/api/v1/[tenant]/voucher` | POST | Redeem voucher |
 | `/embed/v1/[tenant]` | GET | JS-snippet |
 
-## Components (14)
+## Components (12)
+
+> `FootScan.tsx` and `SwarmPanel.tsx` were removed as confirmed orphans
+> (F15 · no app/lib/test imports; active scan UI is `NexusScanPanel`,
+> active agent panel is `/admin/swarm`).
 
 | Fil | Formål |
 |-----|--------|
 | `Sidebar.tsx` | Hovedmenu admin |
 | `Topbar.tsx` | Søg + notifikationer + user-menu |
 | `TrialBanner.tsx` | Trial-banner for bypilar |
-| `FootScan.tsx` | Fod-scanner med biomarkør-overlays |
 | `FootMesh3D.tsx` | Canvas 3D-mesh rotation |
 | `SkinScan.tsx` | Æstetik-skanner UI |
 | `AddressAutocomplete.tsx` | DAWA-powered input |
@@ -153,7 +156,6 @@ Se `/admin/*` sider i HANDOVER §5.4 — inkl. tenants, payments, vouchers, subs
 | `PaymentStep.tsx` | PraxisOS Pay step |
 | `SubsidyBanner.tsx` | Auto tilskuds-valg |
 | `VoucherInput.tsx` | Klippekort/gavekort redeem |
-| `SwarmPanel.tsx` | Agent-team panel |
 
 ## Total
 

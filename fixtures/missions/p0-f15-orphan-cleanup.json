@@ -1,0 +1,34 @@
+{
+  "id": "p0-f15-orphan-cleanup",
+  "title": "F15 · orphan cleanup: remove FootScan.tsx / SwarmPanel.tsx",
+  "riskLevel": "yellow",
+  "platformScope": ["housekeeping", "prime"],
+  "goal": "Remove the two confirmed orphan components (components/FootScan.tsx, components/SwarmPanel.tsx) that are imported by no app/lib/test code. The active scan UI uses NexusScanPanel (lib/scanner/alpha-pipeline); the active agent panel uses /admin/swarm. Add a regression guard test so they cannot be silently re-introduced as orphans. Update CODE-MAP.md inventory. Suggestion-only; no auto merge/deploy.",
+  "allowedPaths": [
+    "components/FootScan.tsx",
+    "components/SwarmPanel.tsx",
+    "CODE-MAP.md",
+    "tests/"
+  ],
+  "forbiddenPaths": [
+    ".env",
+    ".env.production",
+    "secrets/",
+    "clinical-policy",
+    "supabase/migrations/",
+    "lib/scan.ts",
+    "app/"
+  ],
+  "acceptanceCriteria": [
+    { "text": "components/FootScan.tsx and components/SwarmPanel.tsx are deleted" },
+    { "text": "No app/lib/test code imports FootScan or SwarmPanel (regression guard test)" },
+    { "text": "CODE-MAP.md inventory updated to reflect removal" },
+    { "text": "Full test suite + typecheck still green" }
+  ],
+  "workstreams": [
+    { "role": "scout", "title": "Scout · orphan import surface" },
+    { "role": "builder", "title": "Builder · delete + guard test" },
+    { "role": "verifier", "title": "Verifier · no-import guard" },
+    { "role": "reviewer", "title": "Reviewer · housekeeping" }
+  ]
+}
