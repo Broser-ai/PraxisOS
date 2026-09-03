@@ -635,6 +635,7 @@ Små mergeable commits. **Booking-flow regressiones-testes i hvert commit der r�
 | **F74** | Checklist coverage for F65–F73 | Done |
 | **F75** | MCP `tools/call` → `mcp.tools_call` audit | Done |
 | **F76** | Research paper GET → `research.paper_viewed` audit | Done |
+| **F77** | Operator checklist range bump F11–F76 | Done |
 
 **Explicit out of scope for disse commits:** patient-chat, triage, nye AI-agents, LiveKit voice-consent audio, CE/MDR features, LoRA.
 
