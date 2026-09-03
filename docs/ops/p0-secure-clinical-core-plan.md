@@ -367,7 +367,7 @@ docker compose -f docker-compose.db.yml --profile migrate run --rm praxis-db-mig
 # Verificér: psql \dt → tenants, clients, audit_log, ...
 ```
 
-Kør i rækkefølge: `0001_initial_schema.sql` → `0002_seed_demo_data.sql` (kun hvis demo OK) → `0003` → `0004` → **ny** `0005_consent_events.sql` (§D) → evt. audit-column align migration.
+Kør i rækkefølge: `0001_initial_schema.sql` → `0002_seed_demo_data.sql` (kun hvis demo OK) → `0003` → `0004` → **ny** `0005_audit_log_align.sql` → **ny** `0006_consent_events.sql` (§D).
 
 ### Trin 4 — Data migration fra memory/JSON
 
