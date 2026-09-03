@@ -5,7 +5,7 @@
 `NO_AUTO_JOURNAL_SIGN` · `NO_MODEL_TRAINING` · `PATHOLOGY_SHADOW`.
 
 This checklist links **PR #33** (P0 F4–F10 execution slices) and **PR #34**
-(continue-dev F11–F64) into the cutover path in `docs/ops/p0-db-cutover-runbook.md`.
+(continue-dev F11–F76) into the cutover path in `docs/ops/p0-db-cutover-runbook.md`.
 
 ---
 
@@ -14,7 +14,7 @@ This checklist links **PR #33** (P0 F4–F10 execution slices) and **PR #34**
 - [ ] Confirm CI green on **PR #33** (`cursor/p0-execution-slices-2c11` → `main`).
 - [ ] Merge **#33** first (auth guards F4–F5, booking kit F6, consent F7, audit F8, DB infra F9, cutover runbook F10).
 - [ ] Rebase/retarget **PR #34** onto updated `main` if needed (`cursor/continue-dev-slices-2c11`).
-- [ ] Confirm CI green on **PR #34** (F11–F64 continue-dev).
+- [ ] Confirm CI green on **PR #34** (F11–F76 continue-dev).
 - [ ] Merge **#34** second.
 - [ ] Do **not** enable auto-merge; do **not** trigger host deploy from the PR UI.
 
@@ -105,4 +105,4 @@ runbook §Rollback.
 
 ---
 
-*F27/F39/F47/F54/F61 · continue-dev PR #34 · F23–F64 smoke · suggestion_only · 2026-09-03*
+*F27/F39/F47/F54/F61/F74 · continue-dev PR #34 · F23–F76 smoke · suggestion_only · 2026-09-03*
