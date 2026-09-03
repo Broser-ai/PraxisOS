@@ -95,6 +95,11 @@ describe("F29 · authorizeTenantRequest usage audit", () => {
       "app/api/journal/from-booking/route.ts",
       "app/api/v1/[tenant]/clients/route.ts",
       "app/api/v1/[tenant]/bookings/list/route.ts",
+      // F41 / F46 · research / swarm / orchestrator / prime
+      "app/api/v1/[tenant]/research/route.ts",
+      "app/api/v1/[tenant]/swarm/route.ts",
+      "app/api/v1/[tenant]/orchestrator/route.ts",
+      "app/api/v1/[tenant]/prime/missions/route.ts",
     ];
     for (const rel of mustUseTenantGuard) {
       const src = readFileSync(join(ROOT, rel), "utf8");
@@ -102,6 +107,25 @@ describe("F29 · authorizeTenantRequest usage audit", () => {
         src.includes("requireTenantAccess") ||
           src.includes("authorizeTenantRequest"),
       ).toBe(true);
+    }
+  });
+
+  it("F46 · no raw decodeSession left on research/swarm/orchestrator/prime", () => {
+    const mustNotDecode = [
+      "app/api/v1/[tenant]/research/route.ts",
+      "app/api/v1/[tenant]/research/ask/route.ts",
+      "app/api/v1/[tenant]/research/papers/[arxivId]/route.ts",
+      "app/api/v1/[tenant]/swarm/route.ts",
+      "app/api/v1/[tenant]/swarm/tick/route.ts",
+      "app/api/v1/[tenant]/swarm/stream/route.ts",
+      "app/api/v1/[tenant]/orchestrator/route.ts",
+      "app/api/v1/[tenant]/orchestrator/runs/[runId]/route.ts",
+      "app/api/v1/[tenant]/prime/missions/route.ts",
+    ];
+    for (const rel of mustNotDecode) {
+      const src = readFileSync(join(ROOT, rel), "utf8");
+      expect(src, rel).toMatch(/requireTenantAccess/);
+      expect(src, rel).not.toMatch(/decodeSession/);
     }
   });
 

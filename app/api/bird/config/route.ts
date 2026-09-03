@@ -9,11 +9,34 @@ import {
   resolveRequestAuth,
   type AuthOk,
 } from "@/lib/request-auth";
+import { checkIpRateLimit } from "@/lib/rate-limit";
 
 export const runtime = "nodejs";
 
+function clientIp(req: Request): string {
+  const xff = req.headers.get("x-forwarded-for");
+  if (xff) return xff.split(",")[0]!.trim();
+  return req.headers.get("x-real-ip") ?? "unknown";
+}
+
 /** Public readiness — booleans only (F33 · no key hints on public GET). */
-export async function GET() {
+export async function GET(req: Request) {
+  // F44 · public GET rate-limit (status scrape / abuse control)
+  const limit = checkIpRateLimit(clientIp(req), {
+    key: "bird-config-get",
+    limit: 60,
+    windowMs: 15 * 60 * 1000,
+  });
+  if (!limit.ok) {
+    return NextResponse.json(
+      { error: "rate_limited", retryAfterMs: limit.retryAfterMs },
+      {
+        status: 429,
+        headers: { "Retry-After": String(Math.ceil(limit.retryAfterMs / 1000)) },
+      },
+    );
+  }
+
   const secrets = secretsPublicStatus();
   const bird = getBirdPublicStatus();
   // Drop keyHint from public bird status (partial key material).

@@ -192,7 +192,9 @@ describe("F32 · CVR / DAWA IP rate-limit", () => {
 
 describe("F33 · public config GET strips key hints", () => {
   it("bird/config GET has no *Hint fields", async () => {
-    const res = await birdConfigGet();
+    const res = await birdConfigGet(
+      new Request("http://localhost/api/bird/config"),
+    );
     expect(res.status).toBe(200);
     const body = await res.json();
     expect(body.bird.keyHint).toBeUndefined();
@@ -203,7 +205,9 @@ describe("F33 · public config GET strips key hints", () => {
   });
 
   it("scan/config GET has no provider *Hint fields", async () => {
-    const res = await scanConfigGet();
+    const res = await scanConfigGet(
+      new Request("http://localhost/api/scan/config"),
+    );
     expect(res.status).toBe(200);
     const body = await res.json();
     expect(body.providers.replicateHint).toBeUndefined();

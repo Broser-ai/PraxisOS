@@ -1,10 +1,10 @@
-import { NextRequest, NextResponse } from "next/server";
+import { NextResponse } from "next/server";
 import { getAlphaxivOverview, getAlphaxivPaper } from "@/lib/alphaxiv";
-import { decodeSession, SESSION_COOKIE } from "@/lib/auth";
 import { getTenant } from "@/lib/tenants";
+import { jsonAuthFail, requireTenantAccess } from "@/lib/request-auth";
 
 export async function GET(
-  req: NextRequest,
+  req: Request,
   ctx: { params: Promise<{ tenant: string; arxivId: string }> },
 ) {
   const { tenant, arxivId } = await ctx.params;
@@ -12,10 +12,9 @@ export async function GET(
     return NextResponse.json({ error: "tenant_not_found" }, { status: 404 });
   }
 
-  const session = decodeSession(req.cookies.get(SESSION_COOKIE)?.value ?? "");
-  if (!session || (session.tenant !== tenant && session.role !== "support")) {
-    return NextResponse.json({ error: "unauthorized" }, { status: 401 });
-  }
+  // F41 · requireTenantAccess replaces raw decodeSession
+  const auth = requireTenantAccess(req, tenant);
+  if (!auth.ok) return jsonAuthFail(auth);
 
   const paper = await getAlphaxivPaper(arxivId);
   if (!paper) {

@@ -2,6 +2,7 @@ import { NextResponse } from "next/server";
 import { runAgent } from "@/lib/agents/runtime";
 import { ensureWorkflowSubscription } from "@/lib/agents/workflows";
 import { getAgent, type AgentId } from "@/lib/agents";
+import { auditLogWithContext } from "@/lib/audit";
 import {
   jsonAuthFail,
   requireRole,
@@ -52,6 +53,20 @@ export async function POST(req: Request) {
     tenant,
     trigger: "chat",
     autoRoute: body.autoRoute !== false && !body.agentId,
+  });
+
+  // F45 · agents/run audit request context
+  auditLogWithContext(req, "agent.run", {
+    tenant_id: tenant,
+    actor_user_id: session.accountId,
+    target_ref: `agent/${result.agentId}/run/${result.run.id}`,
+    auth_mode: session.mode,
+    meta: {
+      status: result.run.status,
+      mode: result.mode,
+      requiresApproval: result.run.requiresApproval,
+      messageLen: message.length,
+    },
   });
 
   return NextResponse.json({

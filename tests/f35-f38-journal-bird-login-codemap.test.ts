@@ -97,7 +97,9 @@ describe("F35 · journal mutation audit context", () => {
 
 describe("F36 · bird/status strips keyHint", () => {
   it("GET has no keyHint field", async () => {
-    const res = await birdStatusGet();
+    const res = await birdStatusGet(
+      new Request("http://localhost/api/bird/status"),
+    );
     expect(res.status).toBe(200);
     const body = await res.json();
     expect(body.keyHint).toBeUndefined();

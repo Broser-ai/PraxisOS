@@ -7,9 +7,16 @@ import {
   resolveRequestAuth,
   type AuthOk,
 } from "@/lib/request-auth";
+import { checkIpRateLimit } from "@/lib/rate-limit";
 
 export const runtime = "nodejs";
 export const dynamic = "force-dynamic";
+
+function clientIp(req: Request): string {
+  const xff = req.headers.get("x-forwarded-for");
+  if (xff) return xff.split(",")[0]!.trim();
+  return req.headers.get("x-real-ip") ?? "unknown";
+}
 
 function readinessPayload(
   secrets: ReturnType<typeof secretsPublicStatus>,
@@ -55,7 +62,23 @@ function readinessPayload(
 }
 
 /** Public readiness — booleans only (F33 · no key hints on public GET). */
-export async function GET() {
+export async function GET(req: Request) {
+  // F44 · public GET rate-limit
+  const limit = checkIpRateLimit(clientIp(req), {
+    key: "scan-config-get",
+    limit: 60,
+    windowMs: 15 * 60 * 1000,
+  });
+  if (!limit.ok) {
+    return NextResponse.json(
+      { error: "rate_limited", retryAfterMs: limit.retryAfterMs },
+      {
+        status: 429,
+        headers: { "Retry-After": String(Math.ceil(limit.retryAfterMs / 1000)) },
+      },
+    );
+  }
+
   return NextResponse.json(
     readinessPayload(secretsPublicStatus(), { includeHints: false }),
   );

@@ -9,6 +9,7 @@ import {
 import { isSupabaseConfigured } from "@/lib/supabase";
 import { getTenant, registerTenant } from "@/lib/tenants";
 import { auditLogWithContext } from "@/lib/audit";
+import { verifyCaptchaToken } from "@/lib/captcha";
 
 type SignupBody = {
   cvr?: string;
@@ -78,19 +79,27 @@ export async function POST(req: Request) {
     return NextResponse.json({ error: "invalid_cvr" }, { status: 400 });
   }
 
-  // F34 · captcha step-up before backoff (clearer abuse UX than rate_limited alone)
-  if (requiresCaptcha(ip, email) && !body.captcha) {
-    auditLogWithContext(req, "signup.failure", {
-      auth_mode: "public",
-      meta: { reason: "captcha_required" },
+  // F34 · captcha step-up before backoff; F42 · real Turnstile/hCaptcha verify
+  const captchaNeeded = requiresCaptcha(ip, email);
+  if (captchaNeeded || body.captcha) {
+    const verified = await verifyCaptchaToken({
+      token: body.captcha,
+      ip,
+      required: captchaNeeded,
     });
-    return NextResponse.json(
-      {
-        error: "captcha_required",
-        hint: "For mange forsøg — løs CAPTCHA og prøv igen",
-      },
-      { status: 429 },
-    );
+    if (!verified.ok) {
+      auditLogWithContext(req, "signup.failure", {
+        auth_mode: "public",
+        meta: { reason: verified.error },
+      });
+      return NextResponse.json(
+        {
+          error: verified.error,
+          hint: verified.hint ?? "For mange forsøg — løs CAPTCHA og prøv igen",
+        },
+        { status: 429 },
+      );
+    }
   }
 
   const backoff = getBackoffMs(ip, email);

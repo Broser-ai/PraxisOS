@@ -1,0 +1,39 @@
+{
+  "id": "p0-f42-f48-captcha-consent-hardening",
+  "title": "P0 F42–F48 · captcha, consent audit, rate-limit, agents audit, checklist, lookup",
+  "goal": "Real captcha verify (flagged), consent auditLogWithContext, public GET rate-limits, agents/run audit, prime requireTenantAccess, checklist F23–F40, lookup/voucher harden. Suggestion_only; no auto merge/deploy.",
+  "riskLevel": "yellow",
+  "platformScope": ["clinic_ops", "prime"],
+  "acceptanceCriteria": [
+    { "text": "lib/captcha.ts Turnstile/hCaptcha + fail-closed stub" },
+    { "text": "consent + agents/run use auditLogWithContext" },
+    { "text": "bird/scan public GET rate-limited" },
+    { "text": "checklist lists F23–F48; lookup/voucher gaps closed" },
+    { "text": "vitest covers; tsc green" }
+  ],
+  "allowedPaths": [
+    "lib/captcha.ts",
+    "app/api/auth/login/route.ts",
+    "app/api/signup/route.ts",
+    "app/api/v1/[tenant]/consent/route.ts",
+    "app/api/bird/config/route.ts",
+    "app/api/bird/status/route.ts",
+    "app/api/scan/config/route.ts",
+    "app/api/agents/run/route.ts",
+    "app/api/v1/[tenant]/prime/missions/route.ts",
+    "app/api/v1/[tenant]/lookup/route.ts",
+    "app/api/v1/[tenant]/voucher/route.ts",
+    "docs/ops/p0-operator-checklist-merge-cutover.md",
+    "tests/f29-authorize-tenant-usage-audit.test.ts",
+    "tests/f42-f48-captcha-consent-hardening.test.ts",
+    "tests/prime/p0-slice-missions.test.ts",
+    "fixtures/missions/p0-f42-f48-captcha-consent-hardening.json"
+  ],
+  "forbiddenPaths": [".env", ".env.production", "clinical-policy"],
+  "workstreams": [
+    { "role": "scout", "title": "Scout · captcha + public GET gaps" },
+    { "role": "builder", "title": "Builder · F42–F48 harden" },
+    { "role": "verifier", "title": "Verifier · f42-f48 tests" },
+    { "role": "reviewer", "title": "Reviewer · no deploy" }
+  ]
+}

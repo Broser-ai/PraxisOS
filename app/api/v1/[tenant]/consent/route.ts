@@ -17,7 +17,7 @@ import {
   clientIp,
   bookingAllowedOrigin,
 } from "@/lib/public-booking-kit";
-import { auditLog } from "@/lib/audit";
+import { auditLogWithContext } from "@/lib/audit";
 
 export const runtime = "nodejs";
 
@@ -116,9 +116,11 @@ export async function POST(
     return NextResponse.json({ error: "no_valid_purposes" }, { status: 400 });
   }
 
-  auditLog("consent.onboarding_batch", {
+  // F43 · request-context audit (ip / ua / route / request_id)
+  auditLogWithContext(req, "consent.onboarding_batch", {
     tenant_id: slug,
     target_ref: `client/${clientId}`,
+    auth_mode: "public",
     meta: {
       count: recorded.length,
       purposes: recorded.map((r) => r.purpose),

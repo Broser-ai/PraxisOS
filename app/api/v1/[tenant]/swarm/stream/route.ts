@@ -1,9 +1,9 @@
-import { decodeSession } from "@/lib/auth";
 import { getTenant } from "@/lib/tenants";
 import { getDaemonState } from "@/lib/swarm/daemon";
 import { getSwarmBus } from "@/lib/swarm/events";
 import { listJournals } from "@/lib/swarm/journal";
 import { ensureSwarmRemoteHydrated, getSwarmMemory } from "@/lib/swarm/memory";
+import { jsonAuthFail, requireTenantAccess } from "@/lib/request-auth";
 
 /**
  * GET /api/v1/{tenant}/swarm/stream — Server-Sent Events (real-time swarm feed)
@@ -21,17 +21,9 @@ export async function GET(
     });
   }
 
-  // Cookie may arrive via cookie header; EventSource sends cookies same-origin
-  const cookieHeader = req.headers.get("cookie") ?? "";
-  const match = cookieHeader.match(/(?:^|;\s*)praxis_session=([^;]+)/);
-  const token = match?.[1] ? decodeURIComponent(match[1]) : "";
-  const session = decodeSession(token);
-  if (!session || (session.tenant !== tenant && session.role !== "support")) {
-    return new Response(JSON.stringify({ error: "unauthorized" }), {
-      status: 401,
-      headers: { "content-type": "application/json" },
-    });
-  }
+  // F41 · requireTenantAccess (cookie via sessionFromRequest; EventSource same-origin)
+  const auth = requireTenantAccess(req, tenant);
+  if (!auth.ok) return jsonAuthFail(auth);
 
   await ensureSwarmRemoteHydrated();
 

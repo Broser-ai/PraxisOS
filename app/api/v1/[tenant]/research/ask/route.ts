@@ -1,9 +1,13 @@
-import { NextRequest, NextResponse } from "next/server";
+import { NextResponse } from "next/server";
 import { runDeepResearchAsk } from "@/lib/alphaxiv/bridge";
 import type { ResearchTrackId } from "@/lib/alphaxiv/types";
-import { decodeSession, SESSION_COOKIE } from "@/lib/auth";
 import { writeJournal } from "@/lib/swarm/journal";
 import { getTenant } from "@/lib/tenants";
+import {
+  jsonAuthFail,
+  requireTenantAccess,
+  type GuardOk,
+} from "@/lib/request-auth";
 
 /**
  * POST /api/v1/{tenant}/research/ask
@@ -11,7 +15,7 @@ import { getTenant } from "@/lib/tenants";
  * For not-yet-launched ideas — never auto-implements.
  */
 export async function POST(
-  req: NextRequest,
+  req: Request,
   ctx: { params: Promise<{ tenant: string }> },
 ) {
   const { tenant } = await ctx.params;
@@ -19,13 +23,12 @@ export async function POST(
     return NextResponse.json({ error: "tenant_not_found" }, { status: 404 });
   }
 
-  const session = decodeSession(req.cookies.get(SESSION_COOKIE)?.value ?? "");
-  if (!session || (session.tenant !== tenant && session.role !== "support")) {
-    return NextResponse.json({ error: "unauthorized" }, { status: 401 });
-  }
-  if (session.role !== "owner" && session.role !== "support") {
-    return NextResponse.json({ error: "forbidden" }, { status: 403 });
-  }
+  // F41 · requireTenantAccess replaces raw decodeSession
+  const auth = requireTenantAccess(req, tenant, {
+    roles: ["owner", "support"],
+  });
+  if (!auth.ok) return jsonAuthFail(auth);
+  const session = auth as GuardOk;
 
   let body: {
     question?: string;

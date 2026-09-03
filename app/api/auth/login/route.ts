@@ -8,6 +8,7 @@ import {
   getAttempts,
 } from "@/lib/rate-limit";
 import { auditLogWithContext } from "@/lib/audit";
+import { verifyCaptchaToken } from "@/lib/captcha";
 
 export async function POST(req: Request) {
   const ip =
@@ -30,15 +31,23 @@ export async function POST(req: Request) {
     return NextResponse.json({ error: "missing_credentials" }, { status: 400 });
   }
 
-  // F37 · captcha step-up before backoff (parity with signup F34)
-  if (requiresCaptcha(ip, email) && !captcha) {
-    return NextResponse.json(
-      {
-        error: "captcha_required",
-        hint: "Indtast verifikation for at fortsætte",
-      },
-      { status: 403 },
-    );
+  // F37 · captcha step-up before backoff; F42 · real Turnstile/hCaptcha verify
+  const captchaNeeded = requiresCaptcha(ip, email);
+  if (captchaNeeded || captcha) {
+    const verified = await verifyCaptchaToken({
+      token: captcha,
+      ip,
+      required: captchaNeeded,
+    });
+    if (!verified.ok) {
+      return NextResponse.json(
+        {
+          error: verified.error,
+          hint: verified.hint ?? "Indtast verifikation for at fortsætte",
+        },
+        { status: verified.error === "captcha_required" ? 403 : 403 },
+      );
+    }
   }
 
   const backoff = getBackoffMs(ip, email);

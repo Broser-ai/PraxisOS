@@ -31,8 +31,16 @@ export async function GET(
   if (allowed) headers["access-control-allow-origin"] = allowed;
 
   const url = new URL(req.url);
-  const code = url.searchParams.get("code") ?? "";
+  const code = (url.searchParams.get("code") ?? "").trim();
   const serviceId = url.searchParams.get("service");
+
+  // F48 · reject short / empty codes before store probe (brute-force friction)
+  if (!code || code.length < 6) {
+    return NextResponse.json(
+      { valid: false, error: "invalid_code" },
+      { status: 400, headers },
+    );
+  }
 
   const v = findVoucherByCode(code, slug);
   if (!v) {

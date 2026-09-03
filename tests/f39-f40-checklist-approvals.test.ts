@@ -18,6 +18,7 @@ describe("F39 · operator checklist refresh", () => {
     expect(text).toMatch(/F33|F36/);
     expect(text).toMatch(/F32/);
     expect(text).toMatch(/F35/);
+    expect(text).toMatch(/F23/);
     expect(text).toMatch(/NO_AUTO_MERGE/);
     expect(text).toMatch(/suggestion_only/);
   });

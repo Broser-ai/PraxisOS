@@ -1,5 +1,4 @@
 import { NextRequest, NextResponse } from "next/server";
-import { decodeSession, SESSION_COOKIE } from "@/lib/auth";
 import { getTenant } from "@/lib/tenants";
 import { auditLog } from "@/lib/audit";
 import {
@@ -24,27 +23,31 @@ import {
   startMission,
   tickMissions,
 } from "@/lib/prime";
-
-function unauthorized() {
-  return NextResponse.json({ error: "unauthorized" }, { status: 401 });
-}
+import {
+  jsonAuthFail,
+  requireTenantAccess,
+  type GuardOk,
+} from "@/lib/request-auth";
 
 function forbidden() {
   return NextResponse.json({ error: "forbidden" }, { status: 403 });
 }
 
-async function requireSession(
+/** F46 · requireTenantAccess replaces raw decodeSession helper. */
+function requireSession(
   req: NextRequest,
   tenant: string,
-): Promise<
+):
   | { ok: true; accountId: string; role: string }
-  | { ok: false; response: NextResponse }
-> {
-  const session = decodeSession(req.cookies.get(SESSION_COOKIE)?.value ?? "");
-  if (!session || (session.tenant !== tenant && session.role !== "support")) {
-    return { ok: false, response: unauthorized() };
-  }
-  return { ok: true, accountId: session.accountId, role: session.role };
+  | { ok: false; response: NextResponse } {
+  const auth = requireTenantAccess(req, tenant);
+  if (!auth.ok) return { ok: false, response: jsonAuthFail(auth) };
+  const g = auth as GuardOk;
+  return {
+    ok: true,
+    accountId: g.accountId ?? "unknown",
+    role: g.role ?? (g.mode === "api_key" ? "owner" : "unknown"),
+  };
 }
 
 export async function GET(

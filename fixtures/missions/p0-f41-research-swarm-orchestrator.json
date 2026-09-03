@@ -1,0 +1,27 @@
+{
+  "id": "p0-f41-research-swarm-orchestrator",
+  "title": "P0 F41 · research/swarm/orchestrator requireTenantAccess",
+  "goal": "Replace raw decodeSession with requireTenantAccess on research, swarm, and orchestrator routes. Suggestion_only; no auto merge/deploy.",
+  "riskLevel": "yellow",
+  "platformScope": ["clinic_ops", "prime"],
+  "acceptanceCriteria": [
+    { "text": "routes import requireTenantAccess; no decodeSession" },
+    { "text": "unauthenticated + spoofed headers → 401" },
+    { "text": "vitest covers; tsc green" }
+  ],
+  "allowedPaths": [
+    "app/api/v1/[tenant]/research/**",
+    "app/api/v1/[tenant]/swarm/**",
+    "app/api/v1/[tenant]/orchestrator/**",
+    "tests/f41-research-swarm-orchestrator-auth.test.ts",
+    "tests/prime/p0-slice-missions.test.ts",
+    "fixtures/missions/p0-f41-research-swarm-orchestrator.json"
+  ],
+  "forbiddenPaths": [".env", ".env.production", "clinical-policy"],
+  "workstreams": [
+    { "role": "scout", "title": "Scout · decodeSession surfaces" },
+    { "role": "builder", "title": "Builder · requireTenantAccess migrate" },
+    { "role": "verifier", "title": "Verifier · f41 tests" },
+    { "role": "reviewer", "title": "Reviewer · no deploy" }
+  ]
+}

@@ -599,6 +599,14 @@ Små mergeable commits. **Booking-flow regressiones-testes i hvert commit der r�
 | **F38** | CODE-MAP refresh for F23–F37 | Done |
 | **F39** | Operator checklist smoke refresh (F31–F38) | Done |
 | **F40** | Agents approvals `approval.decided` audit context | Done |
+| **F41** | Research / swarm / orchestrator → `requireTenantAccess` | Done |
+| **F42** | Real Turnstile/hCaptcha verify (flagged; prod fail-closed stub) | Done |
+| **F43** | Consent route `auditLogWithContext` | Done |
+| **F44** | Public GET rate-limit bird/scan config status | Done |
+| **F45** | Agents/run audit request context | Done |
+| **F46** | Remaining `decodeSession` stragglers (prime missions) | Done |
+| **F47** | Operator checklist update for F23–F40 (+ F41–F48) | Done |
+| **F48** | Lookup/voucher remaining gaps (email/code validate, no memberId) | Done |
 
 **Explicit out of scope for disse commits:** patient-chat, triage, nye AI-agents, LiveKit voice-consent audio, CE/MDR features, LoRA.
 
