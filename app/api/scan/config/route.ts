@@ -1,5 +1,12 @@
 import { NextResponse } from "next/server";
 import { secretsPublicStatus, writeSecrets, type PraxisSecrets } from "@/lib/secrets";
+import { auditLog } from "@/lib/audit";
+import {
+  jsonAuthFail,
+  requireRole,
+  resolveRequestAuth,
+  type AuthOk,
+} from "@/lib/request-auth";
 
 export const runtime = "nodejs";
 export const dynamic = "force-dynamic";
@@ -47,6 +54,12 @@ export async function GET() {
 
 /** Gem Replicate/Roboflow (og valgfri OpenAI) i /data/secrets.json — ingen rebuild */
 export async function POST(req: Request) {
+  // Secret write — owner/support only (was unauthenticated).
+  const auth = resolveRequestAuth(req);
+  if (!auth.ok) return jsonAuthFail(auth);
+  const roleGate = requireRole(auth as AuthOk, ["owner", "support"]);
+  if (!roleGate.ok) return jsonAuthFail(roleGate);
+
   let body: {
     REPLICATE_API_TOKEN?: string;
     ROBOFLOW_API_KEY?: string;
@@ -75,6 +88,11 @@ export async function POST(req: Request) {
 
   try {
     writeSecrets(patch);
+    auditLog("secrets.updated", {
+      actor_user_id: (auth as AuthOk).accountId,
+      target_ref: "config/scan",
+      meta: { fields: Object.keys(patch) },
+    });
     return NextResponse.json(readinessPayload(secretsPublicStatus()));
   } catch (err: unknown) {
     const message = err instanceof Error ? err.message : "save_failed";

@@ -2,6 +2,13 @@ import { NextResponse } from "next/server";
 import { writeSecrets, secretsPublicStatus, type PraxisSecrets } from "@/lib/secrets";
 import { getBirdPublicStatus, resolveBirdSmsChannelId } from "@/lib/bird";
 import { isLlmConfigured } from "@/lib/agents/llm";
+import { auditLog } from "@/lib/audit";
+import {
+  jsonAuthFail,
+  requireRole,
+  resolveRequestAuth,
+  type AuthOk,
+} from "@/lib/request-auth";
 
 export const runtime = "nodejs";
 
@@ -15,6 +22,12 @@ export async function GET() {
 
 /** Gem Bird/OpenAI-nøgler i /data/secrets.json (volume) — ingen rebuild nødvendig */
 export async function POST(req: Request) {
+  // Secret write — owner/support only (was unauthenticated).
+  const auth = resolveRequestAuth(req);
+  if (!auth.ok) return jsonAuthFail(auth);
+  const roleGate = requireRole(auth as AuthOk, ["owner", "support"]);
+  if (!roleGate.ok) return jsonAuthFail(roleGate);
+
   let body: {
     BIRD_API_KEY?: string;
     BIRD_SMS_CHANNEL_ID?: string;
@@ -42,6 +55,12 @@ export async function POST(req: Request) {
   try {
     // Persist first so resolve can see newly pasted API key / workspace.
     writeSecrets(patch);
+
+    auditLog("secrets.updated", {
+      actor_user_id: (auth as AuthOk).accountId,
+      target_ref: "config/bird",
+      meta: { fields: Object.keys(patch) },
+    });
 
     const preferredChannel =
       typeof body.BIRD_SMS_CHANNEL_ID === "string" ? body.BIRD_SMS_CHANNEL_ID.trim() : undefined;

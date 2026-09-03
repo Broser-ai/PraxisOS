@@ -6,10 +6,22 @@ import { isBirdConfigured } from "@/lib/bird";
 import { eventCount } from "@/lib/event-bus";
 import { AGENTS } from "@/lib/agents";
 import { ensureWorkflowSubscription } from "@/lib/agents/workflows";
+import {
+  jsonAuthFail,
+  requireRole,
+  resolveRequestAuth,
+  type AuthOk,
+} from "@/lib/request-auth";
 
 export const runtime = "nodejs";
 
-export async function GET() {
+export async function GET(req: Request) {
+  // Automation-leak surface — owner/support only (was unauthenticated).
+  const auth = resolveRequestAuth(req);
+  if (!auth.ok) return jsonAuthFail(auth);
+  const roleGate = requireRole(auth as AuthOk, ["owner", "support"]);
+  if (!roleGate.ok) return jsonAuthFail(roleGate);
+
   ensureWorkflowSubscription();
   const stats = getAutomationStats();
   return NextResponse.json({

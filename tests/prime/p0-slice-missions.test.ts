@@ -182,4 +182,35 @@ describe("PEC · P0 slice missions (Prime Execution Control)", () => {
     // eslint-disable-next-line no-console
     console.log(`[PEC] F4 mission=${mission.id} builder_status=${mergeMark.status}`);
   });
+
+  it("F5 · bird/scan secrets/license/tenant-setup/agents guards → approved_for_merge intent", () => {
+    const sliceFiles = changedFilesSinceMain().filter((f) =>
+      [
+        "app/api/bird/send/route.ts",
+        "app/api/bird/config/route.ts",
+        "app/api/scan/config/route.ts",
+        "app/api/v1/scan/process/route.ts",
+        "app/api/agents/run/route.ts",
+        "app/api/agents/status/route.ts",
+        "app/api/agents/approvals/route.ts",
+        "app/api/tenant/setup/route.ts",
+        "app/api/license/route.ts",
+        "tests/f5-guards.test.ts",
+        "fixtures/missions/p0-f5-secrets-license-agents-guards.json",
+        "tests/prime/p0-slice-missions.test.ts",
+      ].includes(f),
+    );
+    expect(sliceFiles.length).toBeGreaterThan(0);
+
+    const { mission, mergeMark } = driveSliceToApprovedForMerge(
+      "p0-f5-secrets-license-agents-guards",
+      sliceFiles,
+    );
+
+    expect(mission.id).toMatch(/^msn_/);
+    expect(getMission(mission.id)?.status).toBe("running");
+    expect(mergeMark.status).toBe("approved_for_merge");
+    // eslint-disable-next-line no-console
+    console.log(`[PEC] F5 mission=${mission.id} builder_status=${mergeMark.status}`);
+  });
 });

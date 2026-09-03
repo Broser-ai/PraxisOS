@@ -2,11 +2,28 @@ import { NextResponse } from "next/server";
 import { runAgent } from "@/lib/agents/runtime";
 import { ensureWorkflowSubscription } from "@/lib/agents/workflows";
 import { getAgent, type AgentId } from "@/lib/agents";
+import {
+  jsonAuthFail,
+  requireRole,
+  resolveRequestAuth,
+  type AuthOk,
+} from "@/lib/request-auth";
 
 export const runtime = "nodejs";
 
 export async function POST(req: Request) {
   ensureWorkflowSubscription();
+  // Staff-only agent run — tenant from verified session, not free body.
+  const auth = resolveRequestAuth(req);
+  if (!auth.ok) return jsonAuthFail(auth);
+  const roleGate = requireRole(auth as AuthOk, [
+    "practitioner",
+    "owner",
+    "support",
+  ]);
+  if (!roleGate.ok) return jsonAuthFail(roleGate);
+  const session = auth as AuthOk;
+
   let body: {
     message?: string;
     agentId?: string;
@@ -26,10 +43,13 @@ export async function POST(req: Request) {
     return NextResponse.json({ error: "unknown_agent" }, { status: 400 });
   }
 
+  // Ignore client-supplied tenant; use verified session tenant (support crosses).
+  const tenant = session.tenant;
+
   const result = await runAgent({
     message,
     agentId: body.agentId as AgentId | undefined,
-    tenant: body.tenant ?? "bypilar",
+    tenant,
     trigger: "chat",
     autoRoute: body.autoRoute !== false && !body.agentId,
   });

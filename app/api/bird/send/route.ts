@@ -1,5 +1,12 @@
 import { NextRequest, NextResponse } from "next/server";
 import { isBirdConfigured, sendBirdSms, type BirdSmsCategory } from "@/lib/bird";
+import { auditLog } from "@/lib/audit";
+import {
+  jsonAuthFail,
+  requireRole,
+  resolveRequestAuth,
+  type AuthOk,
+} from "@/lib/request-auth";
 
 export const runtime = "nodejs";
 
@@ -11,6 +18,19 @@ type Body = {
 };
 
 export async function POST(req: NextRequest) {
+  // Staff-only SMS gateway — was previously unauthenticated (open SMS).
+  const auth = resolveRequestAuth(req);
+  if (!auth.ok) return jsonAuthFail(auth);
+
+  // Transactional SMS: reception+ (bookings permission). Marketing: owner/support.
+  const roleGate = requireRole(auth as AuthOk, [
+    "reception",
+    "practitioner",
+    "owner",
+    "support",
+  ]);
+  if (!roleGate.ok) return jsonAuthFail(roleGate);
+
   if (!isBirdConfigured()) {
     return NextResponse.json(
       { ok: false, error: "Bird er ikke konfigureret (BIRD_API_KEY mangler)" },
@@ -31,11 +51,24 @@ export async function POST(req: NextRequest) {
     return NextResponse.json({ ok: false, error: "Kræver 'to' og 'text'" }, { status: 400 });
   }
 
+  const category = body.category ?? "transactional";
+  if (category === "marketing") {
+    const marketingGate = requireRole(auth as AuthOk, ["owner", "support"]);
+    if (!marketingGate.ok) return jsonAuthFail(marketingGate);
+  }
+
   const result = await sendBirdSms({
     to,
     text,
     from: body.from,
-    category: body.category,
+    category,
+  });
+
+  auditLog("sms.sent", {
+    tenant_id: (auth as AuthOk).tenant,
+    actor_user_id: (auth as AuthOk).accountId,
+    target_ref: `sms/${to}`,
+    meta: { category, ok: result.ok },
   });
 
   if (!result.ok) {
