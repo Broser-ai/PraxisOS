@@ -597,6 +597,8 @@ Små mergeable commits. **Booking-flow regressiones-testes i hvert commit der r�
 | **F36** | Bird `/api/bird/status` strips `keyHint` | Done |
 | **F37** | Login captcha-before-backoff (signup parity) | Done |
 | **F38** | CODE-MAP refresh for F23–F37 | Done |
+| **F39** | Operator checklist smoke refresh (F31–F38) | Done |
+| **F40** | Agents approvals `approval.decided` audit context | Done |
 
 **Explicit out of scope for disse commits:** patient-chat, triage, nye AI-agents, LiveKit voice-consent audio, CE/MDR features, LoRA.
 

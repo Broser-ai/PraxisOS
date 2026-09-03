@@ -598,4 +598,28 @@ describe("PEC · P0 slice missions (Prime Execution Control)", () => {
     // eslint-disable-next-line no-console
     console.log(`[PEC] F35–F38 mission=${mission.id} builder_status=${mergeMark.status}`);
   });
+
+  it("F39/F40 · checklist + approvals audit → approved_for_merge intent", () => {
+    const sliceFiles = changedFilesSinceMain().filter((f) =>
+      [
+        "docs/ops/p0-operator-checklist-merge-cutover.md",
+        "app/api/agents/approvals/route.ts",
+        "tests/f39-f40-checklist-approvals.test.ts",
+        "fixtures/missions/p0-f39-f40-checklist-approvals.json",
+        "tests/prime/p0-slice-missions.test.ts",
+      ].includes(f),
+    );
+    expect(sliceFiles.length).toBeGreaterThan(0);
+
+    const { mission, mergeMark } = driveSliceToApprovedForMerge(
+      "p0-f39-f40-checklist-approvals",
+      sliceFiles,
+    );
+
+    expect(mission.id).toMatch(/^msn_/);
+    expect(getMission(mission.id)?.status).toBe("running");
+    expect(mergeMark.status).toBe("approved_for_merge");
+    // eslint-disable-next-line no-console
+    console.log(`[PEC] F39/F40 mission=${mission.id} builder_status=${mergeMark.status}`);
+  });
 });

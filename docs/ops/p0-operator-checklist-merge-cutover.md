@@ -43,7 +43,11 @@ Follow `docs/ops/p0-db-cutover-runbook.md` §0–§2. Short form:
 - [ ] Staff login → `GET /api/auth/me` 200; journal list gated (F3/F4).
 - [ ] Spoofed `x-praxis-tenant` alone → 401 (F11 middleware + guards).
 - [ ] Signup rate-limit + audit events visible in memory/supabase (F25).
+- [ ] Signup captcha step-up after repeated failures (F34).
 - [ ] `GET /api/v1/scan/process` unauthenticated → 401 (F24).
+- [ ] Public bird/scan config GET has no `*Hint` / `keyHint` (F33/F36).
+- [ ] CVR/DAWA return 429 under burst (F32).
+- [ ] Journal create/sign audits carry request context in supabase mode (F35).
 
 ## E. Explicit non-goals (do not do in this cutover)
 
@@ -60,4 +64,4 @@ runbook §Rollback.
 
 ---
 
-*F27 · continue-dev PR #34 · suggestion_only · 2026-09-03*
+*F27/F39 · continue-dev PR #34 · suggestion_only · 2026-09-03*
