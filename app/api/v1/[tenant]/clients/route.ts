@@ -9,34 +9,13 @@ import {
   listClientsForTenant,
 } from "@/lib/data/repo";
 import { getTenant } from "@/lib/tenants";
+import { auditLog } from "@/lib/audit";
+import {
+  jsonAuthFail,
+  requireTenantAccess,
+} from "@/lib/request-auth";
 
-function checkAuth(
-  req: Request,
-): { ok: true } | { ok: false; status: number; body: object } {
-  const sessionTenant = req.headers.get("x-praxis-tenant");
-  if (sessionTenant) return { ok: true };
-
-  const auth = req.headers.get("authorization");
-  if (!auth || !auth.startsWith("Bearer ")) {
-    return {
-      ok: false,
-      status: 401,
-      body: {
-        error: "unauthorized",
-        hint: "Session cookie or Authorization: Bearer sk_live_...",
-      },
-    };
-  }
-  const token = auth.slice(7);
-  if (
-    !token.startsWith("sk_live_") &&
-    !token.startsWith("sk_test_") &&
-    !token.startsWith("pk_test_dead")
-  ) {
-    return { ok: false, status: 401, body: { error: "invalid_token" } };
-  }
-  return { ok: true };
-}
+export const runtime = "nodejs";
 
 export async function GET(
   req: Request,
@@ -47,8 +26,11 @@ export async function GET(
     return NextResponse.json({ error: "tenant_not_found" }, { status: 404 });
   }
 
-  const auth = checkAuth(req);
-  if (!auth.ok) return NextResponse.json(auth.body, { status: auth.status });
+  const auth = requireTenantAccess(req, tenant, {
+    scopes: ["read:clients"],
+    permissions: ["bookings"],
+  });
+  if (!auth.ok) return jsonAuthFail(auth);
 
   const clients = await listClientsForTenant(tenant);
   return NextResponse.json(
@@ -78,8 +60,12 @@ export async function POST(
   if (!getTenant(tenant)) {
     return NextResponse.json({ error: "tenant_not_found" }, { status: 404 });
   }
-  const auth = checkAuth(req);
-  if (!auth.ok) return NextResponse.json(auth.body, { status: auth.status });
+
+  const auth = requireTenantAccess(req, tenant, {
+    scopes: ["write:clients"],
+    permissions: ["bookings"],
+  });
+  if (!auth.ok) return jsonAuthFail(auth);
 
   let body: {
     name?: string;
@@ -106,6 +92,12 @@ export async function POST(
   if ("error" in created) {
     return NextResponse.json({ error: created.error }, { status: 400 });
   }
+
+  auditLog("client.created", {
+    tenant_id: tenant,
+    actor_user_id: auth.accountId,
+    target_ref: `client/${created.id}`,
+  });
 
   return NextResponse.json(
     {

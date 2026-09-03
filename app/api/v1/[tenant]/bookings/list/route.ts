@@ -7,6 +7,12 @@ import {
 } from "@/lib/data/repo";
 import type { BookingStatus } from "@/lib/bookings";
 import { getTenant } from "@/lib/tenants";
+import {
+  jsonAuthFail,
+  requireTenantAccess,
+} from "@/lib/request-auth";
+
+export const runtime = "nodejs";
 
 export async function GET(
   req: Request,
@@ -17,11 +23,11 @@ export async function GET(
     return NextResponse.json({ error: "tenant_not_found" }, { status: 404 });
   }
 
-  const sessionTenant = req.headers.get("x-praxis-tenant");
-  const auth = req.headers.get("authorization");
-  if (!sessionTenant && !auth?.startsWith("Bearer ")) {
-    return NextResponse.json({ error: "unauthorized" }, { status: 401 });
-  }
+  const auth = requireTenantAccess(req, tenant, {
+    scopes: ["read:bookings"],
+    permissions: ["bookings"],
+  });
+  if (!auth.ok) return jsonAuthFail(auth);
 
   const url = new URL(req.url);
   const limit = Math.min(100, Number(url.searchParams.get("limit") ?? "25"));
