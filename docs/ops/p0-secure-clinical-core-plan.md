@@ -623,6 +623,10 @@ Små mergeable commits. **Booking-flow regressiones-testes i hvert commit der r�
 | **F62** | Mutation-route audit gaps → `auditLogWithContext` | Done |
 | **F63** | Captcha sitekey UI skipped without keys; env placeholders + helper | Done |
 | **F64** | Stragglers: MCP CORS allowlist, swarm/research/orchestrator audits | Done |
+| **F65** | Services/availability CORS align with booking allowlist | Done |
+| **F66** | Swarm/tick + research harvest `auditLogWithContext` | Done |
+| **F67** | MCP unauthorized audit on bad Bearer | Done |
+| **F68** | Agent worker auth → `auditLogWithContext` | Done |
 
 **Explicit out of scope for disse commits:** patient-chat, triage, nye AI-agents, LiveKit voice-consent audio, CE/MDR features, LoRA.
 

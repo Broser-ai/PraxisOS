@@ -18,6 +18,7 @@ import { listTenants } from "@/lib/tenants";
 import { AGENTS } from "@/lib/agents";
 import { resolveApiKey } from "@/lib/api-keys";
 import { checkIpRateLimit } from "@/lib/rate-limit";
+import { auditLogWithContext } from "@/lib/audit";
 
 const SERVER_INFO = {
   name: "praxisos",
@@ -144,6 +145,11 @@ export async function POST(req: Request) {
     const token = auth.startsWith("Bearer ") ? auth.slice("Bearer ".length).trim() : "";
     const resolved = resolveApiKey(token);
     if (!resolved.ok) {
+      // F67 · unauthorized MCP surface audit (no token material)
+      auditLogWithContext(req, "mcp.unauthorized", {
+        target_ref: body.method,
+        auth_mode: "api_key",
+      });
       return rpcErr(
         req,
         body.id,

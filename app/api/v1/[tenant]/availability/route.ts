@@ -1,15 +1,11 @@
 import { NextResponse } from "next/server";
 import { getTenant } from "@/lib/tenants";
 import { checkIpRateLimit } from "@/lib/rate-limit";
-
-function clientIp(req: Request): string {
-  const xff = req.headers.get("x-forwarded-for");
-  if (xff) return xff.split(",")[0]!.trim();
-  return req.headers.get("x-real-ip") ?? "unknown";
-}
+import { bookingAllowedOrigin, clientIp } from "@/lib/public-booking-kit";
 
 // GET /api/v1/{tenant}/availability?service=ID&from=YYYY-MM-DD&days=7
 // Returnerer ledige tider — mock-generator, swappes til ægte kalender-engine senere.
+// F65 · ACAO aligns with booking CORS allowlist (same as F6/F60).
 export async function GET(
   req: Request,
   { params }: { params: Promise<{ tenant: string }> }
@@ -54,17 +50,19 @@ export async function GET(
     slots.push({ day: d.toISOString().slice(0, 10), times });
   }
 
+  const headers: Record<string, string> = {
+    "cache-control": "public, max-age=30",
+    vary: "Origin",
+  };
+  const allowed = bookingAllowedOrigin(req, t.slug);
+  if (allowed) headers["access-control-allow-origin"] = allowed;
+
   return NextResponse.json(
     {
       service: { id: service.id, name: service.name, durationMin: service.durationMin },
       timezone: t.timezone,
       slots,
     },
-    {
-      headers: {
-        "cache-control": "public, max-age=30",
-        "access-control-allow-origin": "*",
-      },
-    }
+    { headers },
   );
 }

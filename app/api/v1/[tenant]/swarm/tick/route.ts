@@ -3,6 +3,7 @@ import { getTenant } from "@/lib/tenants";
 import { getDaemonState, tickDaemon } from "@/lib/swarm/daemon";
 import { isSwarmEnabled } from "@/lib/swarm/meta-harness";
 import { jsonAuthFail, requireTenantAccess } from "@/lib/request-auth";
+import { auditLogWithContext } from "@/lib/audit";
 
 /**
  * POST /api/v1/{tenant}/swarm/tick
@@ -32,11 +33,22 @@ export async function POST(
     const auth = requireTenantAccess(req, tenant, {
       roles: ["owner", "support"],
     });
-    if (!auth.ok) return jsonAuthFail(auth);
+    if (!auth.ok) {
+      auditLogWithContext(req, "swarm.tick_unauthorized", {
+        tenant_id: tenant,
+        auth_mode: "session",
+      });
+      return jsonAuthFail(auth);
+    }
   }
 
   try {
     const result = await tickDaemon({ tenantSlug: tenant });
+    // F66 · swarm tick mutation audit
+    auditLogWithContext(req, "swarm.tick", {
+      tenant_id: tenant,
+      auth_mode: cronOk ? "cron_secret" : "session",
+    });
     return NextResponse.json({
       ok: true,
       ...result,

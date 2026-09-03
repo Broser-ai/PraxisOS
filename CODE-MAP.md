@@ -155,8 +155,8 @@ Auth notes: staff = session cookie; public = rate-limit / HMAC / allowlist as no
 | `/api/journal/[id]/draft` | POST | Staff+consent | AI SOAP draft · **F35** |
 | `/api/v1/scan/process` | GET | Staff | Scan pipeline readiness · **F24** |
 | `/api/v1/scan/process` | POST | Staff+consent | Foot-scan process · **F23 audit** |
-| `/api/v1/[tenant]/availability` | GET | Public+rate | Ledige slots · **F51** |
-| `/api/v1/[tenant]/services` | GET | Public+rate | Tenant services · **F51** |
+| `/api/v1/[tenant]/availability` | GET | Public+rate | Ledige slots · **F51** · **F65 CORS** |
+| `/api/v1/[tenant]/services` | GET | Public+rate | Tenant services · **F51** · **F65 CORS** |
 | `/api/v1/[tenant]/bookings` | POST | Public+kit | Opret booking (CORS+rate-limit) · **F62 audit** |
 | `/api/v1/[tenant]/bookings/list` | GET | Staff/key | Liste bookings |
 | `/api/v1/[tenant]/clients` | GET/POST | Staff/key | Klient-CRUD |

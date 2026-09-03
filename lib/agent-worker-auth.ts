@@ -16,7 +16,7 @@
 // No clinical-policy change. Suggestion-only.
 
 import { timingSafeEqual } from "node:crypto";
-import { auditLog } from "@/lib/audit";
+import { auditLogWithContext } from "@/lib/audit";
 
 export type AuthorizeWorkerResult = {
   ok: boolean;
@@ -45,10 +45,9 @@ export function authorizeWorker(req: Request): AuthorizeWorkerResult {
 
   if (!secret) {
     if (process.env.NODE_ENV === "production") {
-      auditLog("agent_worker.unauthorized_no_secret", {
-        route: new URL(req.url).pathname,
+      // F68 · request-context audit (was bare auditLog)
+      auditLogWithContext(req, "agent_worker.unauthorized_no_secret", {
         auth_mode: "machine",
-        level: "warn",
       });
       return { ok: false, reason: "no_secret_prod" };
     }

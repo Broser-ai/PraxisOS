@@ -12,6 +12,7 @@ import {
   requireTenantAccess,
   type GuardOk,
 } from "@/lib/request-auth";
+import { auditLogWithContext } from "@/lib/audit";
 
 export async function GET(
   req: Request,
@@ -69,6 +70,14 @@ export async function POST(
     trackId: body.trackId as ResearchTrackId | undefined,
     query: body.query,
     limit: body.limit,
+  });
+
+  // F66 · research harvest mutation audit (no query text)
+  auditLogWithContext(req, "research.harvest", {
+    tenant_id: tenant,
+    actor_user_id: session.accountId,
+    target_ref: body.trackId ?? "default",
+    auth_mode: "session",
   });
 
   writeJournal({

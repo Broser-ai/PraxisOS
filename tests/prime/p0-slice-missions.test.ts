@@ -819,4 +819,32 @@ describe("PEC · P0 slice missions (Prime Execution Control)", () => {
     // eslint-disable-next-line no-console
     console.log(`[PEC] F61–F64 mission=${mission.id} builder_status=${mergeMark.status}`);
   });
+
+  it("F65–F68 · CORS/audit stragglers → approved_for_merge intent", () => {
+    const sliceFiles = changedFilesSinceMain().filter((f) =>
+      [
+        "app/api/v1/[tenant]/services/route.ts",
+        "app/api/v1/[tenant]/availability/route.ts",
+        "app/api/v1/[tenant]/swarm/tick/route.ts",
+        "app/api/v1/[tenant]/research/route.ts",
+        "app/api/mcp/v1/route.ts",
+        "lib/agent-worker-auth.ts",
+        "tests/f65-f68-cors-audit-stragglers.test.ts",
+        "fixtures/missions/p0-f65-f68-cors-audit-stragglers.json",
+        "tests/prime/p0-slice-missions.test.ts",
+      ].includes(f),
+    );
+    expect(sliceFiles.length).toBeGreaterThan(0);
+
+    const { mission, mergeMark } = driveSliceToApprovedForMerge(
+      "p0-f65-f68-cors-audit-stragglers",
+      sliceFiles,
+    );
+
+    expect(mission.id).toMatch(/^msn_/);
+    expect(getMission(mission.id)?.status).toBe("running");
+    expect(mergeMark.status).toBe("approved_for_merge");
+    // eslint-disable-next-line no-console
+    console.log(`[PEC] F65–F68 mission=${mission.id} builder_status=${mergeMark.status}`);
+  });
 });

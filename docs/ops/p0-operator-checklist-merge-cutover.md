@@ -85,6 +85,8 @@ Follow `docs/ops/p0-db-cutover-runbook.md` §0–§2. Short form:
 - [ ] Embed `/embed/v1/bypilar` still serves JS; ACAO only for allowlisted Origin; 429 under flood (F60).
 - [ ] Booking POST emits `booking.created` audit; events/tick/workflows emit context audits (F62).
 - [ ] Login/signup captcha widget absent until site keys configured (F63); placeholders in `.env.example`.
+- [ ] Services/availability ACAO only for allowlisted Origin (F65).
+- [ ] Swarm/tick + research harvest audits present (F66); MCP unauthorized audited (F67).
 
 ## E. Explicit non-goals (do not do in this cutover)
 
