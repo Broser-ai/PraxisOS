@@ -33,7 +33,7 @@ function forbidden() {
   return NextResponse.json({ error: "forbidden" }, { status: 403 });
 }
 
-/** F46 · requireTenantAccess replaces raw decodeSession helper. */
+/** F46 · requireTenantAccess replaces raw session-cookie decode helper. */
 function requireSession(
   req: NextRequest,
   tenant: string,

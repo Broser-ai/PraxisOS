@@ -11,7 +11,7 @@ export async function GET(
   if (!getTenant(tenant)) {
     return NextResponse.json({ error: "tenant_not_found" }, { status: 404 });
   }
-  // F41 · requireTenantAccess replaces raw decodeSession
+  // F41 · requireTenantAccess replaces raw session-cookie decode
   const auth = requireTenantAccess(req, tenant);
   if (!auth.ok) return jsonAuthFail(auth);
 

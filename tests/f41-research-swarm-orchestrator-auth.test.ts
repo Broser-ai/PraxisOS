@@ -1,6 +1,6 @@
 // F41 · research / swarm / orchestrator → requireTenantAccess
 
-import { describe, expect, it } from "vitest";
+import { describe, expect, it, beforeEach, afterEach } from "vitest";
 import { readFileSync } from "node:fs";
 import { join } from "node:path";
 import { encodeSession, SESSION_COOKIE, type Role } from "@/lib/auth";
@@ -180,6 +180,15 @@ describe("F41 · swarm auth", () => {
 });
 
 describe("F41 · orchestrator auth", () => {
+  const prev = process.env.AGENT_ORCHESTRATION_ENABLED;
+  beforeEach(() => {
+    process.env.AGENT_ORCHESTRATION_ENABLED = "true";
+  });
+  afterEach(() => {
+    if (prev === undefined) delete process.env.AGENT_ORCHESTRATION_ENABLED;
+    else process.env.AGENT_ORCHESTRATION_ENABLED = prev;
+  });
+
   it("POST unauthenticated → 401", async () => {
     const res = await orchPost(
       new Request("http://localhost/api/v1/bypilar/orchestrator", {

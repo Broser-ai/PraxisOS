@@ -22,7 +22,7 @@ export async function GET(
     return NextResponse.json({ error: "tenant_not_found" }, { status: 404 });
   }
 
-  // F41 · requireTenantAccess (session/API) replaces raw decodeSession
+  // F41 · requireTenantAccess (session/API) replaces raw session-cookie decode
   const auth = requireTenantAccess(req, tenant);
   if (!auth.ok) return jsonAuthFail(auth);
 
