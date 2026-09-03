@@ -16,6 +16,7 @@ import { MCP_TOOLS } from "@/lib/mcp-tools";
 import { executeMcpTool } from "@/lib/mcp-handlers";
 import { listTenants } from "@/lib/tenants";
 import { AGENTS } from "@/lib/agents";
+import { resolveApiKey } from "@/lib/api-keys";
 
 const SERVER_INFO = {
   name: "praxisos",
@@ -53,11 +54,28 @@ export async function POST(req: Request) {
   if (body.jsonrpc !== "2.0") return rpcErr(body.id, -32600, "Invalid JSON-RPC version");
   if (!body.method) return rpcErr(body.id, -32600, "Missing method");
 
-  // Auth-tjek (lempelig for prototype — i prod: validér Bearer mod api-keys)
-  const auth = req.headers.get("authorization");
-  const isAuthed = auth?.startsWith("Bearer ");
-  if (!isAuthed && body.method !== "initialize" && body.method !== "ping") {
-    return rpcErr(body.id, -32001, "Unauthorized · add Authorization: Bearer sk_live_...");
+  // Auth (P0 plan §F13): initialize + ping remain open (MCP handshake).
+  // All other methods require a verified Bearer API key; the tenant is
+  // resolved FROM the key (no tenant in the URL) and threaded into tool calls
+  // instead of the previous hardcoded "bypilar".
+  const OPEN_METHODS = new Set(["initialize", "ping"]);
+  let authedTenant: string | null = null;
+  if (!OPEN_METHODS.has(body.method)) {
+    const auth = req.headers.get("authorization") ?? "";
+    const token = auth.startsWith("Bearer ") ? auth.slice("Bearer ".length).trim() : "";
+    const resolved = resolveApiKey(token);
+    if (!resolved.ok) {
+      return rpcErr(
+        body.id,
+        -32001,
+        resolved.error === "no_token"
+          ? "Unauthorized · add Authorization: Bearer sk_live_..."
+          : resolved.error === "key_revoked"
+            ? "Unauthorized · key revoked"
+            : "Unauthorized · invalid API key",
+      );
+    }
+    authedTenant = resolved.key.tenant;
   }
 
   switch (body.method) {
@@ -94,7 +112,7 @@ export async function POST(req: Request) {
         const result = await executeMcpTool(
           name,
           (args ?? {}) as Record<string, unknown>,
-          { tenant: "bypilar" },
+          { tenant: authedTenant ?? "bypilar" },
         );
         return rpcOk(body.id, {
           content: [{ type: "text", text: JSON.stringify(result, null, 2) }],
