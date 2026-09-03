@@ -1,0 +1,34 @@
+{
+  "id": "p0-f8-audit-align",
+  "title": "P0 F8 · audit align migration 0008 + request context + wire emits",
+  "goal": "Align audit_log schema with lib/audit.ts persistSupabase payload (additive migration 0008: actor_user_id, target_ref, meta, level, request_id, route, auth_mode). Add request-context extraction (ip, user_agent, route, request_id, auth_mode) to auditLog + auditLogWithContext. Wire login.failure/success audit emits. Existing emits (journal/scan/SMS/secrets/license/consent) already present. Suggestion_only; no auto merge/deploy.",
+  "riskLevel": "yellow",
+  "platformScope": ["clinic_ops", "prime"],
+  "acceptanceCriteria": [
+    { "text": "migration 0008_audit_log_align.sql adds actor_user_id/target_ref/meta/level/request_id/route/auth_mode (additive, no drops)" },
+    { "text": "auditRequestContext extracts ip/user_agent/route/request_id from a Request" },
+    { "text": "auditLogWithContext / auditLog context param populate request context on the record" },
+    { "text": "persistSupabase payload includes the aligned 0008 columns (spied fetch)" },
+    { "text": "login.failure + login.success emit audit with request context; vitest covers; tsc green" }
+  ],
+  "allowedPaths": [
+    "lib/audit.ts",
+    "supabase/migrations/0008_audit_log_align.sql",
+    "app/api/auth/login/route.ts",
+    "tests/f8-audit-align.test.ts",
+    "tests/prime/p0-slice-missions.test.ts",
+    "fixtures/missions/p0-f8-audit-align.json"
+  ],
+  "forbiddenPaths": [
+    ".env",
+    ".env.production",
+    "docker-compose.praxis.yml",
+    "app/api/journal/[id]/sign/route.ts"
+  ],
+  "workstreams": [
+    { "role": "scout", "title": "Scout · audit schema mismatch" },
+    { "role": "builder", "title": "Builder · migration + request context" },
+    { "role": "verifier", "title": "Verifier · f8-audit-align tests" },
+    { "role": "reviewer", "title": "Reviewer · audit/GDPR Art.30 policy" }
+  ]
+}

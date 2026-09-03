@@ -266,4 +266,29 @@ describe("PEC · P0 slice missions (Prime Execution Control)", () => {
     // eslint-disable-next-line no-console
     console.log(`[PEC] F7 mission=${mission.id} builder_status=${mergeMark.status}`);
   });
+
+  it("F8 · audit align migration 0008 + request context → approved_for_merge intent", () => {
+    const sliceFiles = changedFilesSinceMain().filter((f) =>
+      [
+        "lib/audit.ts",
+        "supabase/migrations/0008_audit_log_align.sql",
+        "app/api/auth/login/route.ts",
+        "tests/f8-audit-align.test.ts",
+        "fixtures/missions/p0-f8-audit-align.json",
+        "tests/prime/p0-slice-missions.test.ts",
+      ].includes(f),
+    );
+    expect(sliceFiles.length).toBeGreaterThan(0);
+
+    const { mission, mergeMark } = driveSliceToApprovedForMerge(
+      "p0-f8-audit-align",
+      sliceFiles,
+    );
+
+    expect(mission.id).toMatch(/^msn_/);
+    expect(getMission(mission.id)?.status).toBe("running");
+    expect(mergeMark.status).toBe("approved_for_merge");
+    // eslint-disable-next-line no-console
+    console.log(`[PEC] F8 mission=${mission.id} builder_status=${mergeMark.status}`);
+  });
 });
