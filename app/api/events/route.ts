@@ -2,6 +2,9 @@
 //
 // Intern publish/subscribe-system for hele platformen.
 // Agenter abonnerer via lib/agents/workflows (ensureWorkflowSubscription).
+//
+// F19: GET is staff-gated (owner/practitioner/support) — event history is
+// automation/clinic data. POST stays HMAC-signed (machine / internal).
 
 import { NextResponse } from "next/server";
 import {
@@ -11,6 +14,12 @@ import {
   signEventPayload,
 } from "@/lib/event-bus";
 import { ensureWorkflowSubscription } from "@/lib/agents/workflows";
+import {
+  jsonAuthFail,
+  requireRole,
+  resolveRequestAuth,
+  type AuthOk,
+} from "@/lib/request-auth";
 
 export const runtime = "nodejs";
 
@@ -54,6 +63,16 @@ export async function POST(req: Request) {
 }
 
 export async function GET(req: Request) {
+  // Staff-only event list (was unauthenticated — automation-leak).
+  const auth = resolveRequestAuth(req);
+  if (!auth.ok) return jsonAuthFail(auth);
+  const roleGate = requireRole(auth as AuthOk, [
+    "owner",
+    "practitioner",
+    "support",
+  ]);
+  if (!roleGate.ok) return jsonAuthFail(roleGate);
+
   ensureWorkflowSubscription();
   const url = new URL(req.url);
   const tenant = url.searchParams.get("tenant");

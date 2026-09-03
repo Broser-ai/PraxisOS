@@ -1,0 +1,26 @@
+{
+  "id": "p0-f19-events-auth",
+  "title": "P0 F19 · GET /api/events staff-gated",
+  "goal": "Staff-gate GET /api/events (owner/practitioner/support). Keep POST HMAC-signed via x-praxis-signature. Suggestion_only; no auto merge/deploy.",
+  "riskLevel": "yellow",
+  "platformScope": ["clinic_ops", "prime"],
+  "acceptanceCriteria": [
+    { "text": "GET /api/events unauthenticated → 401; reception → 403" },
+    { "text": "owner/practitioner GET → 200" },
+    { "text": "POST missing signature → 401; valid HMAC → 200" },
+    { "text": "vitest covers; tsc green" }
+  ],
+  "allowedPaths": [
+    "app/api/events/route.ts",
+    "tests/f19-events-auth.test.ts",
+    "tests/prime/p0-slice-missions.test.ts",
+    "fixtures/missions/p0-f19-events-auth.json"
+  ],
+  "forbiddenPaths": [".env", ".env.production", "clinical-policy"],
+  "workstreams": [
+    { "role": "scout", "title": "Scout · events GET leak" },
+    { "role": "builder", "title": "Builder · staff gate GET" },
+    { "role": "verifier", "title": "Verifier · f19 events tests" },
+    { "role": "reviewer", "title": "Reviewer · HMAC POST intact" }
+  ]
+}
