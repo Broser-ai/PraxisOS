@@ -391,4 +391,74 @@ describe("PEC · P0 slice missions (Prime Execution Control)", () => {
     // eslint-disable-next-line no-console
     console.log(`[PEC] F17 mission=${mission.id} builder_status=${mergeMark.status}`);
   });
+
+  it("F18 · audit supabase-mode → approved_for_merge intent", () => {
+    const sliceFiles = changedFilesSinceMain().filter((f) =>
+      [
+        "lib/audit.ts",
+        "supabase/migrations/0008_audit_log_align.sql",
+        "tests/f18-audit-supabase-mode.test.ts",
+        "fixtures/missions/p0-f18-audit-supabase-mode.json",
+        "tests/prime/p0-slice-missions.test.ts",
+      ].includes(f),
+    );
+    expect(sliceFiles.length).toBeGreaterThan(0);
+
+    const { mission, mergeMark } = driveSliceToApprovedForMerge(
+      "p0-f18-audit-supabase-mode",
+      sliceFiles,
+    );
+
+    expect(mission.id).toMatch(/^msn_/);
+    expect(getMission(mission.id)?.status).toBe("running");
+    expect(mergeMark.status).toBe("approved_for_merge");
+    // eslint-disable-next-line no-console
+    console.log(`[PEC] F18 mission=${mission.id} builder_status=${mergeMark.status}`);
+  });
+
+  it("F19 · events GET staff-gated → approved_for_merge intent", () => {
+    const sliceFiles = changedFilesSinceMain().filter((f) =>
+      [
+        "app/api/events/route.ts",
+        "tests/f19-events-auth.test.ts",
+        "fixtures/missions/p0-f19-events-auth.json",
+        "tests/prime/p0-slice-missions.test.ts",
+      ].includes(f),
+    );
+    expect(sliceFiles.length).toBeGreaterThan(0);
+
+    const { mission, mergeMark } = driveSliceToApprovedForMerge(
+      "p0-f19-events-auth",
+      sliceFiles,
+    );
+
+    expect(mission.id).toMatch(/^msn_/);
+    expect(getMission(mission.id)?.status).toBe("running");
+    expect(mergeMark.status).toBe("approved_for_merge");
+    // eslint-disable-next-line no-console
+    console.log(`[PEC] F19 mission=${mission.id} builder_status=${mergeMark.status}`);
+  });
+
+  it("F20 · agents workflows GET auth → approved_for_merge intent", () => {
+    const sliceFiles = changedFilesSinceMain().filter((f) =>
+      [
+        "app/api/agents/workflows/route.ts",
+        "tests/f20-agents-workflows-auth.test.ts",
+        "fixtures/missions/p0-f20-agents-workflows-auth.json",
+        "tests/prime/p0-slice-missions.test.ts",
+      ].includes(f),
+    );
+    expect(sliceFiles.length).toBeGreaterThan(0);
+
+    const { mission, mergeMark } = driveSliceToApprovedForMerge(
+      "p0-f20-agents-workflows-auth",
+      sliceFiles,
+    );
+
+    expect(mission.id).toMatch(/^msn_/);
+    expect(getMission(mission.id)?.status).toBe("running");
+    expect(mergeMark.status).toBe("approved_for_merge");
+    // eslint-disable-next-line no-console
+    console.log(`[PEC] F20 mission=${mission.id} builder_status=${mergeMark.status}`);
+  });
 });
