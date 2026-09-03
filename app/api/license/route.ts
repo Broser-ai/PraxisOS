@@ -1,7 +1,7 @@
 import { NextResponse } from "next/server";
 import { getPlan, isPlanId, listLicenseOrders } from "@/lib/plans";
 import { activateTenantLicense, getTenant, setTenantPlan } from "@/lib/tenants";
-import { auditLog } from "@/lib/audit";
+import { auditLogWithContext } from "@/lib/audit";
 import {
   jsonAuthFail,
   requireRole,
@@ -20,10 +20,21 @@ export async function GET(req: Request) {
   if (!auth.ok) return jsonAuthFail(auth);
   const roleGate = requireRole(auth as AuthOk, ["owner", "support"]);
   if (!roleGate.ok) return jsonAuthFail(roleGate);
+  const session = auth as AuthOk;
 
   const tenant = new URL(req.url).searchParams.get("tenant") ?? undefined;
+  // F24 · non-support may only read own tenant orders (was open cross-tenant).
+  if (
+    tenant &&
+    session.tenant !== tenant &&
+    session.role !== "support"
+  ) {
+    return NextResponse.json({ error: "tenant_mismatch" }, { status: 403 });
+  }
+  const scoped =
+    tenant ?? (session.role === "support" ? undefined : session.tenant);
   return NextResponse.json({
-    orders: listLicenseOrders(tenant),
+    orders: listLicenseOrders(scoped),
     plans: undefined,
   });
 }
@@ -65,10 +76,12 @@ export async function POST(req: Request) {
       return NextResponse.json({ error: result.error }, { status: 400 });
     }
     const plan = getPlan(body.planId);
-    auditLog("license.changed", {
+    // F23 · request context on license mutation audit
+    auditLogWithContext(req, "license.changed", {
       tenant_id: slug,
       actor_user_id: session.accountId,
       target_ref: `tenant/${slug}`,
+      auth_mode: session.mode,
       meta: { action: "change_plan", planId: body.planId },
     });
     return NextResponse.json({
@@ -94,10 +107,11 @@ export async function POST(req: Request) {
     return NextResponse.json({ error: result.error }, { status: 400 });
   }
   const plan = getPlan(String(result.license.planId));
-  auditLog("license.changed", {
+  auditLogWithContext(req, "license.changed", {
     tenant_id: slug,
     actor_user_id: session.accountId,
     target_ref: `tenant/${slug}`,
+    auth_mode: session.mode,
     meta: { action: "activate" },
   });
   return NextResponse.json({

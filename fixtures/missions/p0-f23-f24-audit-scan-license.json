@@ -1,0 +1,28 @@
+{
+  "id": "p0-f23-f24-audit-scan-license",
+  "title": "P0 F23/F24 · audit context + scan GET / license scope",
+  "goal": "Wire auditLogWithContext on tenant setup, license, scan process. Staff-gate GET /api/v1/scan/process. Scope license GET to session tenant. Suggestion_only; no auto merge/deploy.",
+  "riskLevel": "yellow",
+  "platformScope": ["clinic_ops", "prime"],
+  "acceptanceCriteria": [
+    { "text": "tenant.setup_updated / license.changed audits carry ip/ua/route/auth_mode" },
+    { "text": "GET /api/v1/scan/process unauthenticated → 401; reception → 403" },
+    { "text": "license GET cross-tenant owner → 403" },
+    { "text": "vitest covers; tsc green" }
+  ],
+  "allowedPaths": [
+    "app/api/tenant/setup/route.ts",
+    "app/api/license/route.ts",
+    "app/api/v1/scan/process/route.ts",
+    "tests/f23-f24-audit-context-scan-license.test.ts",
+    "tests/prime/p0-slice-missions.test.ts",
+    "fixtures/missions/p0-f23-f24-audit-scan-license.json"
+  ],
+  "forbiddenPaths": [".env", ".env.production", "clinical-policy"],
+  "workstreams": [
+    { "role": "scout", "title": "Scout · audit + GET leak" },
+    { "role": "builder", "title": "Builder · context + staff gate" },
+    { "role": "verifier", "title": "Verifier · f23/f24 tests" },
+    { "role": "reviewer", "title": "Reviewer · no deploy" }
+  ]
+}
