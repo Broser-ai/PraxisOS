@@ -1,0 +1,31 @@
+{
+  "id": "p0-f14-ci-typecheck-vitest",
+  "title": "F14 · CI workflow: typecheck + vitest on PR",
+  "riskLevel": "yellow",
+  "platformScope": ["ci", "prime"],
+  "goal": "Add a GitHub Actions workflow that runs `npm ci`, `npm run typecheck`, and `npm test` on pull requests and pushes to main/feature branches, so regressions are caught before merge. No deploy, no auto-merge. Suggestion-only.",
+  "allowedPaths": [
+    ".github/workflows/"
+  ],
+  "forbiddenPaths": [
+    ".env",
+    ".env.production",
+    "secrets/",
+    "clinical-policy",
+    "app/",
+    "lib/",
+    "supabase/"
+  ],
+  "acceptanceCriteria": [
+    { "text": ".github/workflows/ci.yml runs on pull_request + push to main" },
+    { "text": "Job installs with npm ci, runs typecheck, runs vitest" },
+    { "text": "Uses Node 22 (matches repo runtime)" },
+    { "text": "No deploy / auto-merge / publish steps" }
+  ],
+  "workstreams": [
+    { "role": "scout", "title": "Scout · CI surface" },
+    { "role": "builder", "title": "Builder · workflow file" },
+    { "role": "verifier", "title": "Verifier · workflow syntax" },
+    { "role": "reviewer", "title": "Reviewer · CI policy" }
+  ]
+}
