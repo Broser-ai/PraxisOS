@@ -89,7 +89,7 @@ describe("F35 · journal mutation audit context", () => {
     expect(res.status).toBe(200);
     const rec = _readMemorySink().find((e) => e.event === "journal.updated");
     expect(rec).toBeTruthy();
-    expect(rec?.route).toBe(`/api/journal/${draft!.id}`);
+    expect(decodeURIComponent(rec?.route ?? "")).toBe(`/api/journal/${draft!.id}`);
     expect(rec?.auth_mode).toBe("session");
     expect(rec?.ip).toBe("203.0.113.40");
   });

@@ -12,6 +12,7 @@ import {
   resolveRequestAuth,
   type AuthOk,
 } from "@/lib/request-auth";
+import { auditLogWithContext } from "@/lib/audit";
 
 export const runtime = "nodejs";
 
@@ -24,6 +25,15 @@ export async function GET(req: Request) {
 
   ensureWorkflowSubscription();
   const stats = getAutomationStats();
+
+  // F56 · agents/status read audit (owner/support surface)
+  auditLogWithContext(req, "agent.status_viewed", {
+    tenant_id: (auth as AuthOk).tenant,
+    actor_user_id: (auth as AuthOk).accountId,
+    auth_mode: (auth as AuthOk).mode,
+    meta: { runsTotal: stats.runsTotal },
+  });
+
   return NextResponse.json({
     ok: true,
     automation: stats,

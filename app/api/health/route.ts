@@ -6,6 +6,7 @@ import {
   db,
   DB_MODE,
 } from "@/lib/supabase";
+import { checkIpRateLimit } from "@/lib/rate-limit";
 
 /**
  * F26 · sanitize health `detail` so public readiness never echoes secrets,
@@ -35,13 +36,35 @@ export function sanitizeHealthDetail(detail: string | null | undefined): string 
   return out;
 }
 
+function clientIp(req: Request): string {
+  const xff = req.headers.get("x-forwarded-for");
+  if (xff) return xff.split(",")[0]!.trim();
+  return req.headers.get("x-real-ip") ?? "unknown";
+}
+
 /**
  * Readiness probe. Public OK for ops.
  * F16: production + PRAXIS_DB=mock (or missing Supabase keys) → 503 fail-fast
  * so cutover cannot silently run on memory in prod.
  * F26: detail/reason never echo secrets or credentialized URLs.
+ * F57: generous public GET rate-limit (abuse control; keep headroom for monitors).
  */
-export async function GET() {
+export async function GET(req: Request = new Request("http://localhost/api/health")) {
+  const limit = checkIpRateLimit(clientIp(req), {
+    key: "health-get",
+    limit: 300,
+    windowMs: 15 * 60 * 1000,
+  });
+  if (!limit.ok) {
+    return NextResponse.json(
+      { ok: false, error: "rate_limited", retryAfterMs: limit.retryAfterMs },
+      {
+        status: 429,
+        headers: { "Retry-After": String(Math.ceil(limit.retryAfterMs / 1000)) },
+      },
+    );
+  }
+
   const configCheck = assertProductionDbConfig();
   if (!configCheck.ok) {
     return NextResponse.json(

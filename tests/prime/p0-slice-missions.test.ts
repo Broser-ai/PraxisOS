@@ -716,4 +716,29 @@ describe("PEC · P0 slice missions (Prime Execution Control)", () => {
     // eslint-disable-next-line no-console
     console.log(`[PEC] F49–F54 mission=${mission.id} builder_status=${mergeMark.status}`);
   });
+
+  it("F55–F58 · logout/status/health → approved_for_merge intent", () => {
+    const sliceFiles = changedFilesSinceMain().filter((f) =>
+      [
+        "app/api/auth/logout/route.ts",
+        "app/api/agents/status/route.ts",
+        "app/api/health/route.ts",
+        "tests/f55-f58-logout-status-health.test.ts",
+        "fixtures/missions/p0-f55-f58-logout-status-health.json",
+        "tests/prime/p0-slice-missions.test.ts",
+      ].includes(f),
+    );
+    expect(sliceFiles.length).toBeGreaterThan(0);
+
+    const { mission, mergeMark } = driveSliceToApprovedForMerge(
+      "p0-f55-f58-logout-status-health",
+      sliceFiles,
+    );
+
+    expect(mission.id).toMatch(/^msn_/);
+    expect(getMission(mission.id)?.status).toBe("running");
+    expect(mergeMark.status).toBe("approved_for_merge");
+    // eslint-disable-next-line no-console
+    console.log(`[PEC] F55–F58 mission=${mission.id} builder_status=${mergeMark.status}`);
+  });
 });

@@ -613,6 +613,10 @@ Små mergeable commits. **Booking-flow regressiones-testes i hvert commit der r�
 | **F52** | Prime missions `auditLogWithContext` | Done |
 | **F53** | Cron swarm-tick audit context | Done |
 | **F54** | Checklist / PEC wiring for F49–F54 | Done |
+| **F55** | Logout `logout.success` audit context | Done |
+| **F56** | Agents/status `agent.status_viewed` audit | Done |
+| **F57** | Health GET generous rate-limit | Done |
+| **F58** | Logout/status/health PEC + F29 marker hygiene | Done |
 
 **Explicit out of scope for disse commits:** patient-chat, triage, nye AI-agents, LiveKit voice-consent audio, CE/MDR features, LoRA.
 
