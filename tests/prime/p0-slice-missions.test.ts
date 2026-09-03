@@ -318,4 +318,28 @@ describe("PEC · P0 slice missions (Prime Execution Control)", () => {
     // eslint-disable-next-line no-console
     console.log(`[PEC] F9 mission=${mission.id} builder_status=${mergeMark.status}`);
   });
+
+  it("F10 · cutover runbook + memory/JSON import script → approved_for_merge intent", () => {
+    const sliceFiles = changedFilesSinceMain().filter((f) =>
+      [
+        "scripts/migrate-memory-to-pg.ts",
+        "docs/ops/p0-db-cutover-runbook.md",
+        "tests/f10-cutover-runbook.test.ts",
+        "fixtures/missions/p0-f10-cutover-runbook.json",
+        "tests/prime/p0-slice-missions.test.ts",
+      ].includes(f),
+    );
+    expect(sliceFiles.length).toBeGreaterThan(0);
+
+    const { mission, mergeMark } = driveSliceToApprovedForMerge(
+      "p0-f10-cutover-runbook",
+      sliceFiles,
+    );
+
+    expect(mission.id).toMatch(/^msn_/);
+    expect(getMission(mission.id)?.status).toBe("running");
+    expect(mergeMark.status).toBe("approved_for_merge");
+    // eslint-disable-next-line no-console
+    console.log(`[PEC] F10 mission=${mission.id} builder_status=${mergeMark.status}`);
+  });
 });
