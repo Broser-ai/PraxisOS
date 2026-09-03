@@ -7,6 +7,13 @@ import type { NextRequest } from "next/server";
  * - `/review` = Michael’s master-hub til at tjekke ALT
  * - Staff, admin, funktioner/priser/signup tilladt via hub
  * - B2B engros `/shop` forbliver væk (konkurrent-host)
+ *
+ * Defense-in-depth (P0 plan §F2): client-set `x-praxis-tenant|role|account`
+ * identity headers are stripped at the edge so they can never be trusted by a
+ * handler regardless of how its guard is written. The verified source of
+ * identity is the HMAC session cookie (lib/request-auth.ts) or a verified
+ * Bearer API key. `x-praxis-signature` (inbound webhook HMAC for /api/events)
+ * is intentionally preserved.
  */
 
 const BYPILAR_HOSTS = new Set([
@@ -14,6 +21,35 @@ const BYPILAR_HOSTS = new Set([
   "bypilar.dk",
   "www.bypilar.dk",
 ]);
+
+// Identity headers a client must never be able to set. Guards resolve identity
+// from the HMAC cookie or a verified Bearer; these headers are rejected even
+// if they reach a handler (lib/request-auth.ts), and stripped here as
+// belt-and-suspenders so a future permissive guard cannot regress to trusting them.
+const SPOOFABLE_IDENTITY_HEADERS = [
+  "x-praxis-tenant",
+  "x-praxis-role",
+  "x-praxis-account",
+  "x-praxis-account-id",
+];
+
+function stripSpoofableIdentityHeaders(req: NextRequest): NextResponse {
+  // Next.js middleware header-rewrite only overrides headers explicitly
+  // present in the override set; headers omitted from the set are preserved
+  // from the inbound request. So to neutralize a spoofable identity header we
+  // must include it in the override with an empty value (falsy downstream, so
+  // guards treat it as absent — see lib/request-auth.ts spoof check).
+  const headers = new Headers(req.headers);
+  let changed = false;
+  for (const name of SPOOFABLE_IDENTITY_HEADERS) {
+    if (headers.has(name)) {
+      headers.set(name, "");
+      changed = true;
+    }
+  }
+  if (!changed) return NextResponse.next();
+  return NextResponse.next({ request: { headers } });
+}
 
 function isBypilarHost(host: string): boolean {
   const h = host.toLowerCase().split(":")[0];
@@ -61,9 +97,15 @@ function isAllowedOnBypilar(pathname: string): boolean {
 }
 
 export function middleware(req: NextRequest) {
+  // Strip spoofable identity headers first (defense-in-depth, all hosts).
+  // `cleaned` carries the rewritten headers downstream when returned; redirect
+  // paths trigger a fresh client request that re-enters middleware and is
+  // stripped again, so they need not forward the cleaned headers.
+  const cleaned = stripSpoofableIdentityHeaders(req);
+
   const host = req.headers.get("host") ?? "";
   if (!isBypilarHost(host)) {
-    return NextResponse.next();
+    return cleaned;
   }
 
   const { pathname } = req.nextUrl;
@@ -88,7 +130,7 @@ export function middleware(req: NextRequest) {
     return NextResponse.redirect(url);
   }
 
-  return NextResponse.next();
+  return cleaned;
 }
 
 export const config = {
