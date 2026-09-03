@@ -1,5 +1,12 @@
 import { NextResponse } from "next/server";
 import { getTenant } from "@/lib/tenants";
+import { checkIpRateLimit } from "@/lib/rate-limit";
+
+function clientIp(req: Request): string {
+  const xff = req.headers.get("x-forwarded-for");
+  if (xff) return xff.split(",")[0]!.trim();
+  return req.headers.get("x-real-ip") ?? "unknown";
+}
 
 // GET /api/v1/{tenant}/availability?service=ID&from=YYYY-MM-DD&days=7
 // Returnerer ledige tider — mock-generator, swappes til ægte kalender-engine senere.
@@ -10,6 +17,22 @@ export async function GET(
   const { tenant: slug } = await params;
   const t = getTenant(slug);
   if (!t) return NextResponse.json({ error: "tenant_not_found" }, { status: 404 });
+
+  // F51 · public GET rate-limit
+  const limit = checkIpRateLimit(clientIp(req), {
+    key: `availability-get:${slug}`,
+    limit: 120,
+    windowMs: 15 * 60 * 1000,
+  });
+  if (!limit.ok) {
+    return NextResponse.json(
+      { error: "rate_limited", retryAfterMs: limit.retryAfterMs },
+      {
+        status: 429,
+        headers: { "Retry-After": String(Math.ceil(limit.retryAfterMs / 1000)) },
+      },
+    );
+  }
 
   const url = new URL(req.url);
   const serviceId = url.searchParams.get("service");

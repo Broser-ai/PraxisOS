@@ -1,6 +1,6 @@
 import { NextRequest, NextResponse } from "next/server";
 import { getTenant } from "@/lib/tenants";
-import { auditLog } from "@/lib/audit";
+import { auditLogWithContext } from "@/lib/audit";
 import {
   EXECUTION_CONTROL_INVARIANTS,
   appendEvidence,
@@ -183,10 +183,12 @@ export async function POST(
 
   if (mutatingOwnerActions.has(action)) {
     if (auth.role !== "owner" && auth.role !== "support") {
-      auditLog("prime.mission_forbidden", {
+      // F52 · request-context on forbidden
+      auditLogWithContext(req, "prime.mission_forbidden", {
         tenant_id: tenant,
         actor_user_id: auth.accountId,
-        action,
+        auth_mode: "session",
+        meta: { action },
       });
       return forbidden();
     }
@@ -346,11 +348,11 @@ export async function POST(
           status: result.error === "already_seeded" ? 200 : 400,
         });
       }
-      auditLog("prime.mission_seeded", {
+      auditLogWithContext(req, "prime.mission_seeded", {
         tenant_id: tenant,
         actor_user_id: auth.accountId,
-        fixtureId,
-        missionId: result.id,
+        auth_mode: "session",
+        meta: { fixtureId, missionId: result.id },
       });
       return NextResponse.json(
         {

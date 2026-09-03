@@ -1,5 +1,12 @@
 import { NextResponse } from "next/server";
 import { getTenant, hasModule } from "@/lib/tenants";
+import { checkIpRateLimit } from "@/lib/rate-limit";
+
+function clientIp(req: Request): string {
+  const xff = req.headers.get("x-forwarded-for");
+  if (xff) return xff.split(",")[0]!.trim();
+  return req.headers.get("x-real-ip") ?? "unknown";
+}
 
 // GET /api/v1/{tenant}/services
 // Public booking-API — bruges af bypilar.dk's eksisterende frontend (headless mode).
@@ -14,6 +21,22 @@ export async function GET(
   }
   if (!hasModule(t, "booking")) {
     return NextResponse.json({ error: "module_not_licensed", module: "booking" }, { status: 402 });
+  }
+
+  // F51 · public GET rate-limit (scrape / abuse control)
+  const limit = checkIpRateLimit(clientIp(req), {
+    key: `services-get:${slug}`,
+    limit: 120,
+    windowMs: 15 * 60 * 1000,
+  });
+  if (!limit.ok) {
+    return NextResponse.json(
+      { error: "rate_limited", retryAfterMs: limit.retryAfterMs },
+      {
+        status: 429,
+        headers: { "Retry-After": String(Math.ceil(limit.retryAfterMs / 1000)) },
+      },
+    );
   }
 
   return NextResponse.json(

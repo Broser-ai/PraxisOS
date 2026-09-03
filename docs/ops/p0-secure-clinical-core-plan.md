@@ -607,6 +607,12 @@ Små mergeable commits. **Booking-flow regressiones-testes i hvert commit der r�
 | **F46** | Remaining `decodeSession` stragglers (prime missions) | Done |
 | **F47** | Operator checklist update for F23–F40 (+ F41–F48) | Done |
 | **F48** | Lookup/voucher remaining gaps (email/code validate, no memberId) | Done |
+| **F49** | CODE-MAP + `.env.example` captcha docs (F41–F54) | Done |
+| **F50** | `GET /api/auth/me` → `sessionFromRequest` + `auth.me` audit | Done |
+| **F51** | Public GET rate-limit services / availability | Done |
+| **F52** | Prime missions `auditLogWithContext` | Done |
+| **F53** | Cron swarm-tick audit context | Done |
+| **F54** | Checklist / PEC wiring for F49–F54 | Done |
 
 **Explicit out of scope for disse commits:** patient-chat, triage, nye AI-agents, LiveKit voice-consent audio, CE/MDR features, LoRA.
 

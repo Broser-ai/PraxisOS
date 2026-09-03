@@ -63,6 +63,9 @@ Follow `docs/ops/p0-db-cutover-runbook.md` §0–§2. Short form:
 - [ ] Public GET bird/status, bird/config, scan/config return 429 under burst (F44).
 - [ ] `POST /api/agents/run` emits `agent.run` audit with request context (F45).
 - [ ] Prime missions use `requireTenantAccess` (F46).
+- [ ] `GET /api/auth/me` emits `auth.me` audit (F50).
+- [ ] Public services/availability return 429 under burst (F51).
+- [ ] Cron swarm-tick unauthorized emits audit (F53).
 
 ## E. Explicit non-goals (do not do in this cutover)
 

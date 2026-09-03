@@ -122,10 +122,10 @@ Auth notes: staff = session cookie; public = rate-limit / HMAC / allowlist as no
 
 | Path | Method | Auth | Formål |
 |------|--------|------|--------|
-| `/api/signup` | POST | Public | Opret tenant + owner · **F25 audit** |
-| `/api/auth/login` | POST | Public | Email/password login (+ audit) |
+| `/api/signup` | POST | Public | Opret tenant + owner · **F25** · **F42 captcha** |
+| `/api/auth/login` | POST | Public | Email/password login · **F37** · **F42 captcha** |
 | `/api/auth/logout` | POST | Session | Clear session-cookie |
-| `/api/auth/me` | GET | Session | Current account |
+| `/api/auth/me` | GET | Session | Current account · **F50 audit** |
 | `/api/health` | GET | Public | Readiness · **F16 fail-fast** · **F26 detail redact** |
 | `/api/cvr/lookup` | GET | Public | Proxy til cvrapi.dk |
 | `/api/dawa/autocomplete` | GET | Public | DAWA-adresser |
@@ -134,19 +134,19 @@ Auth notes: staff = session cookie; public = rate-limit / HMAC / allowlist as no
 | `/api/mcp/v1` | POST | API key | MCP JSON-RPC · verifyApiKey (F13) |
 | `/api/license` | GET/POST | Owner/support | License · **F23 audit** · **F24 tenant scope** |
 | `/api/tenant/setup` | POST | Owner | Tenant setup · **F23 audit context** |
-| `/api/scan/config` | GET | Public | Scan readiness |
+| `/api/scan/config` | GET | Public+rate | Scan readiness · **F33** · **F44 rate** |
 | `/api/scan/config` | POST | Owner | Scan secrets write |
-| `/api/bird/config` | GET | Public | Bird readiness |
+| `/api/bird/config` | GET | Public+rate | Bird readiness · **F33** · **F44 rate** |
 | `/api/bird/config` | POST | Owner | Bird secrets write |
 | `/api/bird/send` | POST | Staff+consent | SMS send |
-| `/api/bird/status` | GET | Public | Bird status · **F36 no keyHint** |
+| `/api/bird/status` | GET | Public+rate | Bird status · **F36** · **F44 rate** |
 | `/api/agents/status` | GET | Owner/support | Automation status |
-| `/api/agents/run` | POST | Staff | Agent chat run |
-| `/api/agents/approvals` | GET/POST | Staff | Approval list/decide |
+| `/api/agents/run` | POST | Staff | Agent chat run · **F45 audit** |
+| `/api/agents/approvals` | GET/POST | Staff | Approval list/decide · **F40** |
 | `/api/agents/workflows` | GET | Owner/support | Workflow list (F20) |
 | `/api/agents/workflows` | POST | Worker secret | Tick/run workflows |
 | `/api/agents/tick` | GET/POST | Worker secret | Automation tick (F12 fail-closed) |
-| `/api/cron/swarm-tick` | POST | Worker secret | Swarm cron |
+| `/api/cron/swarm-tick` | GET | Cron secret | Swarm cron · **F53 audit** |
 | `/api/journal` | GET/POST | Staff | Journal list/create · **F35 audit** |
 | `/api/journal/from-booking` | POST | Staff | Journal from booking · **F30** |
 | `/api/journal/[id]` | GET/PATCH | Staff | Journal read/patch · **F35 audit** |
@@ -154,18 +154,18 @@ Auth notes: staff = session cookie; public = rate-limit / HMAC / allowlist as no
 | `/api/journal/[id]/draft` | POST | Staff+consent | AI SOAP draft · **F35** |
 | `/api/v1/scan/process` | GET | Staff | Scan pipeline readiness · **F24** |
 | `/api/v1/scan/process` | POST | Staff+consent | Foot-scan process · **F23 audit** |
-| `/api/v1/[tenant]/availability` | GET | Public | Ledige slots |
-| `/api/v1/[tenant]/services` | GET | Public | Tenant services |
+| `/api/v1/[tenant]/availability` | GET | Public+rate | Ledige slots · **F51** |
+| `/api/v1/[tenant]/services` | GET | Public+rate | Tenant services · **F51** |
 | `/api/v1/[tenant]/bookings` | POST | Public+kit | Opret booking (CORS+rate-limit) |
 | `/api/v1/[tenant]/bookings/list` | GET | Staff/key | Liste bookings |
 | `/api/v1/[tenant]/clients` | GET/POST | Staff/key | Klient-CRUD |
-| `/api/v1/[tenant]/consent` | POST | Public+rate | Onboarding consent (F17) |
-| `/api/v1/[tenant]/lookup` | GET | Public+rate | Client/email lookup |
-| `/api/v1/[tenant]/voucher` | GET | Public+rate | Voucher validate |
-| `/api/v1/[tenant]/prime/missions` | * | Staff | Prime missions |
-| `/api/v1/[tenant]/orchestrator` | * | Staff | Orchestrator |
-| `/api/v1/[tenant]/swarm` | * | Staff | Swarm control |
-| `/api/v1/[tenant]/research` | * | Staff | Research tools |
+| `/api/v1/[tenant]/consent` | POST | Public+rate | Onboarding consent · **F17** · **F43 audit** |
+| `/api/v1/[tenant]/lookup` | GET | Public+rate | Client/email lookup · **F22** · **F48** |
+| `/api/v1/[tenant]/voucher` | GET | Public+rate | Voucher validate · **F22** · **F48** |
+| `/api/v1/[tenant]/prime/missions` | * | Staff | Prime missions · **F46** · **F52 audit** |
+| `/api/v1/[tenant]/orchestrator` | * | Staff | Orchestrator · **F41** |
+| `/api/v1/[tenant]/swarm` | * | Staff | Swarm control · **F41** |
+| `/api/v1/[tenant]/research` | * | Staff | Research tools · **F41** |
 | `/embed/v1/[tenant]` | GET | Public | JS booking snippet |
 
 ## Components
@@ -194,15 +194,15 @@ Auth notes: staff = session cookie; public = rate-limit / HMAC / allowlist as no
 | `FunktionerCatalog.tsx` | Feature catalog |
 | `MarketingNav.tsx` | Marketing navigation |
 
-## Total (F38 refresh)
+## Total (F49 refresh)
 
 - **44 API route handlers** (was listed as 15 — stale)
-- **Lib modules** under `lib/` incl. consent, audit, prime, public-booking-kit, request-auth
+- **Lib modules** under `lib/` incl. consent, audit, captcha, prime, public-booking-kit, request-auth
 - **17 components** (FootScan/SwarmPanel removed)
 - **Migrations** `0001`–`0008` under `supabase/migrations/`
-- Continue-dev slices **F11–F38** on PR #34
+- Continue-dev slices **F11–F54** on PR #34
 
 ---
 
-*Opdateret 2026-09-03 · F38 CODE-MAP accuracy pass (P0 continue-dev)*
+*Opdateret 2026-09-03 · F49 CODE-MAP accuracy pass (P0 continue-dev)*
 
