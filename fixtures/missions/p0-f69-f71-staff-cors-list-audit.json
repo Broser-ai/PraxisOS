@@ -1,0 +1,28 @@
+{
+  "id": "p0-f69-f71-staff-cors-list-audit",
+  "title": "P0 F69–F71 · staff CORS strip + list audits",
+  "goal": "Remove ACAO * from staff clients/bookings list; audit list views; plan markers. Suggestion_only; no auto merge/deploy.",
+  "riskLevel": "yellow",
+  "platformScope": ["clinic_ops", "prime"],
+  "acceptanceCriteria": [
+    { "text": "clients + bookings/list omit ACAO *" },
+    { "text": "booking.list_viewed + client.list_viewed audits" },
+    { "text": "vitest covers; tsc green" }
+  ],
+  "allowedPaths": [
+    "app/api/v1/[tenant]/clients/route.ts",
+    "app/api/v1/[tenant]/bookings/list/route.ts",
+    "tests/f69-f71-staff-cors-list-audit.test.ts",
+    "tests/prime/p0-slice-missions.test.ts",
+    "fixtures/missions/p0-f69-f71-staff-cors-list-audit.json",
+    "docs/ops/p0-secure-clinical-core-plan.md",
+    "CODE-MAP.md"
+  ],
+  "forbiddenPaths": [".env", ".env.production", "clinical-policy"],
+  "workstreams": [
+    { "role": "scout", "title": "Scout · staff CORS *" },
+    { "role": "builder", "title": "Builder · F69–F71" },
+    { "role": "verifier", "title": "Verifier · f69-f71 tests" },
+    { "role": "reviewer", "title": "Reviewer · no deploy" }
+  ]
+}

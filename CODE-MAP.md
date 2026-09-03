@@ -158,8 +158,8 @@ Auth notes: staff = session cookie; public = rate-limit / HMAC / allowlist as no
 | `/api/v1/[tenant]/availability` | GET | Public+rate | Ledige slots · **F51** · **F65 CORS** |
 | `/api/v1/[tenant]/services` | GET | Public+rate | Tenant services · **F51** · **F65 CORS** |
 | `/api/v1/[tenant]/bookings` | POST | Public+kit | Opret booking (CORS+rate-limit) · **F62 audit** |
-| `/api/v1/[tenant]/bookings/list` | GET | Staff/key | Liste bookings |
-| `/api/v1/[tenant]/clients` | GET/POST | Staff/key | Klient-CRUD |
+| `/api/v1/[tenant]/bookings/list` | GET | Staff/key | Liste bookings · **F69** no ACAO* · **F70 audit** |
+| `/api/v1/[tenant]/clients` | GET/POST | Staff/key | Klient-CRUD · **F69** no ACAO* · **F70 list audit** |
 | `/api/v1/[tenant]/consent` | POST | Public+rate | Onboarding consent · **F17** · **F43 audit** |
 | `/api/v1/[tenant]/lookup` | GET | Public+rate | Client/email lookup · **F22** · **F48** |
 | `/api/v1/[tenant]/voucher` | GET | Public+rate | Voucher validate · **F22** · **F48** |

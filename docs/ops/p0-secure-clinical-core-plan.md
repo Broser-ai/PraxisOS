@@ -627,6 +627,9 @@ Små mergeable commits. **Booking-flow regressiones-testes i hvert commit der r�
 | **F66** | Swarm/tick + research harvest `auditLogWithContext` | Done |
 | **F67** | MCP unauthorized audit on bad Bearer | Done |
 | **F68** | Agent worker auth → `auditLogWithContext` | Done |
+| **F69** | Strip ACAO `*` from staff clients + bookings/list | Done |
+| **F70** | Staff list audits (`booking.list_viewed` / `client.list_viewed`) | Done |
+| **F71** | Plan/CODE-MAP hygiene for F65–F70 | Done |
 
 **Explicit out of scope for disse commits:** patient-chat, triage, nye AI-agents, LiveKit voice-consent audio, CE/MDR features, LoRA.
 
