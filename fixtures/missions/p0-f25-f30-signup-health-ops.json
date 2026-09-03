@@ -1,0 +1,33 @@
+{
+  "id": "p0-f25-f30-signup-health-ops",
+  "title": "P0 F25–F30 · signup audit, health redact, checklist, middleware, auth audit, from-booking",
+  "goal": "Signup audit trail; health detail redaction; operator checklist #33+#34; middleware strip edge cases; authorizeTenantRequest usage audit; journal from-booking auth tests. Suggestion_only; no auto merge/deploy.",
+  "riskLevel": "yellow",
+  "platformScope": ["clinic_ops", "prime"],
+  "acceptanceCriteria": [
+    { "text": "signup.success/failure emit with auth_mode public + request context" },
+    { "text": "sanitizeHealthDetail strips JWT/URL credentials; health JSON clean" },
+    { "text": "operator checklist links #33 #34 cutover NO_AUTO_*" },
+    { "text": "middleware strips mixed-case spoof headers; preserves signature" },
+    { "text": "F29 sensitive routes all guarded; core use requireTenantAccess" },
+    { "text": "from-booking unauth 401 / cross-tenant 403 / audit on create" },
+    { "text": "vitest covers; tsc green" }
+  ],
+  "allowedPaths": [
+    "app/api/signup/route.ts",
+    "app/api/health/route.ts",
+    "app/api/journal/from-booking/route.ts",
+    "docs/ops/p0-operator-checklist-merge-cutover.md",
+    "tests/f25-f30-signup-health-frombooking.test.ts",
+    "tests/f29-authorize-tenant-usage-audit.test.ts",
+    "tests/prime/p0-slice-missions.test.ts",
+    "fixtures/missions/p0-f25-f30-signup-health-ops.json"
+  ],
+  "forbiddenPaths": [".env", ".env.production", "clinical-policy"],
+  "workstreams": [
+    { "role": "scout", "title": "Scout · signup/health/from-booking gaps" },
+    { "role": "builder", "title": "Builder · audit/redact/checklist" },
+    { "role": "verifier", "title": "Verifier · f25–f30 tests" },
+    { "role": "reviewer", "title": "Reviewer · invariants intact" }
+  ]
+}

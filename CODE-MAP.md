@@ -122,18 +122,18 @@ Auth notes: staff = session cookie; public = rate-limit / HMAC / allowlist as no
 
 | Path | Method | Auth | Formål |
 |------|--------|------|--------|
-| `/api/signup` | POST | Public | Opret tenant + owner |
+| `/api/signup` | POST | Public | Opret tenant + owner · **F25 audit** |
 | `/api/auth/login` | POST | Public | Email/password login (+ audit) |
 | `/api/auth/logout` | POST | Session | Clear session-cookie |
 | `/api/auth/me` | GET | Session | Current account |
-| `/api/health` | GET | Public | Readiness · **F16 fail-fast** on prod+mock → 503 |
+| `/api/health` | GET | Public | Readiness · **F16 fail-fast** · **F26 detail redact** |
 | `/api/cvr/lookup` | GET | Public | Proxy til cvrapi.dk |
 | `/api/dawa/autocomplete` | GET | Public | DAWA-adresser |
 | `/api/events` | GET | Staff | Event-log (F19) |
 | `/api/events` | POST | HMAC | Publish event (`x-praxis-signature`) |
 | `/api/mcp/v1` | POST | API key | MCP JSON-RPC · verifyApiKey (F13) |
-| `/api/license` | GET/POST | Staff | License read/write |
-| `/api/tenant/setup` | POST | Owner | Tenant setup |
+| `/api/license` | GET/POST | Owner/support | License · **F23 audit** · **F24 tenant scope** |
+| `/api/tenant/setup` | POST | Owner | Tenant setup · **F23 audit context** |
 | `/api/scan/config` | GET | Public | Scan readiness |
 | `/api/scan/config` | POST | Owner | Scan secrets write |
 | `/api/bird/config` | GET | Public | Bird readiness |
@@ -148,11 +148,12 @@ Auth notes: staff = session cookie; public = rate-limit / HMAC / allowlist as no
 | `/api/agents/tick` | GET/POST | Worker secret | Automation tick (F12 fail-closed) |
 | `/api/cron/swarm-tick` | POST | Worker secret | Swarm cron |
 | `/api/journal` | GET/POST | Staff | Journal list/create |
-| `/api/journal/from-booking` | POST | Staff | Journal from booking |
+| `/api/journal/from-booking` | POST | Staff | Journal from booking · **F30** |
 | `/api/journal/[id]` | GET/PATCH | Staff | Journal read/patch |
 | `/api/journal/[id]/sign` | POST | Staff | Sign (NO_AUTO_JOURNAL_SIGN) |
 | `/api/journal/[id]/draft` | POST | Staff+consent | AI SOAP draft |
-| `/api/v1/scan/process` | POST | Staff+consent | Foot-scan process |
+| `/api/v1/scan/process` | GET | Staff | Scan pipeline readiness · **F24** |
+| `/api/v1/scan/process` | POST | Staff+consent | Foot-scan process · **F23 audit** |
 | `/api/v1/[tenant]/availability` | GET | Public | Ledige slots |
 | `/api/v1/[tenant]/services` | GET | Public | Tenant services |
 | `/api/v1/[tenant]/bookings` | POST | Public+kit | Opret booking (CORS+rate-limit) |

@@ -487,4 +487,56 @@ describe("PEC · P0 slice missions (Prime Execution Control)", () => {
     // eslint-disable-next-line no-console
     console.log(`[PEC] F21/F22 mission=${mission.id} builder_status=${mergeMark.status}`);
   });
+
+  it("F23/F24 · audit context + scan GET / license scope → approved_for_merge intent", () => {
+    const sliceFiles = changedFilesSinceMain().filter((f) =>
+      [
+        "app/api/tenant/setup/route.ts",
+        "app/api/license/route.ts",
+        "app/api/v1/scan/process/route.ts",
+        "tests/f23-f24-audit-context-scan-license.test.ts",
+        "fixtures/missions/p0-f23-f24-audit-scan-license.json",
+        "tests/prime/p0-slice-missions.test.ts",
+      ].includes(f),
+    );
+    expect(sliceFiles.length).toBeGreaterThan(0);
+
+    const { mission, mergeMark } = driveSliceToApprovedForMerge(
+      "p0-f23-f24-audit-scan-license",
+      sliceFiles,
+    );
+
+    expect(mission.id).toMatch(/^msn_/);
+    expect(getMission(mission.id)?.status).toBe("running");
+    expect(mergeMark.status).toBe("approved_for_merge");
+    // eslint-disable-next-line no-console
+    console.log(`[PEC] F23/F24 mission=${mission.id} builder_status=${mergeMark.status}`);
+  });
+
+  it("F25–F30 · signup/health/ops/middleware/auth-audit/from-booking → approved_for_merge intent", () => {
+    const sliceFiles = changedFilesSinceMain().filter((f) =>
+      [
+        "app/api/signup/route.ts",
+        "app/api/health/route.ts",
+        "app/api/journal/from-booking/route.ts",
+        "docs/ops/p0-operator-checklist-merge-cutover.md",
+        "tests/f25-f30-signup-health-frombooking.test.ts",
+        "tests/f29-authorize-tenant-usage-audit.test.ts",
+        "fixtures/missions/p0-f25-f30-signup-health-ops.json",
+        "tests/prime/p0-slice-missions.test.ts",
+      ].includes(f),
+    );
+    expect(sliceFiles.length).toBeGreaterThan(0);
+
+    const { mission, mergeMark } = driveSliceToApprovedForMerge(
+      "p0-f25-f30-signup-health-ops",
+      sliceFiles,
+    );
+
+    expect(mission.id).toMatch(/^msn_/);
+    expect(getMission(mission.id)?.status).toBe("running");
+    expect(mergeMark.status).toBe("approved_for_merge");
+    // eslint-disable-next-line no-console
+    console.log(`[PEC] F25–F30 mission=${mission.id} builder_status=${mergeMark.status}`);
+  });
 });

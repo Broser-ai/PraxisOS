@@ -581,6 +581,14 @@ Sm√• mergeable commits. **Booking-flow regressiones-testes i hvert commit der r√
 | **F20** | `GET /api/agents/workflows` staff-gated | Done |
 | **F21** | CODE-MAP accuracy | Done |
 | **F22** | Lookup/voucher isolated stricter rate-limit | Done |
+| **F23** | Audit request context on tenant setup / license / scan process | Done |
+| **F24** | Staff-gate `GET /api/v1/scan/process` + license GET tenant scope | Done |
+| **F25** | Signup audit (`signup.success` / `.failure` / `.rate_limited`) | Done |
+| **F26** | Health `detail` secrets redaction (`sanitizeHealthDetail`) | Done |
+| **F27** | Operator checklist linking #33+#34 + cutover | Done |
+| **F28** | Middleware strip identity headers edge cases | Done |
+| **F29** | `authorizeTenantRequest` / guard usage audit (grep + tests) | Done |
+| **F30** | Journal from-booking auth tests + audit context | Done |
 
 **Explicit out of scope for disse commits:** patient-chat, triage, nye AI-agents, LiveKit voice-consent audio, CE/MDR features, LoRA.
 
