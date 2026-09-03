@@ -1,7 +1,7 @@
 # PraxisOS · Code Map · Every File Explained
 
 > Hver eneste fil i repo-roden med 1-linje formål.
-> Kompletterer `HANDOVER.md`. Opdateret 2026-07-31.
+> Kompletterer `HANDOVER.md`. Opdateret 2026-09-03 (F21).
 
 ## Configuration files (root)
 
@@ -116,27 +116,58 @@ Se `/admin/*` sider i HANDOVER §5.4 — inkl. tenants, payments, vouchers, subs
 | `/r/[id]` · `/status` | Patient-reservation |
 | `/demo/bypilar-website` | Embed-demo |
 
-## API endpoints (15)
+## API endpoints (44 route handlers)
 
-| Path | Method | Formål |
-|------|--------|--------|
-| `/api/signup` | POST | Opret tenant + owner |
-| `/api/auth/login` | POST | Email/password login |
-| `/api/auth/logout` | POST | Clear session-cookie |
-| `/api/cvr/lookup` | GET | Proxy til cvrapi.dk |
-| `/api/dawa/autocomplete` | GET | DAWA-adresser |
-| `/api/events` | GET (SSE) | Event-stream |
-| `/api/mcp/v1` | POST | MCP JSON-RPC 2.0 · 19 tools |
-| `/api/v1/[tenant]/availability` | GET | Ledige slots |
-| `/api/v1/[tenant]/bookings` | POST | Opret booking |
-| `/api/v1/[tenant]/bookings/list` | GET | Liste bookings |
-| `/api/v1/[tenant]/clients` | GET/POST | Klient-CRUD |
-| `/api/v1/[tenant]/lookup` | POST | CPR-match |
-| `/api/v1/[tenant]/services` | GET | Tenant services |
-| `/api/v1/[tenant]/voucher` | POST | Redeem voucher |
-| `/embed/v1/[tenant]` | GET | JS-snippet |
+Auth notes: staff = session cookie; public = rate-limit / HMAC / allowlist as noted.
 
-## Components (12)
+| Path | Method | Auth | Formål |
+|------|--------|------|--------|
+| `/api/signup` | POST | Public | Opret tenant + owner |
+| `/api/auth/login` | POST | Public | Email/password login (+ audit) |
+| `/api/auth/logout` | POST | Session | Clear session-cookie |
+| `/api/auth/me` | GET | Session | Current account |
+| `/api/health` | GET | Public | Readiness · **F16 fail-fast** on prod+mock → 503 |
+| `/api/cvr/lookup` | GET | Public | Proxy til cvrapi.dk |
+| `/api/dawa/autocomplete` | GET | Public | DAWA-adresser |
+| `/api/events` | GET | Staff | Event-log (F19) |
+| `/api/events` | POST | HMAC | Publish event (`x-praxis-signature`) |
+| `/api/mcp/v1` | POST | API key | MCP JSON-RPC · verifyApiKey (F13) |
+| `/api/license` | GET/POST | Staff | License read/write |
+| `/api/tenant/setup` | POST | Owner | Tenant setup |
+| `/api/scan/config` | GET | Public | Scan readiness |
+| `/api/scan/config` | POST | Owner | Scan secrets write |
+| `/api/bird/config` | GET | Public | Bird readiness |
+| `/api/bird/config` | POST | Owner | Bird secrets write |
+| `/api/bird/send` | POST | Staff+consent | SMS send |
+| `/api/bird/status` | GET | Public | Bird status |
+| `/api/agents/status` | GET | Owner/support | Automation status |
+| `/api/agents/run` | POST | Staff | Agent chat run |
+| `/api/agents/approvals` | GET/POST | Staff | Approval list/decide |
+| `/api/agents/workflows` | GET | Owner/support | Workflow list (F20) |
+| `/api/agents/workflows` | POST | Worker secret | Tick/run workflows |
+| `/api/agents/tick` | GET/POST | Worker secret | Automation tick (F12 fail-closed) |
+| `/api/cron/swarm-tick` | POST | Worker secret | Swarm cron |
+| `/api/journal` | GET/POST | Staff | Journal list/create |
+| `/api/journal/from-booking` | POST | Staff | Journal from booking |
+| `/api/journal/[id]` | GET/PATCH | Staff | Journal read/patch |
+| `/api/journal/[id]/sign` | POST | Staff | Sign (NO_AUTO_JOURNAL_SIGN) |
+| `/api/journal/[id]/draft` | POST | Staff+consent | AI SOAP draft |
+| `/api/v1/scan/process` | POST | Staff+consent | Foot-scan process |
+| `/api/v1/[tenant]/availability` | GET | Public | Ledige slots |
+| `/api/v1/[tenant]/services` | GET | Public | Tenant services |
+| `/api/v1/[tenant]/bookings` | POST | Public+kit | Opret booking (CORS+rate-limit) |
+| `/api/v1/[tenant]/bookings/list` | GET | Staff/key | Liste bookings |
+| `/api/v1/[tenant]/clients` | GET/POST | Staff/key | Klient-CRUD |
+| `/api/v1/[tenant]/consent` | POST | Public+rate | Onboarding consent (F17) |
+| `/api/v1/[tenant]/lookup` | GET | Public+rate | Client/email lookup |
+| `/api/v1/[tenant]/voucher` | GET | Public+rate | Voucher validate |
+| `/api/v1/[tenant]/prime/missions` | * | Staff | Prime missions |
+| `/api/v1/[tenant]/orchestrator` | * | Staff | Orchestrator |
+| `/api/v1/[tenant]/swarm` | * | Staff | Swarm control |
+| `/api/v1/[tenant]/research` | * | Staff | Research tools |
+| `/embed/v1/[tenant]` | GET | Public | JS booking snippet |
+
+## Components
 
 > `FootScan.tsx` and `SwarmPanel.tsx` were removed as confirmed orphans
 > (F15 · no app/lib/test imports; active scan UI is `NexusScanPanel`,
@@ -149,6 +180,8 @@ Se `/admin/*` sider i HANDOVER §5.4 — inkl. tenants, payments, vouchers, subs
 | `TrialBanner.tsx` | Trial-banner for bypilar |
 | `FootMesh3D.tsx` | Canvas 3D-mesh rotation |
 | `SkinScan.tsx` | Æstetik-skanner UI |
+| `NexusScanPanel.tsx` | Active foot-scan UI |
+| `NexusProviderSetup.tsx` | Nexus provider setup |
 | `AddressAutocomplete.tsx` | DAWA-powered input |
 | `CprMatch.tsx` | CPR-verifikation |
 | `CvrLookup.tsx` | CVR-opslag |
@@ -156,14 +189,18 @@ Se `/admin/*` sider i HANDOVER §5.4 — inkl. tenants, payments, vouchers, subs
 | `PaymentStep.tsx` | PraxisOS Pay step |
 | `SubsidyBanner.tsx` | Auto tilskuds-valg |
 | `VoucherInput.tsx` | Klippekort/gavekort redeem |
+| `AlphaViewer4D.tsx` | 4D alpha viewer |
+| `FunktionerCatalog.tsx` | Feature catalog |
+| `MarketingNav.tsx` | Marketing navigation |
 
-## Total
+## Total (F21 refresh)
 
-- **~75 endpoints** (60 pages + 15 API)
-- **19 lib-moduler** (~3.600 LOC forretningslogik)
-- **14 components** (~2.300 LOC delt UI)
-- **1 SQL migration** (~420 LOC schema)
+- **44 API route handlers** (was listed as 15 — stale)
+- **Lib modules** under `lib/` incl. consent, audit, prime, public-booking-kit, request-auth
+- **17 components** (FootScan/SwarmPanel removed)
+- **Migrations** `0001`–`0008` under `supabase/migrations/`
 
 ---
 
-*Opdateret 2026-07-31 fra repo-rod tree-walk*
+*Opdateret 2026-09-03 · F21 CODE-MAP accuracy pass (P0 continue-dev)*
+

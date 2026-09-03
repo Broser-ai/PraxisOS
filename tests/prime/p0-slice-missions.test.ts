@@ -461,4 +461,30 @@ describe("PEC · P0 slice missions (Prime Execution Control)", () => {
     // eslint-disable-next-line no-console
     console.log(`[PEC] F20 mission=${mission.id} builder_status=${mergeMark.status}`);
   });
+
+  it("F21/F22 · CODE-MAP + lookup rate-limit → approved_for_merge intent", () => {
+    const sliceFiles = changedFilesSinceMain().filter((f) =>
+      [
+        "CODE-MAP.md",
+        "lib/public-booking-kit.ts",
+        "app/api/v1/[tenant]/lookup/route.ts",
+        "app/api/v1/[tenant]/voucher/route.ts",
+        "tests/f21-f22-codemap-ratelimit.test.ts",
+        "fixtures/missions/p0-f21-f22-codemap-ratelimit.json",
+        "tests/prime/p0-slice-missions.test.ts",
+      ].includes(f),
+    );
+    expect(sliceFiles.length).toBeGreaterThan(0);
+
+    const { mission, mergeMark } = driveSliceToApprovedForMerge(
+      "p0-f21-f22-codemap-ratelimit",
+      sliceFiles,
+    );
+
+    expect(mission.id).toMatch(/^msn_/);
+    expect(getMission(mission.id)?.status).toBe("running");
+    expect(mergeMark.status).toBe("approved_for_merge");
+    // eslint-disable-next-line no-console
+    console.log(`[PEC] F21/F22 mission=${mission.id} builder_status=${mergeMark.status}`);
+  });
 });

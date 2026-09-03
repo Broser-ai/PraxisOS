@@ -11,7 +11,7 @@ import { findClientByEmail } from "@/lib/clients";
 import { calculateSubsidies, patientProfiles, SCHEME_LABEL, SCHEME_AUTHORITY } from "@/lib/subsidies";
 import { listVouchers } from "@/lib/vouchers";
 import {
-  bookingRateLimit,
+  publicLookupRateLimit,
   clientIp,
   bookingAllowedOrigin,
 } from "@/lib/public-booking-kit";
@@ -24,8 +24,8 @@ export async function GET(
   const t = getTenant(slug);
   if (!t) return NextResponse.json({ error: "tenant_not_found" }, { status: 404 });
 
-  // Rate-limit per IP + tenant (PII email enumeration control — no login).
-  const limit = bookingRateLimit(clientIp(req), slug);
+  // F22 · stricter separate rate-limit (PII email enumeration control).
+  const limit = publicLookupRateLimit(clientIp(req), slug);
   if (!limit.ok) {
     return NextResponse.json(
       { error: "rate_limited", retryAfter: limit.retryAfter },

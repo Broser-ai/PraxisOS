@@ -1,0 +1,29 @@
+{
+  "id": "p0-f21-f22-codemap-ratelimit",
+  "title": "P0 F21/F22 · CODE-MAP accuracy + lookup/voucher rate-limit harden",
+  "goal": "Refresh CODE-MAP.md to match live API/components (44 routes, F15–F20 notes). Harden public lookup/voucher with separate stricter rate-limit (default 20) isolated from booking bucket. Suggestion_only; no auto merge/deploy.",
+  "riskLevel": "yellow",
+  "platformScope": ["clinic_ops", "prime"],
+  "acceptanceCriteria": [
+    { "text": "CODE-MAP documents ~44 API routes, consent/health/events/workflows, NexusScanPanel; FootScan/SwarmPanel noted removed" },
+    { "text": "publicLookupRateLimit defaults to 20 and is isolated from bookingRateLimit" },
+    { "text": "lookup + voucher routes use publicLookupRateLimit and 429 without starving bookings" },
+    { "text": "vitest covers; tsc green" }
+  ],
+  "allowedPaths": [
+    "CODE-MAP.md",
+    "lib/public-booking-kit.ts",
+    "app/api/v1/[tenant]/lookup/route.ts",
+    "app/api/v1/[tenant]/voucher/route.ts",
+    "tests/f21-f22-codemap-ratelimit.test.ts",
+    "tests/prime/p0-slice-missions.test.ts",
+    "fixtures/missions/p0-f21-f22-codemap-ratelimit.json"
+  ],
+  "forbiddenPaths": [".env", ".env.production", "clinical-policy"],
+  "workstreams": [
+    { "role": "scout", "title": "Scout · CODE-MAP drift + rate gaps" },
+    { "role": "builder", "title": "Builder · CODE-MAP + lookup limit" },
+    { "role": "verifier", "title": "Verifier · f21-f22 tests" },
+    { "role": "reviewer", "title": "Reviewer · docs accuracy" }
+  ]
+}
