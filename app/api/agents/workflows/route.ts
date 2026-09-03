@@ -7,10 +7,22 @@ import {
   ensureWorkflowSubscription,
 } from "@/lib/agents/workflows";
 import { authorizeWorker } from "@/lib/agent-worker-auth";
+import {
+  jsonAuthFail,
+  requireRole,
+  resolveRequestAuth,
+  type AuthOk,
+} from "@/lib/request-auth";
 
 export const runtime = "nodejs";
 
-export async function GET() {
+export async function GET(req: Request) {
+  // Staff-only workflow list (was unauthenticated — F20 hole from P0 plan A.5).
+  const auth = resolveRequestAuth(req);
+  if (!auth.ok) return jsonAuthFail(auth);
+  const roleGate = requireRole(auth as AuthOk, ["owner", "support"]);
+  if (!roleGate.ok) return jsonAuthFail(roleGate);
+
   ensureWorkflowSubscription();
   return NextResponse.json({
     workflows: listWorkflows().map((w) => ({
