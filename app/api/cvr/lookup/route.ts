@@ -8,6 +8,8 @@
 import { NextResponse } from "next/server";
 import { checkIpRateLimit } from "@/lib/rate-limit";
 
+// F72 · no ACAO * on CVR proxy (same-origin admin UI; rate-limited).
+
 const CVR_API = "https://cvrapi.dk/api";
 const CVR_LIMIT = 60; // / 15 min / IP
 const CVR_WINDOW_MS = 15 * 60 * 1000;
@@ -99,7 +101,6 @@ export async function GET(req: Request) {
         status: 429,
         headers: {
           "Retry-After": Math.ceil(limited.retryAfterMs / 1000).toString(),
-          "access-control-allow-origin": "*",
         },
       },
     );
@@ -116,7 +117,7 @@ export async function GET(req: Request) {
   // Hvis CVR-nummer matcher demo-data, returnér det
   if (cvr && DEMO_RESULTS[cvr]) {
     return NextResponse.json({ result: DEMO_RESULTS[cvr], source: "demo-cache" }, {
-      headers: { "cache-control": "public, max-age=86400", "access-control-allow-origin": "*" },
+      headers: { "cache-control": "public, max-age=86400" },
     });
   }
 
@@ -137,7 +138,7 @@ export async function GET(req: Request) {
         error: "cvr_lookup_failed",
         hint: "cvrapi.dk har en grænse på 1.000 req/dag for gratis brug · prøv igen senere",
         fallback: cvr ? { cvr, name: `CVR-firma ${cvr}`, city: "Danmark" } : null,
-      }, { status: 502, headers: { "access-control-allow-origin": "*" } });
+      }, { status: 502 });
     }
 
     const raw = await res.json();
@@ -160,13 +161,13 @@ export async function GET(req: Request) {
       employees: raw.employees,
     };
     return NextResponse.json({ result, source: "cvrapi" }, {
-      headers: { "cache-control": "public, max-age=86400", "access-control-allow-origin": "*" },
+      headers: { "cache-control": "public, max-age=86400" },
     });
   } catch (err: any) {
     return NextResponse.json({
       error: "network_failure",
       message: err.message,
       fallback: cvr ? { cvr, name: `CVR-firma ${cvr}`, city: "Danmark" } : null,
-    }, { status: 502, headers: { "access-control-allow-origin": "*" } });
+    }, { status: 502 });
   }
 }

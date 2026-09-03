@@ -9,6 +9,8 @@
 import { NextResponse } from "next/server";
 import { checkIpRateLimit } from "@/lib/rate-limit";
 
+// F72 · no ACAO * on DAWA proxy (same-origin admin UI; rate-limited).
+
 const DAWA = "https://api.dataforsyningen.dk/autocomplete";
 const DAWA_LIMIT = 120; // / 15 min / IP
 const DAWA_WINDOW_MS = 15 * 60 * 1000;
@@ -33,7 +35,6 @@ export async function GET(req: Request) {
         status: 429,
         headers: {
           "Retry-After": Math.ceil(limited.retryAfterMs / 1000).toString(),
-          "access-control-allow-origin": "*",
         },
       },
     );
@@ -79,7 +80,6 @@ export async function GET(req: Request) {
     return NextResponse.json({ suggestions }, {
       headers: {
         "cache-control": "public, max-age=3600",
-        "access-control-allow-origin": "*",
       },
     });
   } catch (err: any) {

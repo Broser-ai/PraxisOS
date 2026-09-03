@@ -87,6 +87,8 @@ Follow `docs/ops/p0-db-cutover-runbook.md` §0–§2. Short form:
 - [ ] Login/signup captcha widget absent until site keys configured (F63); placeholders in `.env.example`.
 - [ ] Services/availability ACAO only for allowlisted Origin (F65).
 - [ ] Swarm/tick + research harvest audits present (F66); MCP unauthorized audited (F67).
+- [ ] Staff clients/bookings list omit ACAO `*` (F69); list-view audits (F70).
+- [ ] CVR/DAWA omit ACAO `*` (F72); responses carry nosniff/referrer; embed/book stay frameable (F73).
 
 ## E. Explicit non-goals (do not do in this cutover)
 

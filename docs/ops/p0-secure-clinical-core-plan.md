@@ -630,6 +630,9 @@ Små mergeable commits. **Booking-flow regressiones-testes i hvert commit der r�
 | **F69** | Strip ACAO `*` from staff clients + bookings/list | Done |
 | **F70** | Staff list audits (`booking.list_viewed` / `client.list_viewed`) | Done |
 | **F71** | Plan/CODE-MAP hygiene for F65–F70 | Done |
+| **F72** | Strip ACAO `*` from CVR/DAWA proxies | Done |
+| **F73** | Middleware security headers (nosniff/referrer/frame; embed frameable) | Done |
+| **F74** | Checklist coverage for F65–F73 | Done |
 
 **Explicit out of scope for disse commits:** patient-chat, triage, nye AI-agents, LiveKit voice-consent audio, CE/MDR features, LoRA.
 

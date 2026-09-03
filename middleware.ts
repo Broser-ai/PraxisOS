@@ -14,6 +14,9 @@ import type { NextRequest } from "next/server";
  * identity is the HMAC session cookie (lib/request-auth.ts) or a verified
  * Bearer API key. `x-praxis-signature` (inbound webhook HMAC for /api/events)
  * is intentionally preserved.
+ *
+ * F73 · baseline security response headers (nosniff / referrer / frame).
+ * Embed + public book paths stay frameable (no X-Frame-Options).
  */
 
 const BYPILAR_HOSTS = new Set([
@@ -33,6 +36,27 @@ const SPOOFABLE_IDENTITY_HEADERS = [
   "x-praxis-account-id",
 ];
 
+/** Paths that must remain frameable (by Pilar WordPress embed / book modal). */
+function isFrameablePath(pathname: string): boolean {
+  if (pathname.startsWith("/embed/")) return true;
+  // /t/{tenant}/book and nested book query pages
+  if (/^\/t\/[^/]+\/book(\/|$)/.test(pathname)) return true;
+  return false;
+}
+
+/** F73 · apply baseline security headers onto a middleware response. */
+export function applySecurityHeaders(
+  res: NextResponse,
+  pathname: string,
+): NextResponse {
+  res.headers.set("x-content-type-options", "nosniff");
+  res.headers.set("referrer-policy", "strict-origin-when-cross-origin");
+  if (!isFrameablePath(pathname)) {
+    res.headers.set("x-frame-options", "SAMEORIGIN");
+  }
+  return res;
+}
+
 function stripSpoofableIdentityHeaders(req: NextRequest): NextResponse {
   // Next.js middleware header-rewrite only overrides headers explicitly
   // present in the override set; headers omitted from the set are preserved
@@ -47,8 +71,13 @@ function stripSpoofableIdentityHeaders(req: NextRequest): NextResponse {
       changed = true;
     }
   }
-  if (!changed) return NextResponse.next();
-  return NextResponse.next({ request: { headers } });
+  if (!changed) {
+    return applySecurityHeaders(NextResponse.next(), req.nextUrl.pathname);
+  }
+  return applySecurityHeaders(
+    NextResponse.next({ request: { headers } }),
+    req.nextUrl.pathname,
+  );
 }
 
 function isBypilarHost(host: string): boolean {
@@ -114,20 +143,20 @@ export function middleware(req: NextRequest) {
   if (pathname === "/" || pathname === "") {
     const url = req.nextUrl.clone();
     url.pathname = "/t/bypilar";
-    return NextResponse.redirect(url);
+    return applySecurityHeaders(NextResponse.redirect(url), pathname);
   }
 
   // B2B engros hører ikke under bypilar-host
   if (pathname === "/shop" || pathname.startsWith("/shop/")) {
     const url = req.nextUrl.clone();
     url.pathname = "/t/bypilar";
-    return NextResponse.redirect(url);
+    return applySecurityHeaders(NextResponse.redirect(url), pathname);
   }
 
   if (!isAllowedOnBypilar(pathname)) {
     const url = req.nextUrl.clone();
     url.pathname = "/review";
-    return NextResponse.redirect(url);
+    return applySecurityHeaders(NextResponse.redirect(url), pathname);
   }
 
   return cleaned;
