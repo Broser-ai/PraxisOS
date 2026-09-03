@@ -350,7 +350,16 @@ export async function tickAutomation(opts?: { tenant?: string; force?: boolean }
 
   // Prime Execution Control dispatcher — lease + controlled concurrency (max 4).
   // Failures are isolated per workstream and never abort clinic workflows.
-  let missions: Awaited<ReturnType<typeof tickMissions>> | null = null;
+  let missions: {
+    ok: boolean;
+    skipped?: string;
+    claimed: number;
+    completed: number;
+    failed: number;
+    blocked: number;
+    results: unknown[];
+    at: string;
+  } | null = null;
   try {
     const { tickMissions } = await import("@/lib/prime/dispatcher");
     missions = await tickMissions({ tenantSlug: tenant, maxParallel: 4 });

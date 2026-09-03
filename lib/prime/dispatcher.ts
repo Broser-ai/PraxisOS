@@ -159,10 +159,11 @@ export function tryLeaseWorkstream(input: {
   if (ws.leaseId && !leaseExpired(ws, now) && ws.leaseOwner !== input.owner) {
     return null;
   }
-  if (!["queued", "failed"].includes(ws.status) && ws.status !== "running") {
-    // only claim idle/failed (requeue) or allow same owner refresh
-    if (!(ws.status === "running" && ws.leaseOwner === input.owner)) return null;
-  }
+  const claimable =
+    ws.status === "queued" ||
+    ws.status === "failed" ||
+    (ws.status === "running" && ws.leaseOwner === input.owner);
+  if (!claimable) return null;
 
   const m = getMission(ws.missionId);
   if (!m || m.status !== "running") return null;

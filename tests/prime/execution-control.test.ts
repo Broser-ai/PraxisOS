@@ -5,11 +5,15 @@ import {
   approveMission,
   assertToolCallBudget,
   claimWorkstreamFiles,
+  createPrimeMockRepo,
   draftMission,
   estimateTokensFromMessages,
   evaluateMissionPolicy,
   extractProviderUsage,
   getMission,
+  getWorkstream,
+  listClaimableWorkstreams,
+  listWorkstreams,
   markApprovedForMerge,
   markReadyForReview,
   markWorkstreamDone,
@@ -17,13 +21,21 @@ import {
   ownerRaiseBudget,
   raiseMissionBudget,
   recordBudget,
+  releaseLease,
   reserveBudget,
   resetMissionStoreForTests,
+  roleMay,
+  runPool,
+  seedMissionFixture,
   spawnDefaultFlow,
   spawnWorkstream,
   startMission,
+  tickMissions,
+  tryLeaseWorkstream,
   updateMission,
+  updateWorkstream,
   validateDefinitionOfDone,
+  __setDispatcherInFlightForTests,
 } from "@/lib/prime";
 import { SWARM_INVARIANTS } from "@/lib/swarm/types";
 import { CLINICAL_POLICY } from "@/lib/swarm/clinical-policy";
@@ -418,5 +430,158 @@ describe("Prime Execution Control", () => {
       humanApproved: true,
     });
     expect(ok.ok).toBe(true);
+  });
+
+  it("16. dispatcher lease: second claim blocked while lease held", () => {
+    const m = bootMission();
+    const ws = spawnWorkstream({
+      missionId: m.id,
+      title: "Lease me",
+      role: "scout",
+      acceptanceCriteria: [{ text: "scout plan" }],
+    });
+    if ("error" in ws) throw new Error(ws.error);
+    const a = tryLeaseWorkstream({ workstreamId: ws.id, owner: "tick_a" });
+    expect(a?.leaseId).toBeTruthy();
+    expect(a?.status).toBe("running");
+    const b = tryLeaseWorkstream({ workstreamId: ws.id, owner: "tick_b" });
+    expect(b).toBeNull();
+    releaseLease(ws.id);
+    const c = tryLeaseWorkstream({ workstreamId: ws.id, owner: "tick_b" });
+    // status was running then released still running — only queued/failed claimable
+    // re-queue for re-lease test
+    updateWorkstream(ws.id, { status: "queued" });
+    const d = tryLeaseWorkstream({ workstreamId: ws.id, owner: "tick_b" });
+    expect(d?.leaseOwner).toBe("tick_b");
+  });
+
+  it("17. dispatcher tick mutex + controlled pool concurrency", async () => {
+    __setDispatcherInFlightForTests(true);
+    const blocked = await tickMissions({ tenantSlug: "bypilar" });
+    expect(blocked.ok).toBe(false);
+    expect(blocked.skipped).toBe("dispatcher_tick_in_flight");
+    __setDispatcherInFlightForTests(false);
+
+    const order: number[] = [];
+    const results = await runPool([1, 2, 3, 4, 5], 2, async (n) => {
+      order.push(n);
+      await new Promise((r) => setTimeout(r, 5));
+      return n * 10;
+    });
+    expect(results).toEqual([10, 20, 30, 40, 50]);
+    expect(order).toHaveLength(5);
+  });
+
+  it("18. tickMissions executes scout AgentRun; failure isolated", async () => {
+    const m = bootMission();
+    const ws = spawnWorkstream({
+      missionId: m.id,
+      title: "Scout run",
+      role: "scout",
+      acceptanceCriteria: [{ text: "plan ok" }],
+    });
+    if ("error" in ws) throw new Error(ws.error);
+
+    const tick = await tickMissions({
+      tenantSlug: "bypilar",
+      maxParallel: 2,
+      owner: "test_tick",
+    });
+    expect(tick.ok).toBe(true);
+    expect(tick.claimed).toBeGreaterThanOrEqual(1);
+    const after = getWorkstream(ws.id)!;
+    expect(["done", "failed", "awaiting_verification", "ready_for_review"]).toContain(
+      after.status,
+    );
+    expect(after.attemptCount).toBeGreaterThanOrEqual(1);
+  });
+
+  it("19. overlapping builder scopes → blocked (not overwrite)", () => {
+    const m = bootMission();
+    const a = spawnWorkstream({
+      missionId: m.id,
+      title: "Builder A",
+      role: "builder",
+      proposedFiles: ["lib/journal.ts"],
+      acceptanceCriteria: [{ text: "A" }],
+    });
+    if ("error" in a) throw new Error(a.error);
+    const b = spawnWorkstream({
+      missionId: m.id,
+      title: "Builder B",
+      role: "builder",
+      proposedFiles: ["lib/journal.ts"],
+      acceptanceCriteria: [{ text: "B" }],
+    });
+    if ("error" in b) throw new Error(b.error);
+    expect(b.status).toBe("blocked");
+
+    // lease path also refuses overwrite
+    updateWorkstream(b.id, { status: "queued", blockedReason: undefined });
+    const leased = tryLeaseWorkstream({ workstreamId: b.id, owner: "t" });
+    expect(leased?.status).toBe("blocked");
+  });
+
+  it("20. seed yellow journal-auth mission as draft only (no auto-approve)", () => {
+    const seeded = seedMissionFixture({
+      fixtureId: "secure-journal-route-authorization",
+      tenantSlug: "bypilar",
+      createdBy: "acc_pilar",
+    });
+    expect("error" in seeded).toBe(false);
+    if ("error" in seeded) throw new Error(seeded.error);
+    expect(seeded.status).toBe("draft");
+    expect(seeded.riskLevel).toBe("yellow");
+    expect(seeded.platformScope).toContain("auth_journal");
+    expect(seeded.fixtureId).toBe("secure-journal-route-authorization");
+
+    // Dispatcher must not claim draft missions
+    const claimable = listClaimableWorkstreams({ tenantSlug: "bypilar" });
+    expect(claimable.every((w) => w.missionId !== seeded.id)).toBe(true);
+
+    const again = seedMissionFixture({
+      fixtureId: "secure-journal-route-authorization",
+      tenantSlug: "bypilar",
+    });
+    expect("error" in again).toBe(true);
+    if ("error" in again) expect(again.error).toBe("already_seeded");
+  });
+
+  it("21. start seeded mission spawns scout→builder→verifier→reviewer queued", () => {
+    const seeded = seedMissionFixture({
+      fixtureId: "secure-journal-route-authorization",
+      createdBy: "acc_pilar",
+    });
+    if ("error" in seeded) throw new Error(seeded.error);
+    const approved = approveMission({
+      missionId: seeded.id,
+      actor: "acc_pilar",
+      actorRole: "owner",
+    });
+    if ("error" in approved) throw new Error(approved.error);
+    const started = startMission({ missionId: seeded.id, actor: "acc_pilar" });
+    if ("error" in started) throw new Error(started.error);
+    const streams = listWorkstreams({ missionId: seeded.id });
+    expect(streams.map((w) => w.role)).toEqual([
+      "reviewer",
+      "verifier",
+      "builder",
+      "scout",
+    ]);
+    expect(streams.every((w) => w.status === "queued")).toBe(true);
+  });
+
+  it("22. mission budgets include reservedTokens + maxParallelWorkstreams", () => {
+    const m = bootMission();
+    expect(m.budgets.reservedTokens).toBeDefined();
+    expect(m.budgets.maxParallelWorkstreams).toBe(4);
+    expect(createPrimeMockRepo().missions).toEqual([]);
+  });
+
+  it("23. role capability: scout cannot mark_approved_for_merge", () => {
+    expect(roleMay("scout", "mark_approved_for_merge")).toBe(false);
+    expect(roleMay("builder", "merge")).toBe(false);
+    expect(roleMay("builder", "write_path")).toBe(true);
+    expect(roleMay("release_steward", "mark_approved_for_merge")).toBe(true);
   });
 });
