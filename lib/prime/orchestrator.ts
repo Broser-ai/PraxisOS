@@ -17,6 +17,7 @@ import {
   type Mission,
   type MissionBudgets,
   type MissionRole,
+  type PlatformScope,
   type RiskLevel,
   type Workstream,
 } from "@/lib/prime/mission-types";
@@ -25,11 +26,26 @@ import { assertReadyForReview } from "@/lib/prime/definition-of-done";
 import { ensureEvidence } from "@/lib/prime/evidence";
 import { DEFAULT_FLOW, roleMay } from "@/lib/prime/roles";
 import { raiseMissionBudget } from "@/lib/prime/budget-guard";
+import { loadMissionFixture } from "@/lib/prime/fixtures";
 
 function parallelCount(missionId: string): number {
   return listWorkstreams({ missionId }).filter((w) =>
-    ["queued", "running", "ready_for_review", "awaiting_human"].includes(w.status),
+    [
+      "queued",
+      "running",
+      "ready_for_review",
+      "awaiting_human",
+      "awaiting_verification",
+    ].includes(w.status),
   ).length;
+}
+
+function missionParallelCap(missionId: string): number {
+  const m = getMission(missionId);
+  return (
+    m?.budgets.maxParallelWorkstreams ??
+    EXECUTION_CONTROL_INVARIANTS.MAX_PARALLEL_WORKSTREAMS
+  );
 }
 
 export function draftMission(input: {
@@ -39,6 +55,8 @@ export function draftMission(input: {
   createdBy: string;
   riskLevel?: RiskLevel;
   budgets?: Partial<MissionBudgets>;
+  platformScope?: import("@/lib/prime/mission-types").PlatformScope[];
+  fixtureId?: string;
 }): Mission {
   const mission = createMission(input);
   auditLog("prime.mission_draft", {
@@ -103,7 +121,47 @@ export function startMission(input: {
     actor_user_id: input.actor,
     target_ref: `mission/${m.id}`,
   });
+
+  // Seeded fixtures: spawn planned scout→builder→verifier→reviewer as queued workstreams.
+  if (m.fixtureId && listWorkstreams({ missionId: m.id }).length === 0) {
+    try {
+      spawnFixtureFlow(m.id, m.fixtureId);
+    } catch {
+      // non-fatal — owner can spawn_flow via API
+    }
+  }
+
   return getMission(m.id)!;
+}
+
+/** Spawn workstreams from a fixture definition (used after start). */
+export function spawnFixtureFlow(missionId: string, fixtureId: string) {
+  const fx = loadMissionFixture(fixtureId);
+  const created: Workstream[] = [];
+  for (const step of fx.workstreams ?? [
+    { role: "scout" as const },
+    { role: "builder" as const },
+    { role: "verifier" as const },
+    { role: "reviewer" as const },
+  ]) {
+    const ws = spawnWorkstream({
+      missionId,
+      title: step.title ?? `${fx.title} · ${step.role}`,
+      role: step.role,
+      allowedPaths: fx.allowedPaths,
+      forbiddenPaths: fx.forbiddenPaths,
+      acceptanceCriteria:
+        step.role === "builder" || step.role === "verifier"
+          ? fx.acceptanceCriteria
+          : fx.acceptanceCriteria.slice(0, 1),
+    });
+    if ("error" in ws) {
+      if (created.length === 0) return ws;
+      break;
+    }
+    created.push(ws);
+  }
+  return created;
 }
 
 export function pauseMission(input: {
@@ -163,9 +221,9 @@ export function spawnWorkstream(input: {
     return { error: `mission_not_active_${m.status}` };
   }
 
-  if (parallelCount(m.id) >= EXECUTION_CONTROL_INVARIANTS.MAX_PARALLEL_WORKSTREAMS) {
+  if (parallelCount(m.id) >= missionParallelCap(m.id)) {
     return {
-      error: `max_parallel_workstreams_${EXECUTION_CONTROL_INVARIANTS.MAX_PARALLEL_WORKSTREAMS}`,
+      error: `max_parallel_workstreams_${missionParallelCap(m.id)}`,
     };
   }
 

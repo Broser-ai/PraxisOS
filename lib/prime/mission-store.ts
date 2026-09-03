@@ -11,6 +11,7 @@ import {
   type MissionBudgets,
   type MissionBudgetUsage,
   type MissionStatus,
+  type PlatformScope,
   type RiskLevel,
   type Workstream,
   type WorkstreamEvidence,
@@ -110,6 +111,8 @@ export function createMission(input: {
   createdBy: string;
   riskLevel?: RiskLevel;
   budgets?: Partial<MissionBudgets>;
+  platformScope?: PlatformScope[];
+  fixtureId?: string;
 }): Mission {
   const now = new Date().toISOString();
   const mission: Mission = {
@@ -119,10 +122,12 @@ export function createMission(input: {
     goal: input.goal.trim(),
     status: "draft",
     riskLevel: input.riskLevel ?? "green",
+    platformScope: input.platformScope ?? ["prime", "docs"],
     budgets: { ...DEFAULT_MISSION_BUDGETS, ...input.budgets },
     usage: emptyUsage(),
     workstreamIds: [],
     createdBy: input.createdBy,
+    fixtureId: input.fixtureId,
     createdAt: now,
     updatedAt: now,
     humanDecisions: [],
@@ -218,6 +223,7 @@ export function createWorkstream(input: {
     changedFiles: [],
     agentRunIds: [],
     reworkLoops: 0,
+    attemptCount: 0,
     createdAt: now,
     updatedAt: now,
   };

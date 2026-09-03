@@ -299,9 +299,14 @@ export function evaluateMissionPolicy(input: {
 
 function listActiveWorkstreams(missionId: string): Workstream[] {
   return listWorkstreams({ missionId }).filter((w) =>
-    ["queued", "running", "ready_for_review", "awaiting_human", "blocked"].includes(
-      w.status,
-    ),
+    [
+      "queued",
+      "running",
+      "ready_for_review",
+      "awaiting_human",
+      "awaiting_verification",
+      "blocked",
+    ].includes(w.status),
   );
 }
 

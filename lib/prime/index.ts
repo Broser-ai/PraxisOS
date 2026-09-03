@@ -14,3 +14,7 @@ export * from "@/lib/prime/definition-of-done";
 export * from "@/lib/prime/evidence";
 export * from "@/lib/prime/roles";
 export * from "@/lib/prime/orchestrator";
+export * from "@/lib/prime/dispatcher";
+export * from "@/lib/prime/seed";
+export * from "@/lib/prime/fixtures";
+export * from "@/lib/prime/mock-repo";

@@ -348,10 +348,22 @@ export async function tickAutomation(opts?: { tenant?: string; force?: boolean }
     ran.push(wf.id);
   }
 
+  // Prime Execution Control dispatcher — lease + controlled concurrency (max 4).
+  // Failures are isolated per workstream and never abort clinic workflows.
+  let missions: Awaited<ReturnType<typeof tickMissions>> | null = null;
+  try {
+    const { tickMissions } = await import("@/lib/prime/dispatcher");
+    missions = await tickMissions({ tenantSlug: tenant, maxParallel: 4 });
+    if (missions.claimed > 0) ran.push("wf_prime_missions");
+  } catch (err) {
+    console.error("[workflows] tickMissions", err);
+  }
+
   return {
     ok: true,
     ran,
     skipped,
+    missions,
     stats: getAutomationStats(),
     recentEvents: listEvents({ tenant, limit: 5 }),
   };

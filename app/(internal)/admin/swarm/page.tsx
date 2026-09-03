@@ -251,9 +251,25 @@ export default function SwarmAdminPage() {
           Prime Execution Control
         </h2>
         <p className="mt-1 text-[12.5px] text-muted">
-          Missions · budgets · evidence · blocked/human decisions. Merge forbliver
-          manuel (NO_AUTO_MERGE). Owner-only budget bump + approved_for_merge.
+          Missions · budgets · evidence · blocked/human decisions. API:{" "}
+          <code className="text-[11px]">/api/v1/[tenant]/prime/missions</code>.
+          Merge forbliver manuel (NO_AUTO_MERGE). Ingen Merge/Deploy/Disable-clinical/Unlimited.
         </p>
+        <div className="mt-3 flex flex-wrap gap-2">
+          <button
+            type="button"
+            disabled={busy}
+            className="rounded-[10px] border border-line bg-paper px-3 py-2 text-[12.5px] font-medium hover:bg-canvas disabled:opacity-50"
+            onClick={() =>
+              void postMission({
+                action: "seed_fixture",
+                fixtureId: "secure-journal-route-authorization",
+              })
+            }
+          >
+            Seed yellow journal-auth (draft only)
+          </button>
+        </div>
         <div className="mt-4 flex flex-col gap-3 md:flex-row">
           <input
             value={missionTitle}

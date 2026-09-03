@@ -21,6 +21,7 @@ export type WorkstreamStatus =
   | "running"
   | "blocked"
   | "awaiting_human"
+  | "awaiting_verification"
   | "ready_for_review"
   | "approved_for_merge"
   | "done"
@@ -35,6 +36,16 @@ export type MissionRole =
   | "verifier"
   | "reviewer"
   | "release_steward";
+
+/** Platform surfaces a mission may touch (policy scoping). */
+export type PlatformScope =
+  | "clinic_ops"
+  | "agent_runtime"
+  | "auth_journal"
+  | "swarm"
+  | "prime"
+  | "docs"
+  | "infra";
 
 export type AcceptanceCriterion = {
   id: string;
@@ -52,6 +63,10 @@ export type MissionBudgets = {
   maxAgents: number;
   maxChangedFiles: number;
   maxReworkLoops: number;
+  /** Soft reserve pool held before LLM calls settle (BudgetGuard). */
+  reservedTokens: number;
+  /** Cap concurrent leased workstreams for this mission (default 4). */
+  maxParallelWorkstreams: number;
 };
 
 export type MissionBudgetUsage = {
@@ -73,6 +88,8 @@ export const DEFAULT_MISSION_BUDGETS: MissionBudgets = {
   maxAgents: 4,
   maxChangedFiles: 40,
   maxReworkLoops: 3,
+  reservedTokens: 0,
+  maxParallelWorkstreams: 4,
 };
 
 export type Mission = {
@@ -82,6 +99,8 @@ export type Mission = {
   goal: string;
   status: MissionStatus;
   riskLevel: RiskLevel;
+  /** Which product surfaces this mission may touch */
+  platformScope: PlatformScope[];
   budgets: MissionBudgets;
   usage: MissionBudgetUsage;
   workstreamIds: string[];
@@ -92,6 +111,8 @@ export type Mission = {
   updatedAt: string;
   /** Human decisions / blocked reasons surfaced in admin */
   humanDecisions: HumanDecision[];
+  /** Optional YAML/fixture id for seeded missions */
+  fixtureId?: string;
 };
 
 export type HumanDecision = {
@@ -127,6 +148,13 @@ export type Workstream = {
   blockedReason?: string;
   agentRunIds: string[];
   reworkLoops: number;
+  /** Attempt count including retries (counts toward rework budget on failure). */
+  attemptCount: number;
+  /** Lease so two ticks cannot claim the same workstream. */
+  leaseId?: string;
+  leaseOwner?: string;
+  leaseExpiresAt?: string;
+  lastError?: string;
   createdAt: string;
   updatedAt: string;
 };
@@ -140,6 +168,8 @@ export type MissionAgentRun = {
   status: "queued" | "running" | "completed" | "failed" | "budget_exhausted";
   tokenUsage: TokenUsageRecord;
   toolCallCount: number;
+  /** Link to clinic agent-store run when dispatcher executes via runAgent */
+  agentRunId?: string;
   startedAt: string;
   finishedAt?: string;
   error?: string;

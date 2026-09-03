@@ -8,6 +8,7 @@ import {
   approveMission,
   cancelMission,
   draftMission,
+  getDispatcherState,
   getEvidenceForWorkstream,
   getMission,
   listMissions,
@@ -17,9 +18,11 @@ import {
   missionBudgetSnapshot,
   ownerRaiseBudget,
   pauseMission,
+  seedMissionFixture,
   spawnDefaultFlow,
   spawnWorkstream,
   startMission,
+  tickMissions,
 } from "@/lib/prime";
 
 function unauthorized() {
@@ -98,9 +101,15 @@ export async function GET(
     });
   }
 
+  if (view === "dispatcher") {
+    return NextResponse.json({ dispatcher: getDispatcherState() });
+  }
+
   return NextResponse.json({
     data: listMissions({ tenantSlug: tenant, limit: 40 }),
     invariants: EXECUTION_CONTROL_INVARIANTS,
+    apiNote:
+      "Prime missions live under /api/v1/[tenant]/prime/missions (not /api/agents/missions*). Agent-worker tick calls this dispatcher via tickAutomation.",
   });
 }
 
@@ -134,6 +143,7 @@ export async function POST(
     acceptanceCriteria?: { text: string }[];
     allowedPaths?: string[];
     proposedFiles?: string[];
+    fixtureId?: string;
     evidence?: {
       commits?: string[];
       files?: string[];
@@ -164,6 +174,8 @@ export async function POST(
     "mark_ready",
     "mark_approved_for_merge",
     "append_evidence",
+    "seed_fixture",
+    "tick",
   ]);
 
   if (mutatingOwnerActions.has(action)) {
@@ -318,6 +330,41 @@ export async function POST(
         return NextResponse.json(result, { status: 400 });
       }
       return NextResponse.json({ evidence: result });
+    }
+    case "seed_fixture": {
+      const fixtureId = body.fixtureId ?? "secure-journal-route-authorization";
+      const result = seedMissionFixture({
+        fixtureId,
+        tenantSlug: tenant,
+        createdBy: auth.accountId,
+      });
+      if ("error" in result) {
+        return NextResponse.json(result, {
+          status: result.error === "already_seeded" ? 200 : 400,
+        });
+      }
+      auditLog("prime.mission_seeded", {
+        tenant_id: tenant,
+        actor_user_id: auth.accountId,
+        fixtureId,
+        missionId: result.id,
+      });
+      return NextResponse.json(
+        {
+          mission: result,
+          note: "Draft only — approve then start. Dispatcher runs on agent-worker tick after start. NO auto journal/auth builders until you approve.",
+        },
+        { status: 201 },
+      );
+    }
+    case "tick": {
+      // Manual dispatcher tick (same path as agent-worker → tickAutomation missions slice)
+      const result = await tickMissions({
+        tenantSlug: tenant,
+        maxParallel: 4,
+        owner: `api_${auth.accountId}`,
+      });
+      return NextResponse.json({ missions: result });
     }
     case "mark_ready": {
       if (!body.workstreamId) {
