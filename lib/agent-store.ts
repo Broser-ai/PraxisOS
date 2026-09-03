@@ -34,6 +34,15 @@ export type AgentRun = {
   finishedAt?: string;
   requiresApproval?: boolean;
   approvalId?: string;
+  /** Optional Prime Execution Control linkage */
+  missionId?: string;
+  workstreamId?: string;
+  tokenUsage?: {
+    promptTokens: number;
+    completionTokens: number;
+    totalTokens: number;
+    estimated: boolean;
+  };
 };
 
 export type ApprovalStatus = "pending" | "approved" | "rejected";
