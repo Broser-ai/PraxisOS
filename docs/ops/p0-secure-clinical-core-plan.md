@@ -633,6 +633,8 @@ Små mergeable commits. **Booking-flow regressiones-testes i hvert commit der r�
 | **F72** | Strip ACAO `*` from CVR/DAWA proxies | Done |
 | **F73** | Middleware security headers (nosniff/referrer/frame; embed frameable) | Done |
 | **F74** | Checklist coverage for F65–F73 | Done |
+| **F75** | MCP `tools/call` → `mcp.tools_call` audit | Done |
+| **F76** | Research paper GET → `research.paper_viewed` audit | Done |
 
 **Explicit out of scope for disse commits:** patient-chat, triage, nye AI-agents, LiveKit voice-consent audio, CE/MDR features, LoRA.
 

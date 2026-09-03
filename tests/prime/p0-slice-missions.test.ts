@@ -896,4 +896,28 @@ describe("PEC · P0 slice missions (Prime Execution Control)", () => {
     // eslint-disable-next-line no-console
     console.log(`[PEC] F72–F74 mission=${mission.id} builder_status=${mergeMark.status}`);
   });
+
+  it("F75–F76 · MCP/research audits → approved_for_merge intent", () => {
+    const sliceFiles = changedFilesSinceMain().filter((f) =>
+      [
+        "app/api/mcp/v1/route.ts",
+        "app/api/v1/[tenant]/research/papers/[arxivId]/route.ts",
+        "tests/f75-f76-mcp-research-audit.test.ts",
+        "fixtures/missions/p0-f75-f76-mcp-research-audit.json",
+        "tests/prime/p0-slice-missions.test.ts",
+      ].includes(f),
+    );
+    expect(sliceFiles.length).toBeGreaterThan(0);
+
+    const { mission, mergeMark } = driveSliceToApprovedForMerge(
+      "p0-f75-f76-mcp-research-audit",
+      sliceFiles,
+    );
+
+    expect(mission.id).toMatch(/^msn_/);
+    expect(getMission(mission.id)?.status).toBe("running");
+    expect(mergeMark.status).toBe("approved_for_merge");
+    // eslint-disable-next-line no-console
+    console.log(`[PEC] F75–F76 mission=${mission.id} builder_status=${mergeMark.status}`);
+  });
 });

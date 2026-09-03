@@ -200,12 +200,23 @@ export async function POST(req: Request) {
           (args ?? {}) as Record<string, unknown>,
           { tenant: authedTenant ?? "bypilar" },
         );
+        // F75 · authenticated tool call audit (tool name only — no args/PII)
+        auditLogWithContext(req, "mcp.tools_call", {
+          tenant_id: authedTenant ?? undefined,
+          target_ref: name,
+          auth_mode: "api_key",
+        });
         return rpcOk(req, body.id, {
           content: [{ type: "text", text: JSON.stringify(result, null, 2) }],
           isError: Boolean((result as { isError?: boolean }).isError),
         });
       } catch (err) {
         const sample = simulateToolResult(name, args);
+        auditLogWithContext(req, "mcp.tools_call", {
+          tenant_id: authedTenant ?? undefined,
+          target_ref: `${name}:error`,
+          auth_mode: "api_key",
+        });
         return rpcOk(req, body.id, {
           content: [
             {
