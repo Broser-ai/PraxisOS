@@ -1,0 +1,35 @@
+{
+  "id": "p0-f9-db-infra",
+  "title": "P0 F9 · additive docker-compose.db.yml + scripts + .env.production.example",
+  "goal": "Additive DB cutover infra (no production change, no secrets in git): docker-compose.db.yml (pgvector/pgvector:pg17, praxis_pgdata volume, pg_isready healthcheck, migrate profile), db-init-selfhost.sh + db-apply-migrations.sh (idempotent 0001→0008), .env.production.example updated (PRAXIS_DB≠mock, PRAXIS_SESSION_SECRET, PRAXIS_AUDIT_MODE=supabase, SUPABASE_URL/POSTGRES_PASSWORD), and assertProductionDbConfig() fail-fast guard. Suggestion_only; no auto merge/deploy.",
+  "riskLevel": "yellow",
+  "platformScope": ["clinic_ops", "prime"],
+  "acceptanceCriteria": [
+    { "text": "docker-compose.db.yml uses pgvector/pgvector:pg17 + praxis_pgdata volume + pg_isready healthcheck + migrate profile + loopback bind" },
+    { "text": "db-apply-migrations.sh applies migrations idempotently (ON_ERROR_STOP); db-init-selfhost.sh refuses without POSTGRES_PASSWORD and does NOT switch PRAXIS_DB" },
+    { "text": ".env.production.example forbids PRAXIS_DB=mock in prod, requires PRAXIS_SESSION_SECRET + PRAXIS_AUDIT_MODE=supabase, no secret values in git" },
+    { "text": "assertProductionDbConfig() rejects mock in production; migrations 0001-0008 present; vitest covers; tsc green" }
+  ],
+  "allowedPaths": [
+    "docker-compose.db.yml",
+    "scripts/db-init-selfhost.sh",
+    "scripts/db-apply-migrations.sh",
+    ".env.production.example",
+    "lib/supabase.ts",
+    "tests/f9-db-infra.test.ts",
+    "tests/prime/p0-slice-missions.test.ts",
+    "fixtures/missions/p0-f9-db-infra.json"
+  ],
+  "forbiddenPaths": [
+    ".env",
+    ".env.production",
+    "docker-compose.praxis.yml",
+    "app/api/"
+  ],
+  "workstreams": [
+    { "role": "scout", "title": "Scout · DB cutover infra gaps" },
+    { "role": "builder", "title": "Builder · compose + scripts + env + guard" },
+    { "role": "verifier", "title": "Verifier · f9-db-infra tests" },
+    { "role": "reviewer", "title": "Reviewer · secret-hygiene + cutover safety" }
+  ]
+}

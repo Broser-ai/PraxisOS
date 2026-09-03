@@ -291,4 +291,31 @@ describe("PEC · P0 slice missions (Prime Execution Control)", () => {
     // eslint-disable-next-line no-console
     console.log(`[PEC] F8 mission=${mission.id} builder_status=${mergeMark.status}`);
   });
+
+  it("F9 · additive docker-compose.db.yml + scripts + env → approved_for_merge intent", () => {
+    const sliceFiles = changedFilesSinceMain().filter((f) =>
+      [
+        "docker-compose.db.yml",
+        "scripts/db-init-selfhost.sh",
+        "scripts/db-apply-migrations.sh",
+        ".env.production.example",
+        "lib/supabase.ts",
+        "tests/f9-db-infra.test.ts",
+        "fixtures/missions/p0-f9-db-infra.json",
+        "tests/prime/p0-slice-missions.test.ts",
+      ].includes(f),
+    );
+    expect(sliceFiles.length).toBeGreaterThan(0);
+
+    const { mission, mergeMark } = driveSliceToApprovedForMerge(
+      "p0-f9-db-infra",
+      sliceFiles,
+    );
+
+    expect(mission.id).toMatch(/^msn_/);
+    expect(getMission(mission.id)?.status).toBe("running");
+    expect(mergeMark.status).toBe("approved_for_merge");
+    // eslint-disable-next-line no-console
+    console.log(`[PEC] F9 mission=${mission.id} builder_status=${mergeMark.status}`);
+  });
 });

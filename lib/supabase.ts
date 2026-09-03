@@ -108,6 +108,36 @@ export function getAnonSupabase(): SupabaseClient | null {
   return _anon;
 }
 
+/**
+ * Fail-fast guard for production boot (P0 plan §C.2 / §F9).
+ * Production MUST NOT run on PRAXIS_DB=mock. Call this at app boot (and/or
+ * the /api/health readiness path) once .env.production is filled. Returns
+ * { ok: true } when the DB config is acceptable, else { ok: false, reason }.
+ * Not auto-invoked at import time so the additive PR stays non-breaking.
+ */
+export function assertProductionDbConfig():
+  | { ok: true; mode: DbMode }
+  | { ok: false; reason: string } {
+  if (process.env.NODE_ENV !== "production") {
+    return { ok: true, mode: DB_MODE };
+  }
+  if (DB_MODE === "mock") {
+    return {
+      ok: false,
+      reason:
+        "PRAXIS_DB=mock is forbidden in production (NODE_ENV=production). Set PRAXIS_DB=supabase-eu or supabase-local and configure SUPABASE_URL + SUPABASE_SERVICE_ROLE_KEY.",
+    };
+  }
+  if (!isSupabaseConfigured()) {
+    return {
+      ok: false,
+      reason:
+        "Production DB mode selected but SUPABASE_SERVICE_ROLE_KEY / SUPABASE_URL not configured.",
+    };
+  }
+  return { ok: true, mode: DB_MODE };
+}
+
 export type DbResult<T> =
   | { data: T[]; count: number; error: null }
   | { data: null; count: 0; error: string };
