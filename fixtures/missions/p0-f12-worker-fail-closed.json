@@ -1,0 +1,34 @@
+{
+  "id": "p0-f12-worker-fail-closed",
+  "title": "F12 · agent worker / cron fail-closed in production",
+  "riskLevel": "yellow",
+  "platformScope": ["auth", "agents", "prime"],
+  "goal": "The /api/agents/tick and /api/agents/workflows worker endpoints currently return authorized when AGENT_WORKER_SECRET/PRAXIS_EVENT_SECRET is unset (open in demo / first boot). In production this is an unauthenticated cron trigger. Fail closed in production: when NODE_ENV=production and no secret is configured, reject with 401 and audit-warn. Non-production keeps the open-for-demo behavior. Suggestion-only; no auto merge/deploy.",
+  "allowedPaths": [
+    "app/api/agents/tick/route.ts",
+    "app/api/agents/workflows/route.ts",
+    "lib/agent-worker-auth.ts",
+    "tests/"
+  ],
+  "forbiddenPaths": [
+    ".env",
+    ".env.production",
+    "secrets/",
+    "clinical-policy",
+    "supabase/migrations/",
+    "lib/agents/workflows.ts"
+  ],
+  "acceptanceCriteria": [
+    { "text": "Shared authorizeWorker helper fails closed when NODE_ENV=production and no secret set (401)" },
+    { "text": "Non-production with no secret remains open for demo / first boot" },
+    { "text": "Secret set: timing-safe compare of x-agent-worker-secret / Bearer header" },
+    { "text": "Both /api/agents/tick and /api/agents/workflows use the shared helper" },
+    { "text": "Vitest covers prod-fail-closed, dev-open, secret-match, secret-mismatch; typecheck green" }
+  ],
+  "workstreams": [
+    { "role": "scout", "title": "Scout · worker auth surface" },
+    { "role": "builder", "title": "Builder · shared fail-closed helper" },
+    { "role": "verifier", "title": "Verifier · fail-closed tests" },
+    { "role": "reviewer", "title": "Reviewer · cron security" }
+  ]
+}

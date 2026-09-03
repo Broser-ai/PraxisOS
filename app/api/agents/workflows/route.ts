@@ -6,15 +6,9 @@ import {
   tickAutomation,
   ensureWorkflowSubscription,
 } from "@/lib/agents/workflows";
+import { authorizeWorker } from "@/lib/agent-worker-auth";
 
 export const runtime = "nodejs";
-
-function authorizeWorker(req: Request): boolean {
-  const secret = process.env.AGENT_WORKER_SECRET?.trim() || process.env.PRAXIS_EVENT_SECRET?.trim();
-  if (!secret) return true; // open in demo / first boot
-  const header = req.headers.get("x-agent-worker-secret") || req.headers.get("authorization")?.replace(/^Bearer\s+/i, "");
-  return header === secret;
-}
 
 export async function GET() {
   ensureWorkflowSubscription();
@@ -33,7 +27,7 @@ export async function GET() {
 
 export async function POST(req: Request) {
   ensureWorkflowSubscription();
-  if (!authorizeWorker(req)) {
+  if (!authorizeWorker(req).ok) {
     return NextResponse.json({ error: "unauthorized" }, { status: 401 });
   }
 
