@@ -109,11 +109,11 @@ export function getAnonSupabase(): SupabaseClient | null {
 }
 
 /**
- * Fail-fast guard for production boot (P0 plan §C.2 / §F9).
- * Production MUST NOT run on PRAXIS_DB=mock. Call this at app boot (and/or
- * the /api/health readiness path) once .env.production is filled. Returns
- * { ok: true } when the DB config is acceptable, else { ok: false, reason }.
- * Not auto-invoked at import time so the additive PR stays non-breaking.
+ * Fail-fast guard for production boot (P0 plan §C.2 / §F9 / §F16).
+ * Production MUST NOT run on PRAXIS_DB=mock. Wired into GET /api/health
+ * (F16) so readiness fails loud on mock-in-prod. Returns { ok: true } when
+ * the DB config is acceptable, else { ok: false, reason }. Not auto-invoked
+ * at import time (keeps module load non-throwing).
  */
 export function assertProductionDbConfig():
   | { ok: true; mode: DbMode }

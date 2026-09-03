@@ -342,4 +342,29 @@ describe("PEC · P0 slice missions (Prime Execution Control)", () => {
     // eslint-disable-next-line no-console
     console.log(`[PEC] F10 mission=${mission.id} builder_status=${mergeMark.status}`);
   });
+
+  it("F16 · health DB fail-fast wiring → approved_for_merge intent", () => {
+    const sliceFiles = changedFilesSinceMain().filter((f) =>
+      [
+        "app/api/health/route.ts",
+        "lib/supabase.ts",
+        "docs/ops/p0-db-cutover-runbook.md",
+        "tests/f16-health-db-failfast.test.ts",
+        "fixtures/missions/p0-f16-health-db-failfast.json",
+        "tests/prime/p0-slice-missions.test.ts",
+      ].includes(f),
+    );
+    expect(sliceFiles.length).toBeGreaterThan(0);
+
+    const { mission, mergeMark } = driveSliceToApprovedForMerge(
+      "p0-f16-health-db-failfast",
+      sliceFiles,
+    );
+
+    expect(mission.id).toMatch(/^msn_/);
+    expect(getMission(mission.id)?.status).toBe("running");
+    expect(mergeMark.status).toBe("approved_for_merge");
+    // eslint-disable-next-line no-console
+    console.log(`[PEC] F16 mission=${mission.id} builder_status=${mergeMark.status}`);
+  });
 });
