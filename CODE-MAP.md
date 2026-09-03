@@ -139,7 +139,7 @@ Auth notes: staff = session cookie; public = rate-limit / HMAC / allowlist as no
 | `/api/bird/config` | GET | Public | Bird readiness |
 | `/api/bird/config` | POST | Owner | Bird secrets write |
 | `/api/bird/send` | POST | Staff+consent | SMS send |
-| `/api/bird/status` | GET | Public | Bird status |
+| `/api/bird/status` | GET | Public | Bird status · **F36 no keyHint** |
 | `/api/agents/status` | GET | Owner/support | Automation status |
 | `/api/agents/run` | POST | Staff | Agent chat run |
 | `/api/agents/approvals` | GET/POST | Staff | Approval list/decide |
@@ -147,11 +147,11 @@ Auth notes: staff = session cookie; public = rate-limit / HMAC / allowlist as no
 | `/api/agents/workflows` | POST | Worker secret | Tick/run workflows |
 | `/api/agents/tick` | GET/POST | Worker secret | Automation tick (F12 fail-closed) |
 | `/api/cron/swarm-tick` | POST | Worker secret | Swarm cron |
-| `/api/journal` | GET/POST | Staff | Journal list/create |
+| `/api/journal` | GET/POST | Staff | Journal list/create · **F35 audit** |
 | `/api/journal/from-booking` | POST | Staff | Journal from booking · **F30** |
-| `/api/journal/[id]` | GET/PATCH | Staff | Journal read/patch |
-| `/api/journal/[id]/sign` | POST | Staff | Sign (NO_AUTO_JOURNAL_SIGN) |
-| `/api/journal/[id]/draft` | POST | Staff+consent | AI SOAP draft |
+| `/api/journal/[id]` | GET/PATCH | Staff | Journal read/patch · **F35 audit** |
+| `/api/journal/[id]/sign` | POST | Staff | Sign (NO_AUTO_JOURNAL_SIGN) · **F35** |
+| `/api/journal/[id]/draft` | POST | Staff+consent | AI SOAP draft · **F35** |
 | `/api/v1/scan/process` | GET | Staff | Scan pipeline readiness · **F24** |
 | `/api/v1/scan/process` | POST | Staff+consent | Foot-scan process · **F23 audit** |
 | `/api/v1/[tenant]/availability` | GET | Public | Ledige slots |
@@ -194,14 +194,15 @@ Auth notes: staff = session cookie; public = rate-limit / HMAC / allowlist as no
 | `FunktionerCatalog.tsx` | Feature catalog |
 | `MarketingNav.tsx` | Marketing navigation |
 
-## Total (F21 refresh)
+## Total (F38 refresh)
 
 - **44 API route handlers** (was listed as 15 — stale)
 - **Lib modules** under `lib/` incl. consent, audit, prime, public-booking-kit, request-auth
 - **17 components** (FootScan/SwarmPanel removed)
 - **Migrations** `0001`–`0008` under `supabase/migrations/`
+- Continue-dev slices **F11–F38** on PR #34
 
 ---
 
-*Opdateret 2026-09-03 · F21 CODE-MAP accuracy pass (P0 continue-dev)*
+*Opdateret 2026-09-03 · F38 CODE-MAP accuracy pass (P0 continue-dev)*
 

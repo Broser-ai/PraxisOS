@@ -6,7 +6,7 @@ import {
   type JournalStatus,
 } from "@/lib/journal";
 import { ensureWorkflowSubscription } from "@/lib/agents/workflows";
-import { auditLog } from "@/lib/audit";
+import { auditLogWithContext } from "@/lib/audit";
 import {
   jsonAuthFail,
   requireTenantAccess,
@@ -92,10 +92,11 @@ export async function POST(req: Request) {
       aiDrafted: body.aiDrafted,
       draftedBy: body.aiDrafted ? "niels" : "clinician",
     });
-    auditLog("journal.created", {
+    auditLogWithContext(req, "journal.created", {
       tenant_id: tenant,
       actor_user_id: auth.accountId,
       target_ref: `journal/${entry.id}`,
+      auth_mode: auth.mode,
     });
     return NextResponse.json({ ok: true, entry });
   } catch (err: unknown) {

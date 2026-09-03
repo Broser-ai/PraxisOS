@@ -593,6 +593,10 @@ Små mergeable commits. **Booking-flow regressiones-testes i hvert commit der r�
 | **F32** | CVR / DAWA per-IP rate-limit | Done |
 | **F33** | Strip key hints from public bird/scan config GET | Done |
 | **F34** | Signup captcha step-up (login-parity threshold) | Done |
+| **F35** | Journal mutation audit request context | Done |
+| **F36** | Bird `/api/bird/status` strips `keyHint` | Done |
+| **F37** | Login captcha-before-backoff (signup parity) | Done |
+| **F38** | CODE-MAP refresh for F23–F37 | Done |
 
 **Explicit out of scope for disse commits:** patient-chat, triage, nye AI-agents, LiveKit voice-consent audio, CE/MDR features, LoRA.
 

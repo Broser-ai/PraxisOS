@@ -1,0 +1,33 @@
+{
+  "id": "p0-f35-f38-journal-bird-login",
+  "title": "P0 F35–F38 · journal audit context, bird status hint strip, login captcha, CODE-MAP",
+  "goal": "auditLogWithContext on journal create/update/sign/draft; strip bird/status keyHint; login captcha-before-backoff; CODE-MAP markers. Suggestion_only; no auto merge/deploy.",
+  "riskLevel": "yellow",
+  "platformScope": ["clinic_ops", "prime"],
+  "acceptanceCriteria": [
+    { "text": "journal.created / journal.updated carry ip/route/auth_mode" },
+    { "text": "GET /api/bird/status has no keyHint" },
+    { "text": "login after ≥3 failures without captcha → 403 captcha_required" },
+    { "text": "CODE-MAP mentions F23+ continue-dev markers" },
+    { "text": "vitest covers; tsc green" }
+  ],
+  "allowedPaths": [
+    "app/api/journal/route.ts",
+    "app/api/journal/[id]/route.ts",
+    "app/api/journal/[id]/sign/route.ts",
+    "app/api/journal/[id]/draft/route.ts",
+    "app/api/bird/status/route.ts",
+    "app/api/auth/login/route.ts",
+    "CODE-MAP.md",
+    "tests/f35-f38-journal-bird-login-codemap.test.ts",
+    "tests/prime/p0-slice-missions.test.ts",
+    "fixtures/missions/p0-f35-f38-journal-bird-login.json"
+  ],
+  "forbiddenPaths": [".env", ".env.production", "clinical-policy"],
+  "workstreams": [
+    { "role": "scout", "title": "Scout · journal audit gaps" },
+    { "role": "builder", "title": "Builder · context + captcha order" },
+    { "role": "verifier", "title": "Verifier · f35–f38 tests" },
+    { "role": "reviewer", "title": "Reviewer · NO_AUTO_JOURNAL_SIGN" }
+  ]
+}

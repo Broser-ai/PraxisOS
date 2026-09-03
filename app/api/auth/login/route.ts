@@ -30,6 +30,17 @@ export async function POST(req: Request) {
     return NextResponse.json({ error: "missing_credentials" }, { status: 400 });
   }
 
+  // F37 · captcha step-up before backoff (parity with signup F34)
+  if (requiresCaptcha(ip, email) && !captcha) {
+    return NextResponse.json(
+      {
+        error: "captcha_required",
+        hint: "Indtast verifikation for at fortsætte",
+      },
+      { status: 403 },
+    );
+  }
+
   const backoff = getBackoffMs(ip, email);
   if (backoff > 0) {
     auditLogWithContext(req, "login.rate_limited", {
@@ -46,16 +57,6 @@ export async function POST(req: Request) {
         status: 429,
         headers: { "Retry-After": Math.ceil(backoff / 1000).toString() },
       },
-    );
-  }
-
-  if (requiresCaptcha(ip, email) && !captcha) {
-    return NextResponse.json(
-      {
-        error: "captcha_required",
-        hint: "Indtast verifikation for at fortsætte",
-      },
-      { status: 403 },
     );
   }
 
