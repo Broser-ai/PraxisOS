@@ -73,7 +73,29 @@ export default function PatientOnboarding({ params }: { params: Promise<{ tenant
   const next = () => setStep((s) => Math.min(7, s + 1) as Step);
   const prev = () => setStep((s) => Math.max(1, s - 1) as Step);
 
-  /** F17 · POST checked purposes → recordConsentEvent (channel web_onboarding). */
+  /** F17 · POST checked purposes → recordConsentEvent (channel web_onboarding).
+   *  F79 · treat already-recorded (200) as success; map error codes for UX. */
+  function consentErrorMessage(body: { error?: string; retryAfter?: number }): string {
+    switch (body?.error) {
+      case "rate_limited":
+        return body.retryAfter
+          ? `For mange forsøg — vent ${body.retryAfter}s og prøv igen.`
+          : "For mange forsøg — vent et øjeblik og prøv igen.";
+      case "required_consents_missing":
+        return "Behandling og journalvisning er påkrævet før du kan fortsætte.";
+      case "no_consents":
+        return "Vælg mindst behandling og journal før du fortsætter.";
+      case "invalid_json":
+        return "Ugyldigt svar — prøv igen.";
+      case "tenant_not_found":
+        return "Klinikken findes ikke. Tjek linket og prøv igen.";
+      default:
+        return typeof body?.error === "string"
+          ? `Kunne ikke gemme samtykke (${body.error}). Prøv igen.`
+          : "Kunne ikke gemme samtykke. Prøv igen.";
+    }
+  }
+
   async function acceptConsentsAndContinue() {
     if (!consents.treatment || !consents.journal || consentSaving) return;
     setConsentSaving(true);
@@ -88,16 +110,17 @@ export default function PatientOnboarding({ params }: { params: Promise<{ tenant
           consentVersion: `${tenant}-onboarding-v1`,
         }),
       });
-      if (!res.ok) {
-        const body = await res.json().catch(() => ({}));
-        setConsentError(
-          typeof body?.error === "string"
-            ? `Kunne ikke gemme samtykke (${body.error}). Prøv igen.`
-            : "Kunne ikke gemme samtykke. Prøv igen.",
-        );
+      const body = await res.json().catch(() => ({}));
+      // F79 · 200 alreadyRecorded OR 201 created → continue
+      if (res.ok && (body?.ok === true || body?.alreadyRecorded === true)) {
+        next();
         return;
       }
-      next();
+      if (!res.ok) {
+        setConsentError(consentErrorMessage(body));
+        return;
+      }
+      setConsentError("Kunne ikke gemme samtykke. Prøv igen.");
     } catch {
       setConsentError("Netværksfejl — prøv igen om et øjeblik.");
     } finally {
@@ -243,8 +266,18 @@ export default function PatientOnboarding({ params }: { params: Promise<{ tenant
           </div>
 
           {consentError && (
-            <div className="mt-3 rounded-[10px] border border-clay/40 bg-clay/[0.06] px-3 py-2 text-[12px] text-ink">
+            <div
+              role="alert"
+              className="mt-3 rounded-[10px] border border-clay/40 bg-clay/[0.06] px-3 py-2 text-[12px] text-ink"
+            >
               {consentError}
+              <button
+                type="button"
+                onClick={() => setConsentError(null)}
+                className="ml-2 text-[11px] underline opacity-80 hover:opacity-100"
+              >
+                Luk
+              </button>
             </div>
           )}
 

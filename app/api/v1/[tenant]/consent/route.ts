@@ -9,6 +9,7 @@
 import { NextResponse } from "next/server";
 import { getTenant } from "@/lib/tenants";
 import {
+  hasActiveConsent,
   recordConsentEvent,
   type ConsentPurpose,
 } from "@/lib/consent";
@@ -90,10 +91,24 @@ export async function POST(
   const consentVersion =
     body.consentVersion?.trim() || `${slug}-onboarding-v1`;
 
+  // F79 · idempotent grants: skip purposes that already have an active event
+  // so double-submit / back-navigation / stamdata enrich do not duplicate rows.
   const recorded: Array<{ purpose: ConsentPurpose; id: string }> = [];
+  const already: ConsentPurpose[] = [];
+  let sawValidPurpose = false;
   for (const key of grantedKeys) {
     const purpose = CHECKBOX_TO_PURPOSE[key];
     if (!purpose) continue;
+    sawValidPurpose = true;
+    const active = hasActiveConsent({
+      tenantId: slug,
+      clientId,
+      purpose,
+    });
+    if (active.ok && active.source === "event") {
+      already.push(purpose);
+      continue;
+    }
     const event = recordConsentEvent({
       tenantId: slug,
       clientId,
@@ -112,11 +127,18 @@ export async function POST(
     recorded.push({ purpose, id: event.id });
   }
 
-  if (recorded.length === 0) {
+  if (!sawValidPurpose) {
     return NextResponse.json({ error: "no_valid_purposes" }, { status: 400 });
   }
 
+  if (recorded.length === 0 && already.length === 0) {
+    return NextResponse.json({ error: "no_valid_purposes" }, { status: 400 });
+  }
+
+  const alreadyRecorded = recorded.length === 0 && already.length > 0;
+
   // F43 · request-context audit (ip / ua / route / request_id)
+  // F79 · also emit on already-recorded so operators see idempotent retries
   auditLogWithContext(req, "consent.onboarding_batch", {
     tenant_id: slug,
     target_ref: `client/${clientId}`,
@@ -124,6 +146,8 @@ export async function POST(
     meta: {
       count: recorded.length,
       purposes: recorded.map((r) => r.purpose),
+      already,
+      alreadyRecorded,
       channel: "web_onboarding",
     },
   });
@@ -138,7 +162,10 @@ export async function POST(
       clientId,
       consentVersion,
       recorded,
+      already,
+      alreadyRecorded,
     },
-    { status: 201, headers },
+    // 200 when nothing new was written; 201 when at least one grant was created
+    { status: alreadyRecorded ? 200 : 201, headers },
   );
 }

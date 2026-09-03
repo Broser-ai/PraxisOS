@@ -920,4 +920,33 @@ describe("PEC · P0 slice missions (Prime Execution Control)", () => {
     // eslint-disable-next-line no-console
     console.log(`[PEC] F75–F76 mission=${mission.id} builder_status=${mergeMark.status}`);
   });
+
+  it("F78–F84 · higher-value slices → approved_for_merge intent", () => {
+    const sliceFiles = changedFilesSinceMain().filter((f) =>
+      [
+        "app/api/v1/[tenant]/consent/route.ts",
+        "app/t/[tenant]/onboarding/page.tsx",
+        ".github/workflows/ci.yml",
+        "docs/ops/p0-operator-checklist-merge-cutover.md",
+        "docs/ops/coding-ready.md",
+        "docs/ops/sandbox-verify.md",
+        "docs/ops/p0-secure-clinical-core-plan.md",
+        "tests/f78-f84-higher-value-slices.test.ts",
+        "fixtures/missions/p0-f78-f84-higher-value-slices.json",
+        "tests/prime/p0-slice-missions.test.ts",
+      ].includes(f),
+    );
+    expect(sliceFiles.length).toBeGreaterThan(0);
+
+    const { mission, mergeMark } = driveSliceToApprovedForMerge(
+      "p0-f78-f84-higher-value-slices",
+      sliceFiles,
+    );
+
+    expect(mission.id).toMatch(/^msn_/);
+    expect(getMission(mission.id)?.status).toBe("running");
+    expect(mergeMark.status).toBe("approved_for_merge");
+    // eslint-disable-next-line no-console
+    console.log(`[PEC] F78–F84 mission=${mission.id} builder_status=${mergeMark.status}`);
+  });
 });

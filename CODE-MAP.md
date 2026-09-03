@@ -160,7 +160,7 @@ Auth notes: staff = session cookie; public = rate-limit / HMAC / allowlist as no
 | `/api/v1/[tenant]/bookings` | POST | Public+kit | Opret booking (CORS+rate-limit) · **F62 audit** |
 | `/api/v1/[tenant]/bookings/list` | GET | Staff/key | Liste bookings · **F69** no ACAO* · **F70 audit** |
 | `/api/v1/[tenant]/clients` | GET/POST | Staff/key | Klient-CRUD · **F69** no ACAO* · **F70 list audit** |
-| `/api/v1/[tenant]/consent` | POST | Public+rate | Onboarding consent · **F17** · **F43 audit** |
+| `/api/v1/[tenant]/consent` | POST | Public+rate | Onboarding consent · **F17** · **F43 audit** · **F79 alreadyRecorded** |
 | `/api/v1/[tenant]/lookup` | GET | Public+rate | Client/email lookup · **F22** · **F48** |
 | `/api/v1/[tenant]/voucher` | GET | Public+rate | Voucher validate · **F22** · **F48** |
 | `/api/v1/[tenant]/prime/missions` | * | Staff | Prime missions · **F46** · **F52 audit** |
@@ -195,15 +195,16 @@ Auth notes: staff = session cookie; public = rate-limit / HMAC / allowlist as no
 | `FunktionerCatalog.tsx` | Feature catalog |
 | `MarketingNav.tsx` | Marketing navigation |
 
-## Total (F49 refresh)
+## Total (F82/F84 refresh)
 
-- **44 API route handlers** (was listed as 15 — stale)
+- **44 API route handlers** (continue-dev count)
 - **Lib modules** under `lib/` incl. consent, audit, captcha, prime, public-booking-kit, request-auth
 - **17 components** (FootScan/SwarmPanel removed)
 - **Migrations** `0001`–`0008` under `supabase/migrations/`
-- Continue-dev slices **F11–F54** on PR #34
+- Continue-dev slices **F11–F84** on PR #34 (~500+ vitest)
+- CI: `.github/workflows/ci.yml` typecheck + test (+ F84 script gate)
+- Ops: `docs/ops/p0-operator-checklist-merge-cutover.md` · coding-ready · sandbox-verify
 
 ---
 
-*Opdateret 2026-09-03 · F49 CODE-MAP accuracy pass (P0 continue-dev)*
-
+*Opdateret 2026-09-03 · F78–F84 higher-value continue-dev*

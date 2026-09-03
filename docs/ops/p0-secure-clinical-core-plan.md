@@ -636,6 +636,13 @@ Små mergeable commits. **Booking-flow regressiones-testes i hvert commit der r�
 | **F75** | MCP `tools/call` → `mcp.tools_call` audit | Done |
 | **F76** | Research paper GET → `research.paper_viewed` audit | Done |
 | **F77** | Operator checklist range bump F11–F76 | Done |
+| **F78** | Guard straggler re-scan (`decodeSession` / `requireTenantAccess`) — no real gaps | Done |
+| **F79** | Consent onboarding already-recorded idempotency + UX error polish | Done |
+| **F80** | Operator checklist refresh merge+#33+#34+cutover through F84 | Done |
+| **F81** | Failing/flaky/type debts — none found at 500 baseline (skipped) | N/A |
+| **F82** | coding-ready + sandbox-verify sync with F4–F84 / ~500+ tests | Done |
+| **F83** | Journal routes consistent `requireTenantAccess` / `requireJournalAccess` | Done |
+| **F84** | CI verify `typecheck`/`test` npm scripts exist before run | Done |
 
 **Explicit out of scope for disse commits:** patient-chat, triage, nye AI-agents, LiveKit voice-consent audio, CE/MDR features, LoRA.
 

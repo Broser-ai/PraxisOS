@@ -27,7 +27,7 @@ describe("F49 · CODE-MAP + env captcha docs", () => {
     expect(map).toMatch(/F51/);
     expect(map).toMatch(/F53/);
     expect(map).toMatch(/captcha/);
-    expect(map).toMatch(/F11–F54|F49 refresh/);
+    expect(map).toMatch(/F11–F54|F11–F84|F49 refresh|F82\/F84 refresh/);
   });
 
   it(".env.example documents Turnstile/hCaptcha", () => {

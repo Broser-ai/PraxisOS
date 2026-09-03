@@ -5,7 +5,7 @@
 `NO_AUTO_JOURNAL_SIGN` · `NO_MODEL_TRAINING` · `PATHOLOGY_SHADOW`.
 
 This checklist links **PR #33** (P0 F4–F10 execution slices) and **PR #34**
-(continue-dev F11–F76) into the cutover path in `docs/ops/p0-db-cutover-runbook.md`.
+(continue-dev F11–F84) into the cutover path in `docs/ops/p0-db-cutover-runbook.md`.
 
 ---
 
@@ -14,7 +14,7 @@ This checklist links **PR #33** (P0 F4–F10 execution slices) and **PR #34**
 - [ ] Confirm CI green on **PR #33** (`cursor/p0-execution-slices-2c11` → `main`).
 - [ ] Merge **#33** first (auth guards F4–F5, booking kit F6, consent F7, audit F8, DB infra F9, cutover runbook F10).
 - [ ] Rebase/retarget **PR #34** onto updated `main` if needed (`cursor/continue-dev-slices-2c11`).
-- [ ] Confirm CI green on **PR #34** (F11–F76 continue-dev).
+- [ ] Confirm CI green on **PR #34** (F11–F84 continue-dev; workflow verifies `typecheck`/`test` scripts exist — F84).
 - [ ] Merge **#34** second.
 - [ ] Do **not** enable auto-merge; do **not** trigger host deploy from the PR UI.
 
@@ -37,7 +37,7 @@ Follow `docs/ops/p0-db-cutover-runbook.md` §0–§2. Short form:
 - [ ] Optional public allowlists: `PRAXIS_BOOKING_CORS_ORIGINS`, `PRAXIS_MCP_ORIGINS` (F6/F59/F60).
 - [ ] Redeploy/restart app **only** after Michael verifies env (no agent deploy).
 
-## D. Smoke after restart (F23–F64)
+## D. Smoke after restart (F23–F84)
 
 ### Auth / audit / public (F23–F40)
 
@@ -79,7 +79,7 @@ Follow `docs/ops/p0-db-cutover-runbook.md` §0–§2. Short form:
 - [ ] `GET /api/agents/status` emits `agent.status_viewed` (F56).
 - [ ] Health GET generous rate-limit still returns 200 for monitors, 429 under flood (F57).
 
-### Continue-dev F59–F64
+### Continue-dev F59–F77
 
 - [ ] MCP `initialize` / `ping` / `tools/list` / GET discovery return 429 under burst (F59).
 - [ ] Embed `/embed/v1/bypilar` still serves JS; ACAO only for allowlisted Origin; 429 under flood (F60).
@@ -89,6 +89,16 @@ Follow `docs/ops/p0-db-cutover-runbook.md` §0–§2. Short form:
 - [ ] Swarm/tick + research harvest audits present (F66); MCP unauthorized audited (F67).
 - [ ] Staff clients/bookings list omit ACAO `*` (F69); list-view audits (F70).
 - [ ] CVR/DAWA omit ACAO `*` (F72); responses carry nosniff/referrer; embed/book stay frameable (F73).
+- [ ] MCP `tools/call` → `mcp.tools_call` audit (F75); research paper GET → `research.paper_viewed` (F76).
+
+### Continue-dev F78–F84 (higher-value / diminishing auth micro-slices)
+
+- [ ] F78 · no remaining sensitive `decodeSession` stragglers without tenant guards (grep/audit tests).
+- [ ] F79 · onboarding consent re-POST same client → 200 `alreadyRecorded` (no duplicate events); UX maps `rate_limited` / required errors; `role=alert`.
+- [ ] F80 · this checklist current through F84 + cutover link.
+- [ ] F82 · `docs/ops/coding-ready.md` + `sandbox-verify.md` match F4–F84 / ~500+ vitest reality.
+- [ ] F83 · all journal routes use `requireTenantAccess` (collection/from-booking) or `requireJournalAccess` (by-id) + `jsonAuthFail`.
+- [ ] F84 · CI verifies `package.json` scripts `typecheck` + `test` exist before running them.
 
 ## E. Explicit non-goals (do not do in this cutover)
 
@@ -96,6 +106,7 @@ Follow `docs/ops/p0-db-cutover-runbook.md` §0–§2. Short form:
 - Clinical policy changes.
 - Auto-merge, auto-deploy, auto journal sign.
 - Weakening `suggestion_only` mission policy.
+- Noisy SSE/orchestrator GET audits (optional later; low value).
 
 ## F. Rollback
 
@@ -105,4 +116,4 @@ runbook §Rollback.
 
 ---
 
-*F27/F39/F47/F54/F61/F74 · continue-dev PR #34 · F23–F76 smoke · suggestion_only · 2026-09-03*
+*F27/F39/F47/F54/F61/F74/F77/F80 · continue-dev PR #34 · F23–F84 smoke · suggestion_only · 2026-09-03*

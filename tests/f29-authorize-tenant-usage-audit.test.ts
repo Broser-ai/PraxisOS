@@ -71,6 +71,7 @@ const PUBLIC_OK = [
   "app/api/v1/[tenant]/lookup/route.ts",
   "app/api/v1/[tenant]/voucher/route.ts",
   "app/api/v1/[tenant]/consent/route.ts",
+  "app/api/bird/status/route.ts",
 ];
 
 describe("F29 · authorizeTenantRequest usage audit", () => {
@@ -107,6 +108,19 @@ describe("F29 · authorizeTenantRequest usage audit", () => {
         src.includes("requireTenantAccess") ||
           src.includes("authorizeTenantRequest"),
       ).toBe(true);
+    }
+  });
+
+  // F78 / F83 · by-id journal routes use requireJournalAccess (wraps requireTenantAccess)
+  it("F78/F83 · journal by-id routes use requireJournalAccess", () => {
+    for (const rel of [
+      "app/api/journal/[id]/route.ts",
+      "app/api/journal/[id]/draft/route.ts",
+      "app/api/journal/[id]/sign/route.ts",
+    ]) {
+      const src = readFileSync(join(ROOT, rel), "utf8");
+      expect(src, rel).toMatch(/requireJournalAccess/);
+      expect(src, rel).toMatch(/jsonAuthFail/);
     }
   });
 

@@ -32,6 +32,23 @@ jobs:
       - name: Install
         run: npm ci
 
+      # F84 · fail fast if package.json loses typecheck/test scripts
+      # (avoids a green-looking empty job when scripts are renamed/removed).
+      - name: Verify package scripts
+        run: |
+          node -e "
+            const p = require('./package.json');
+            const required = ['typecheck', 'test'];
+            const missing = required.filter((s) => !p.scripts || typeof p.scripts[s] !== 'string' || !p.scripts[s].trim());
+            if (missing.length) {
+              console.error('Missing or empty package.json scripts:', missing.join(', '));
+              process.exit(1);
+            }
+            for (const s of required) {
+              console.log('ok script', s, '=>', p.scripts[s]);
+            }
+          "
+
       - name: Typecheck
         run: npm run typecheck
 
