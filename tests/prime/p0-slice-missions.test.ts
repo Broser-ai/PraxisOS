@@ -239,4 +239,31 @@ describe("PEC · P0 slice missions (Prime Execution Control)", () => {
     // eslint-disable-next-line no-console
     console.log(`[PEC] F6 mission=${mission.id} builder_status=${mergeMark.status}`);
   });
+
+  it("F7 · consent lib + migration 0007 + gates → approved_for_merge intent", () => {
+    const sliceFiles = changedFilesSinceMain().filter((f) =>
+      [
+        "lib/consent.ts",
+        "supabase/migrations/0007_consent_events.sql",
+        "app/api/v1/scan/process/route.ts",
+        "app/api/journal/[id]/draft/route.ts",
+        "app/api/bird/send/route.ts",
+        "tests/f7-consent.test.ts",
+        "fixtures/missions/p0-f7-consent-gates.json",
+        "tests/prime/p0-slice-missions.test.ts",
+      ].includes(f),
+    );
+    expect(sliceFiles.length).toBeGreaterThan(0);
+
+    const { mission, mergeMark } = driveSliceToApprovedForMerge(
+      "p0-f7-consent-gates",
+      sliceFiles,
+    );
+
+    expect(mission.id).toMatch(/^msn_/);
+    expect(getMission(mission.id)?.status).toBe("running");
+    expect(mergeMark.status).toBe("approved_for_merge");
+    // eslint-disable-next-line no-console
+    console.log(`[PEC] F7 mission=${mission.id} builder_status=${mergeMark.status}`);
+  });
 });

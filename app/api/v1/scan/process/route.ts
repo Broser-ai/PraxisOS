@@ -12,6 +12,7 @@ import {
   resolveRequestAuth,
   type AuthOk,
 } from "@/lib/request-auth";
+import { assertConsent } from "@/lib/consent";
 
 export const runtime = "nodejs";
 export const dynamic = "force-dynamic";
@@ -61,6 +62,22 @@ export async function POST(req: Request) {
   }
   const tenantId = requestedTenant;
   const patientId = body.patientId ?? booking?.clientId ?? "demo-patient";
+
+  // Consent gate (P0 §D.3) — photo capture + AI processing BEFORE inference.
+  const photoConsent = assertConsent({
+    tenantId,
+    clientId: patientId,
+    purpose: "photo_capture",
+    actorUserId: session.accountId,
+  });
+  if (!photoConsent.ok) return NextResponse.json(photoConsent.body, { status: photoConsent.status });
+  const aiConsent = assertConsent({
+    tenantId,
+    clientId: patientId,
+    purpose: "ai_processing",
+    actorUserId: session.accountId,
+  });
+  if (!aiConsent.ok) return NextResponse.json(aiConsent.body, { status: aiConsent.status });
 
   await ensureNexusBooted(tenantId);
 

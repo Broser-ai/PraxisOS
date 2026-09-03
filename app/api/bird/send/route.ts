@@ -7,6 +7,7 @@ import {
   resolveRequestAuth,
   type AuthOk,
 } from "@/lib/request-auth";
+import { assertConsent } from "@/lib/consent";
 
 export const runtime = "nodejs";
 
@@ -15,6 +16,7 @@ type Body = {
   text?: string;
   from?: string;
   category?: BirdSmsCategory;
+  clientId?: string;
 };
 
 export async function POST(req: NextRequest) {
@@ -55,6 +57,32 @@ export async function POST(req: NextRequest) {
   if (category === "marketing") {
     const marketingGate = requireRole(auth as AuthOk, ["owner", "support"]);
     if (!marketingGate.ok) return jsonAuthFail(marketingGate);
+  }
+
+  // Consent gate (P0 §D.3) — SMS requires consent when client context is present.
+  // Marketing always requires an explicit sms_marketing consent event.
+  if (category === "marketing") {
+    if (!body.clientId) {
+      return NextResponse.json(
+        { error: "client_id_required_for_marketing" },
+        { status: 400 },
+      );
+    }
+    const consent = assertConsent({
+      tenantId: (auth as AuthOk).tenant,
+      clientId: body.clientId,
+      purpose: "sms_marketing",
+      actorUserId: (auth as AuthOk).accountId,
+    });
+    if (!consent.ok) return NextResponse.json(consent.body, { status: consent.status });
+  } else if (body.clientId) {
+    const consent = assertConsent({
+      tenantId: (auth as AuthOk).tenant,
+      clientId: body.clientId,
+      purpose: "sms_transactional",
+      actorUserId: (auth as AuthOk).accountId,
+    });
+    if (!consent.ok) return NextResponse.json(consent.body, { status: consent.status });
   }
 
   const result = await sendBirdSms({
