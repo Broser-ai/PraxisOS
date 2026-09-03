@@ -105,6 +105,28 @@ export default function PatientOnboarding({ params }: { params: Promise<{ tenant
     }
   }
 
+  /** Enrich consent evidence with contact once stamdata is filled (best-effort). */
+  async function continueFromStamdata() {
+    if (!stamdata.phone || !stamdata.email || !stamdata.address) return;
+    try {
+      await fetch(`/api/v1/${tenant}/consent`, {
+        method: "POST",
+        headers: { "content-type": "application/json" },
+        body: JSON.stringify({
+          clientId: onboardingClientId,
+          email: stamdata.email,
+          name: stamdata.name,
+          phone: stamdata.phone,
+          consents,
+          consentVersion: `${tenant}-onboarding-v1`,
+        }),
+      });
+    } catch {
+      // Non-blocking — grants already recorded at step 2
+    }
+    next();
+  }
+
   return (
     <div className="mx-auto max-w-[720px]">
       <div className="rise mb-2">
@@ -363,7 +385,7 @@ export default function PatientOnboarding({ params }: { params: Promise<{ tenant
           <div className="mt-5 flex gap-2">
             <button onClick={prev} className="rounded-[10px] border border-line-2 px-5 py-2.5 text-[13px]">← Tilbage</button>
             <button
-              onClick={next}
+              onClick={() => void continueFromStamdata()}
               disabled={!stamdata.phone || !stamdata.email || !stamdata.address}
               className="flex-1 rounded-[10px] py-2.5 text-[13.5px] font-medium disabled:opacity-40"
               style={{ background: t.brand.ink, color: t.brand.paper }}

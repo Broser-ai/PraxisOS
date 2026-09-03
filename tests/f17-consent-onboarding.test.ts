@@ -129,6 +129,7 @@ describe("F17 · onboarding page wires consent POST", () => {
     );
     expect(src).toMatch(/\/api\/v1\/\$\{tenant\}\/consent/);
     expect(src).toMatch(/acceptConsentsAndContinue/);
+    expect(src).toMatch(/continueFromStamdata/);
     expect(src).toMatch(/consentVersion:\s*`\$\{tenant\}-onboarding-v1`/);
     expect(src).toMatch(/onboardingClientId/);
   });

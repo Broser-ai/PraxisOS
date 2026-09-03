@@ -565,6 +565,23 @@ Små mergeable commits. **Booking-flow regressiones-testes i hvert commit der r�
 
 **Anbefalet merge-rækkefølge:** F1→F2→F3→F4→F6 (beskyt booking midt i auth-rullen)→F5→F7→F8→F9→F10.
 
+### Continue-dev (PR #34 · oven på F4–F10)
+
+| Commit | Formål | Status |
+|--------|--------|--------|
+| **F11** | Middleware strip spoofable `x-praxis-*` | Done |
+| **F12** | Agent worker/cron fail-closed in production | Done |
+| **F13** | MCP `verifyApiKey` + tenant-from-key | Done |
+| **F14** | CI typecheck + vitest | Done |
+| **F15** | Orphan cleanup FootScan/SwarmPanel | Done |
+| **F16** | `/api/health` ← `assertProductionDbConfig` | Done |
+| **F17** | Onboarding → `POST …/consent` → `recordConsentEvent` | Done |
+| **F18** | Audit supabase-mode + request-context tests | Done |
+| **F19** | `GET /api/events` staff-gated | Done |
+| **F20** | `GET /api/agents/workflows` staff-gated | Done |
+| **F21** | CODE-MAP accuracy | Done |
+| **F22** | Lookup/voucher isolated stricter rate-limit | Done |
+
 **Explicit out of scope for disse commits:** patient-chat, triage, nye AI-agents, LiveKit voice-consent audio, CE/MDR features, LoRA.
 
 ---
