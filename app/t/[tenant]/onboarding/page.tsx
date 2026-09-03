@@ -35,6 +35,12 @@ export default function PatientOnboarding({ params }: { params: Promise<{ tenant
     marketing: false,
     research: false,
   });
+  // Stable client id for consent_events (F17) — generated once per onboarding session
+  const [onboardingClientId] = useState(
+    () => "cli_" + Math.random().toString(36).slice(2, 11),
+  );
+  const [consentSaving, setConsentSaving] = useState(false);
+  const [consentError, setConsentError] = useState<string | null>(null);
 
   // MitID
   const [mitidVerified, setMitidVerified] = useState(false);
@@ -66,6 +72,38 @@ export default function PatientOnboarding({ params }: { params: Promise<{ tenant
 
   const next = () => setStep((s) => Math.min(7, s + 1) as Step);
   const prev = () => setStep((s) => Math.max(1, s - 1) as Step);
+
+  /** F17 · POST checked purposes → recordConsentEvent (channel web_onboarding). */
+  async function acceptConsentsAndContinue() {
+    if (!consents.treatment || !consents.journal || consentSaving) return;
+    setConsentSaving(true);
+    setConsentError(null);
+    try {
+      const res = await fetch(`/api/v1/${tenant}/consent`, {
+        method: "POST",
+        headers: { "content-type": "application/json" },
+        body: JSON.stringify({
+          clientId: onboardingClientId,
+          consents,
+          consentVersion: `${tenant}-onboarding-v1`,
+        }),
+      });
+      if (!res.ok) {
+        const body = await res.json().catch(() => ({}));
+        setConsentError(
+          typeof body?.error === "string"
+            ? `Kunne ikke gemme samtykke (${body.error}). Prøv igen.`
+            : "Kunne ikke gemme samtykke. Prøv igen.",
+        );
+        return;
+      }
+      next();
+    } catch {
+      setConsentError("Netværksfejl — prøv igen om et øjeblik.");
+    } finally {
+      setConsentSaving(false);
+    }
+  }
 
   return (
     <div className="mx-auto max-w-[720px]">
@@ -182,15 +220,21 @@ export default function PatientOnboarding({ params }: { params: Promise<{ tenant
             />
           </div>
 
+          {consentError && (
+            <div className="mt-3 rounded-[10px] border border-clay/40 bg-clay/[0.06] px-3 py-2 text-[12px] text-ink">
+              {consentError}
+            </div>
+          )}
+
           <div className="mt-5 flex gap-2">
             <button onClick={prev} className="rounded-[10px] border border-line-2 px-5 py-2.5 text-[13px]">← Tilbage</button>
             <button
-              onClick={next}
-              disabled={!consents.treatment || !consents.journal}
+              onClick={() => void acceptConsentsAndContinue()}
+              disabled={!consents.treatment || !consents.journal || consentSaving}
               className="flex-1 rounded-[10px] py-2.5 text-[13.5px] font-medium disabled:opacity-40"
               style={{ background: t.brand.ink, color: t.brand.paper }}
             >
-              Acceptér og fortsæt →
+              {consentSaving ? "Gemmer samtykke…" : "Acceptér og fortsæt →"}
             </button>
           </div>
         </section>
