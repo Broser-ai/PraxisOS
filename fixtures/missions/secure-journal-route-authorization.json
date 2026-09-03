@@ -4,8 +4,24 @@
   "riskLevel": "yellow",
   "platformScope": ["auth_journal", "clinic_ops", "prime"],
   "goal": "Harden journal API/route authorization so tenant isolation and practitioner auth are enforced before any read/write. Suggestion-only clinical posture; no auto journal sign; no patient SMS autonomy.",
-  "allowedPaths": ["app/api/", "lib/journal.ts", "lib/auth.ts", "tests/", "docs/ops/"],
-  "forbiddenPaths": [".env", ".env.production", "secrets/"],
+  "allowedPaths": [
+    "app/api/journal/",
+    "app/api/auth/me/",
+    "lib/request-auth.ts",
+    "lib/auth.ts",
+    "lib/session-token.ts",
+    "lib/staff-session.ts",
+    "tests/"
+  ],
+  "forbiddenPaths": [
+    ".env",
+    ".env.production",
+    "secrets/",
+    "clinical-policy",
+    "docker-compose.praxis.yml",
+    "supabase/migrations/",
+    "app/api/bird/"
+  ],
   "acceptanceCriteria": [
     { "text": "Unauthenticated journal route requests return 401" },
     { "text": "Cross-tenant journal access returns 403/404 (no leakage)" },

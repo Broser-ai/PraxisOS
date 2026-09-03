@@ -6,13 +6,29 @@ import {
   type JournalStatus,
 } from "@/lib/journal";
 import { ensureWorkflowSubscription } from "@/lib/agents/workflows";
+import { auditLog } from "@/lib/audit";
+import {
+  jsonAuthFail,
+  requireTenantAccess,
+} from "@/lib/request-auth";
 
 export const runtime = "nodejs";
 
 export async function GET(req: Request) {
   ensureWorkflowSubscription();
   const url = new URL(req.url);
-  const tenant = url.searchParams.get("tenant") ?? "bypilar";
+  const tenant = url.searchParams.get("tenant");
+  if (!tenant) {
+    return NextResponse.json({ error: "tenant_required" }, { status: 400 });
+  }
+
+  const auth = requireTenantAccess(req, tenant, {
+    permissions: ["journal"],
+    roles: ["owner", "practitioner", "support"],
+    scopes: ["read:journal"],
+  });
+  if (!auth.ok) return jsonAuthFail(auth);
+
   const clientId = url.searchParams.get("clientId") ?? undefined;
   const bookingId = url.searchParams.get("bookingId") ?? undefined;
   const status = url.searchParams.get("status") as JournalStatus | null;
@@ -51,11 +67,23 @@ export async function POST(req: Request) {
   if (!body.clientId) {
     return NextResponse.json({ error: "clientId_required" }, { status: 400 });
   }
+  const tenant = body.tenant;
+  if (!tenant) {
+    return NextResponse.json({ error: "tenant_required" }, { status: 400 });
+  }
+
+  const auth = requireTenantAccess(req, tenant, {
+    permissions: ["journal"],
+    roles: ["owner", "practitioner", "support"],
+    scopes: ["write:journal"],
+  });
+  if (!auth.ok) return jsonAuthFail(auth);
+
   try {
     const entry = await createJournalEntry({
       clientId: body.clientId,
       bookingId: body.bookingId,
-      tenant: body.tenant,
+      tenant,
       service: body.service,
       serviceId: body.serviceId,
       practitioner: body.practitioner,
@@ -64,9 +92,14 @@ export async function POST(req: Request) {
       aiDrafted: body.aiDrafted,
       draftedBy: body.aiDrafted ? "niels" : "clinician",
     });
+    auditLog("journal.created", {
+      tenant_id: tenant,
+      actor_user_id: auth.accountId,
+      target_ref: `journal/${entry.id}`,
+    });
     return NextResponse.json({ ok: true, entry });
-  } catch (err: any) {
-    const msg = err?.message || "create_failed";
+  } catch (err: unknown) {
+    const msg = err instanceof Error ? err.message : "create_failed";
     const status = msg === "journal_exists_for_booking" ? 409 : 400;
     return NextResponse.json({ error: msg }, { status });
   }
