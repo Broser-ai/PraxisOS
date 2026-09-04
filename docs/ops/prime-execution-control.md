@@ -10,8 +10,9 @@ Controlled multi-agent **programming missions** with hard budget stops, policy/D
 
 ## API choice
 
-Missions stay under **`/api/v1/[tenant]/prime/missions`** (existing PR #31 surface).  
-We did **not** add a parallel `/api/agents/missions*` tree. The agent-worker still hits `/api/agents/tick`; `tickAutomation` now also calls `tickMissions()`.
+**Canonical** missions API: **`/api/v1/[tenant]/prime/missions`**.  
+**Alias** (same handlers, no duplicated domain logic): **`/api/agents/missions`** and **`/api/agents/missions/[missionId]`** — pass `?tenant=` (GET) or `"tenant"` in JSON body (POST); default `bypilar`.  
+The agent-worker still hits `/api/agents/tick`; `tickAutomation` also calls `tickMissions()`.
 
 | Action | Body |
 |--------|------|
