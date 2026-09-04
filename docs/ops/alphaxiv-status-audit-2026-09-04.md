@@ -5,10 +5,10 @@
 **`main` tip audited:** `623b0f9` (`docs(ops): align triage tip SHA to main HEAD`)  
 **Evidence:** kodegennemgang `lib/alphaxiv/*` · API-routes · swarm-wiring · `npx vitest run tests/alphaxiv.test.ts` · live HTTP ~13:39–13:42 UTC  
 
-**Søskende-doc:** En parallel agent («Full PraxisOS status audit», bc-2ac9c62b…) skriver  
-`docs/ops/status-audit-vscode-alphaxiv-2026-09-04.md` (VS Code-halvdel + samlet overblik).  
-**Denne fil er Alphaxiv-dybden** — den kombinerede doc bør pege hertil for research-detaljer;  
-omvendt linkes VS Code / Planway-cutover her kun som kontekst.
+**Søskende-doc (findes på branch):** `cursor/status-audit-vscode-alphaxiv-2c11` →  
+`docs/ops/status-audit-vscode-alphaxiv-2026-09-04.md` (VS Code/Planway cutover + kort Alphaxiv-handoff,  
+agent bc-2ac9c62b…). Søskende §5 er en *handoff-checklist*; **denne fil er Alphaxiv-dybden**  
+(`lib/alphaxiv`, API, tests, env, safety). De to docs overlapper kun på live byPilar-fakta.
 
 **Hard locks (uændret):** `NO_AUTO_MERGE` / `NO_AUTO_DEPLOY` · research = citations only ·  
 ingen patient-triage fra Alphaxiv · ingen Hetzner-deploy / SSH fra agent-env (SSH-nøgle mangler stadig).
@@ -211,13 +211,15 @@ Repo har flere draft-PR’er (#40–#44) om Planway-kill / content rewrite — l
 
 | Emne | Status (ærlig) | Hvor |
 |------|----------------|------|
-| VS Code / agent-stack ops | Separat halvdel — søskende-doc | `docs/ops/status-audit-vscode-alphaxiv-2026-09-04.md` *(under udarbejdelse)* |
+| VS Code / Planway cutover audit | **Skrevet** på sibling-branch (draft PR forventes) | branch `cursor/status-audit-vscode-alphaxiv-2c11` · `docs/ops/status-audit-vscode-alphaxiv-2026-09-04.md` |
+| VS Code «har de løst alt?» | **Nej** — WP/booking funktionelt PraxisOS; health 503 mock; kill-PRs #37–#44 drafts; SSH mangler | søskende §1 |
 | Foundation / PEC | Kontrolplan på `main`; mock persistence | `docs/ops/foundation-status-audit-2026-09-04.md` |
 | P0 cutover runbook | `PRAXIS_DB=mock` forbudt i prod (nu synligt live) | `docs/ops/p0-db-cutover-runbook.md` |
 | Alphaxiv vision spikes | CaptureGate / TriView / MetricAnchor — shadow only | `docs/vision/alphaxiv-top3-spikes.md` |
 | Anti-fantasy transcript | Aurelle chat impact | `docs/vision/alphaxiv-aurelle-transcript-impact.md` |
 
-Hvis den kombinerede VS Code+Alphaxiv-doc lander først: **behold denne fil som deep-dive**; undgå at duplikere track-tabeller dér — link hertil.
+**Relation:** Søskende dækker VS Code→Planway; denne PR dækker Alphaxiv connector readiness.  
+Merge gerne begge som docs-only; undgå at kopiere track-tabeller ind i den kombinerede doc — link hertil.
 
 ---
 
