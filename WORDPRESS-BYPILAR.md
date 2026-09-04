@@ -2,7 +2,7 @@
 
 WordPress kører **på samme Hetzner** som PraxisOS. Cursor styrer alt via SSH + WP-CLI.
 
-> **Live note (2026-09):** DNS for `bypilar.dk` may still point at **Hostinger** while Hetzner WP is prepared. Theme source of truth: `wordpress/themes/pilar-theme/`. Planway cutover checklist: [`docs/ops/bypilar-planway-cutover.md`](docs/ops/bypilar-planway-cutover.md).
+> **Live note (2026-09-04):** DNS for `bypilar.dk` **already points at Hetzner** `167.233.171.184`. Theme SoT: `wordpress/themes/pilar-theme/` (package alias `wordpress/bypilar-theme/`). Live theme still needs SSH push for HTTPS iframe + Planway removal — see [`docs/ops/bypilar-planway-cutover.md`](docs/ops/bypilar-planway-cutover.md).
 
 ## Hvad der kører
 

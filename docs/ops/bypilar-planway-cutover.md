@@ -83,3 +83,22 @@ If any page was edited in the WP editor (not only theme fragments), search conte
 - No clinical policy change
 - Planway account **not** destroyed — links removed only
 - No secrets committed (`.env.bypilar-wp` stays on server; example uses placeholders)
+
+## Agent deploy status (2026-09-04)
+
+| Layer | Status |
+|-------|--------|
+| Git theme (`wordpress/themes/pilar-theme/` + `wordpress/bypilar-theme/`) | HTTPS iframe + `data-praxis-book` (no Planway) |
+| Live `https://bypilar.dk` | DNS → Hetzner `167.233.171.184`; booking iframe still **`http://`**; `/behandlinger/` + `/udekoerende/` still Planway; live `js/main.js` lacks PraxisOS handler |
+| Hostinger WordPress MCP | `listWordPressInstallations` / `listWebsites` / `deployWordpressTheme` **time out**; no file-write path reached |
+| Live push | Requires `HETZNER_PRAXIS_SSH_PRIVATE_KEY` → `bash scripts/push-bypilar-theme-live.sh` |
+
+Exact live files to overwrite under `wp-content/themes/pilar-theme/`:
+
+1. `parts/booking.phpfrag` — iframe `src="https://app.bypilar.dk/t/bypilar/book?embed=1"`
+2. `parts/behandlinger.phpfrag` — replace Planway `<a href>` with `data-praxis-book` buttons
+3. `parts/udekoerende.phpfrag` — same
+4. `js/main.js` — PraxisOS click handler (`PRAXIS_BOOK_ORIGIN = https://app.bypilar.dk`)
+5. `functions.php` + `style.css` — cache-bust `1.0.2`
+6. Optional: `wp-content/mu-plugins/praxisos-bridge.php`
+

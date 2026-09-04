@@ -1,0 +1,35 @@
+<main style="padding-top:130px;min-height:70vh">
+  <div class="container" style="max-width:860px">
+          <div class="page-header">
+        <h1 class="heading" style="font-size:clamp(32px,4vw,50px)">Privatlivspolitik</h1>
+      </div>
+      <div class="entry-content">
+        <h2>Dataansvarlig</h2>
+<p>PILAR v/ Pilar Hernández, CVR 12345678, Søndergade 42, 8000 Aarhus C. Kontakt: hej@bypilar.dk</p>
+<h2>Persondata vi indsamler</h2>
+<p>Navn, e-mail, telefon, adresse (udekørende), bookinghistorik, betalingsinfo.</p>
+<h2>Formål</h2>
+<p>Booking, kommunikation, fakturering, nyhedsbreve (med samtykke), forbedring af services.</p>
+<h2>Retsgrundlag</h2>
+<p>Samtykke (art. 6.1.a), kontraktopfyldelse (art. 6.1.b), legitim interesse (art. 6.1.f).</p>
+<h2>Opbevaring</h2>
+<p>Kundedata opbevares i 5 år efter sidste kontakt. Bookingdata i 2 år. Regnskabsdata i 5 år (bogføringsloven).</p>
+<h2>Dine rettigheder</h2>
+<p>Indsigt, berigtigelse, sletning, begrænsning, dataportabilitet, indsigelse. Kontakt: hej@bypilar.dk</p>
+<h2>Klage</h2>
+<p>Datatilsynet, Carl Jacobsens Vej 35, 2500 Valby, dt@datatilsynet.dk</p>
+<p><em>Senest opdateret: april 2026.</em></p>
+      </div>
+      </div>
+</main>
+
+<!-- Newsletter -->
+<section class="newsletter">
+  <div class="newsletter-inner">
+    <p class="label" style="margin-bottom:16px">Nyhedsbrev</p>
+    <h3>Tips, tilbud & <em>inspiration</em></h3>
+    <!-- Mailchimp form - erstat action URL med din Mailchimp form action -->
+    <div class="newsletter-form">
+      [mc4wp_form id="newsletter"]    </div>
+  </div>
+</section>

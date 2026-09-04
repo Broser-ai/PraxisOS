@@ -28,7 +28,7 @@ WP_TABLE_PREFIX=wp_
 WP_ADMIN_USER=pilar
 WP_ADMIN_PASSWORD=${ADMIN_PASS}
 WP_ADMIN_EMAIL=hej@bypilar.dk
-PRAXISOS_BASE_URL=http://app.bypilar.dk
+PRAXISOS_BASE_URL=https://app.bypilar.dk
 PRAXISOS_INTERNAL_URL=http://praxisos_app:3000
 # Efter DNS-skift: http://bypilar.dk (eller https:// når TLS er klar)
 WP_SITEURL=http://167.233.171.184:8088
