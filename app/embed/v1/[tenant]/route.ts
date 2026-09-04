@@ -1,7 +1,7 @@
 // GET /embed/v1/{tenant}  → JS-snippet til kundens eget website.
 //
-// bypilar.dk indsætter ÉN linje i deres <head>:
-//   <script src="https://api.praxis.app/embed/v1/bypilar" defer></script>
+// bypilar.dk indsætter ÉN linje i deres <head> (altid HTTPS):
+//   <script src="https://app.bypilar.dk/embed/v1/bypilar" defer></script>
 //
 // Derefter virker alle disse mønstre uden mere kode:
 //   <button data-praxis-book>Book tid</button>
@@ -16,12 +16,30 @@ import { NextResponse } from "next/server";
 import { getTenant } from "@/lib/tenants";
 import { bookingAllowedOrigin, clientIp } from "@/lib/public-booking-kit";
 import { checkIpRateLimit } from "@/lib/rate-limit";
+import { BYPILAR_APP_ORIGIN } from "@/lib/bypilar-host";
 
 function envInt(name: string, fallback: number): number {
   const v = process.env[name];
   if (!v) return fallback;
   const n = Number(v);
   return Number.isFinite(n) && n > 0 ? n : fallback;
+}
+
+/** Prefer HTTPS public origin for bypilar; otherwise request origin. */
+function publicOrigin(req: Request): string {
+  const url = new URL(req.url);
+  const host = (req.headers.get("x-forwarded-host") ?? req.headers.get("host") ?? url.host)
+    .toLowerCase()
+    .split(":")[0];
+  if (host === "app.bypilar.dk" || host === "bypilar.dk" || host === "www.bypilar.dk") {
+    return BYPILAR_APP_ORIGIN;
+  }
+  const protoHdr = req.headers.get("x-forwarded-proto");
+  const proto = (protoHdr ?? url.protocol.replace(":", "")).toLowerCase();
+  if (proto === "https" || proto === "http") {
+    return `${proto}://${url.host}`;
+  }
+  return `${url.protocol}//${url.host}`;
 }
 
 export async function GET(
@@ -49,8 +67,7 @@ export async function GET(
     });
   }
 
-  const url = new URL(req.url);
-  const origin = `${url.protocol}//${url.host}`;
+  const origin = publicOrigin(req);
   const accent = t.brand.accent;
 
   const js = `// PraxisOS embed v1 · tenant=${t.slug}
@@ -59,6 +76,7 @@ export async function GET(
   var ORIGIN = ${JSON.stringify(origin)};
   var TENANT = ${JSON.stringify(t.slug)};
   var ACCENT = ${JSON.stringify(accent)};
+  var HIDE_BADGE = ${JSON.stringify(t.slug === "bypilar")};
 
   // ---- inject minimal CSS ----
   var css = '@keyframes prxFade{from{opacity:0}to{opacity:1}}'
@@ -116,8 +134,8 @@ export async function GET(
     open(svc, mode);
   });
 
-  // ---- "drevet af"-badge (kan slås fra med data-praxis-no-badge på <html>) ----
-  if (!document.documentElement.hasAttribute('data-praxis-no-badge')) {
+  // ---- "drevet af"-badge (skjult for bypilar white-label; ellers data-praxis-no-badge) ----
+  if (!HIDE_BADGE && !document.documentElement.hasAttribute('data-praxis-no-badge')) {
     var badge = document.createElement('div'); badge.className = 'prx-badge';
     badge.textContent = '⚡ drevet af PraxisOS';
     document.body && document.body.appendChild(badge);

@@ -1,5 +1,6 @@
 import { NextResponse } from "next/server";
 import type { NextRequest } from "next/server";
+import { isBypilarHost } from "@/lib/bypilar-host";
 
 /**
  * Host-separation på bypilar-hosts:
@@ -18,12 +19,6 @@ import type { NextRequest } from "next/server";
  * F73 · baseline security response headers (nosniff / referrer / frame).
  * Embed + public book paths stay frameable (no X-Frame-Options).
  */
-
-const BYPILAR_HOSTS = new Set([
-  "app.bypilar.dk",
-  "bypilar.dk",
-  "www.bypilar.dk",
-]);
 
 // Identity headers a client must never be able to set. Guards resolve identity
 // from the HMAC cookie or a verified Bearer; these headers are rejected even
@@ -80,11 +75,6 @@ function stripSpoofableIdentityHeaders(req: NextRequest): NextResponse {
   );
 }
 
-function isBypilarHost(host: string): boolean {
-  const h = host.toLowerCase().split(":")[0];
-  return BYPILAR_HOSTS.has(h);
-}
-
 function isAllowedOnBypilar(pathname: string): boolean {
   if (pathname.startsWith("/_next") || pathname.startsWith("/favicon") || pathname === "/icon.svg") {
     return true;
@@ -97,6 +87,8 @@ function isAllowedOnBypilar(pathname: string): boolean {
   if (pathname.startsWith("/embed/v1/")) return true;
   if (pathname.startsWith("/api/")) return true;
   if (pathname.startsWith("/r/")) return true;
+  // Ops / clinic-setup navigator (must stay reachable on customer host)
+  if (pathname === "/setup" || pathname.startsWith("/setup/")) return true;
   const staff = [
     "/login",
     "/dashboard",

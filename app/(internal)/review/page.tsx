@@ -53,11 +53,25 @@ const startHere = [
   },
 ];
 
+const clinicSurfaces = [
+  { title: "by Pilar · forsiden", href: "/t/bypilar", desc: "Ydelser + book" },
+  { title: "Book tid", href: "/t/bypilar/book", desc: "Online booking-flow" },
+  { title: "Klippekort", href: "/t/bypilar/klippekort", desc: "Køb/brug klip" },
+  { title: "Gavekort", href: "/t/bypilar/gavekort", desc: "Gavekort-køb" },
+  { title: "Min side · portal", href: "/t/bypilar/portal", desc: "Patient-login (MitID-demo)" },
+  { title: "Bliv kunde", href: "/t/bypilar/onboarding", desc: "Ny klient-onboarding" },
+  { title: "Klinik-setup", href: "/t/bypilar/setup", desc: "Brand + licens · navigér videre" },
+  { title: "Opsætning · navigator", href: "/setup", desc: "Hele klinik-OS-kortet" },
+  { title: "Nordlys · andet brand", href: "/t/nordlys", desc: "Multi-tenant bevis" },
+  { title: "Embed-demo", href: "/demo/bypilar-website", desc: "Website + modal" },
+];
+
 const staffModules = [
   { kicker: "Praktiserende", title: "Overblik", href: "/dashboard" },
   { kicker: "Praktiserende", title: "Kalender", href: "/kalender" },
   { kicker: "Praktiserende", title: "Klienter", href: "/klienter" },
   { kicker: "Praktiserende", title: "Bookings", href: "/bookings" },
+  { kicker: "Klinisk", title: "Journal", href: "/journal" },
   { kicker: "Klinisk AI", title: "AR/CV-journal", href: "/klienter/mette" },
   { kicker: "Klinisk AI", title: "AI Scribe", href: "/scribe" },
   { kicker: "Klinisk AI", title: "Aria · agent", href: "/agent" },
@@ -66,17 +80,7 @@ const staffModules = [
   { kicker: "Physical AI", title: "Fod-scan · live", href: "/scan/start" },
   { kicker: "Drift", title: "Ruteplanlægning", href: "/felt" },
   { kicker: "Drift", title: "Indstillinger", href: "/indstillinger" },
-];
-
-const clinicSurfaces = [
-  { title: "by Pilar · forsiden", href: "/t/bypilar", desc: "Ydelser + book" },
-  { title: "Book tid", href: "/t/bypilar/book", desc: "Online booking-flow" },
-  { title: "Klippekort", href: "/t/bypilar/klippekort", desc: "Køb/brug klip" },
-  { title: "Gavekort", href: "/t/bypilar/gavekort", desc: "Gavekort-køb" },
-  { title: "Min side · portal", href: "/t/bypilar/portal", desc: "Patient-login (MitID-demo)" },
-  { title: "Bliv kunde", href: "/t/bypilar/onboarding", desc: "Ny klient-onboarding" },
-  { title: "Nordlys · andet brand", href: "/t/nordlys", desc: "Multi-tenant bevis" },
-  { title: "Embed-demo", href: "/demo/bypilar-website", desc: "Website + modal" },
+  { kicker: "Adgang", title: "Klinik-login · Staff", href: "/login?next=/dashboard" },
 ];
 
 const admin = [

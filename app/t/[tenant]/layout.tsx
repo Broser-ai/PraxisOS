@@ -59,7 +59,16 @@ export default async function TenantLayout({
         <footer className="mt-16 border-t border-line/60 px-6 py-6">
           <div className="mx-auto flex max-w-[1100px] flex-wrap items-center justify-between gap-2 text-[11.5px] text-muted">
             <div>© {t.brand.name} · {t.contact.address}{t.contact.cvr ? ` · CVR ${t.contact.cvr}` : ""}</div>
-            <div className="mono">{t.contact.email} · {t.contact.phone}</div>
+            <div className="flex flex-wrap items-center gap-x-3 gap-y-1">
+              <span className="mono">{t.contact.email} · {t.contact.phone}</span>
+              {/* Discreet staff entry — clinic brand only (no B2B product wording). */}
+              <Link
+                href="/login?next=/dashboard"
+                className="text-[11px] text-muted/80 underline-offset-2 hover:text-ink hover:underline"
+              >
+                Klinik-login · Staff
+              </Link>
+            </div>
           </div>
         </footer>
       </div>
