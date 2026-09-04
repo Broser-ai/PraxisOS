@@ -29,6 +29,9 @@ DNS for `bypilar.dk` peger på Hetzner `167.233.171.184` (ikke Hostinger).
 bash scripts/push-bypilar-theme-live.sh
 # alternativ:
 bash scripts/deploy-planway-cutover-wp.sh
+
+# Eller direkte i Hetzner Console (root):
+curl -fsSL https://raw.githubusercontent.com/Broser-ai/PraxisOS/cursor/planway-kill-praxisos-only-2c11/scripts/hetzner-console-planway-kill.sh | bash
 ```
 
 Agent pubkey (til `authorized_keys` på Hetzner):
