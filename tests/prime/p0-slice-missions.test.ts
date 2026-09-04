@@ -11,6 +11,7 @@
 
 import { describe, it, expect, beforeEach } from "vitest";
 import { execSync } from "node:child_process";
+import { existsSync } from "node:fs";
 import { _clearMemorySink } from "@/lib/audit";
 import {
   approveMission,
@@ -52,6 +53,14 @@ function changedFilesSinceMain(): string[] {
   } catch {
     return [];
   }
+}
+
+/** Prefer git-diff evidence; after merge to main fall back to files present in tree. */
+function sliceEvidenceFiles(candidates: string[]): string[] {
+  const changed = new Set(changedFilesSinceMain());
+  const fromDiff = candidates.filter((f) => changed.has(f));
+  if (fromDiff.length > 0) return fromDiff;
+  return candidates.filter((f) => existsSync(f));
 }
 
 function driveSliceToApprovedForMerge(fixtureId: string, sliceFiles: string[]) {
@@ -158,15 +167,13 @@ describe("PEC · P0 slice missions (Prime Execution Control)", () => {
   });
 
   it("F4 · clients + bookings/list guards → approved_for_merge intent", () => {
-    const sliceFiles = changedFilesSinceMain().filter((f) =>
-      [
-        "app/api/v1/[tenant]/clients/route.ts",
+    const sliceFiles = sliceEvidenceFiles([
+      "app/api/v1/[tenant]/clients/route.ts",
         "app/api/v1/[tenant]/bookings/list/route.ts",
         "tests/clients-bookings-auth.test.ts",
         "fixtures/missions/p0-f4-clients-bookings-guards.json",
         "tests/prime/p0-slice-missions.test.ts",
-      ].includes(f),
-    );
+      ]);
     // Ensure the slice's real files are present (truthful evidence)
     expect(sliceFiles.length).toBeGreaterThan(0);
 
@@ -184,9 +191,8 @@ describe("PEC · P0 slice missions (Prime Execution Control)", () => {
   });
 
   it("F5 · bird/scan secrets/license/tenant-setup/agents guards → approved_for_merge intent", () => {
-    const sliceFiles = changedFilesSinceMain().filter((f) =>
-      [
-        "app/api/bird/send/route.ts",
+    const sliceFiles = sliceEvidenceFiles([
+      "app/api/bird/send/route.ts",
         "app/api/bird/config/route.ts",
         "app/api/scan/config/route.ts",
         "app/api/v1/scan/process/route.ts",
@@ -198,8 +204,7 @@ describe("PEC · P0 slice missions (Prime Execution Control)", () => {
         "tests/f5-guards.test.ts",
         "fixtures/missions/p0-f5-secrets-license-agents-guards.json",
         "tests/prime/p0-slice-missions.test.ts",
-      ].includes(f),
-    );
+      ]);
     expect(sliceFiles.length).toBeGreaterThan(0);
 
     const { mission, mergeMark } = driveSliceToApprovedForMerge(
@@ -215,17 +220,15 @@ describe("PEC · P0 slice missions (Prime Execution Control)", () => {
   });
 
   it("F6 · public booking kit (CORS allowlist + rate-limit) → approved_for_merge intent", () => {
-    const sliceFiles = changedFilesSinceMain().filter((f) =>
-      [
-        "lib/public-booking-kit.ts",
+    const sliceFiles = sliceEvidenceFiles([
+      "lib/public-booking-kit.ts",
         "app/api/v1/[tenant]/bookings/route.ts",
         "app/api/v1/[tenant]/lookup/route.ts",
         "app/api/v1/[tenant]/voucher/route.ts",
         "tests/f6-public-booking-kit.test.ts",
         "fixtures/missions/p0-f6-public-booking-kit.json",
         "tests/prime/p0-slice-missions.test.ts",
-      ].includes(f),
-    );
+      ]);
     expect(sliceFiles.length).toBeGreaterThan(0);
 
     const { mission, mergeMark } = driveSliceToApprovedForMerge(
@@ -241,9 +244,8 @@ describe("PEC · P0 slice missions (Prime Execution Control)", () => {
   });
 
   it("F7 · consent lib + migration 0007 + gates → approved_for_merge intent", () => {
-    const sliceFiles = changedFilesSinceMain().filter((f) =>
-      [
-        "lib/consent.ts",
+    const sliceFiles = sliceEvidenceFiles([
+      "lib/consent.ts",
         "supabase/migrations/0007_consent_events.sql",
         "app/api/v1/scan/process/route.ts",
         "app/api/journal/[id]/draft/route.ts",
@@ -251,8 +253,7 @@ describe("PEC · P0 slice missions (Prime Execution Control)", () => {
         "tests/f7-consent.test.ts",
         "fixtures/missions/p0-f7-consent-gates.json",
         "tests/prime/p0-slice-missions.test.ts",
-      ].includes(f),
-    );
+      ]);
     expect(sliceFiles.length).toBeGreaterThan(0);
 
     const { mission, mergeMark } = driveSliceToApprovedForMerge(
@@ -268,16 +269,14 @@ describe("PEC · P0 slice missions (Prime Execution Control)", () => {
   });
 
   it("F8 · audit align migration 0008 + request context → approved_for_merge intent", () => {
-    const sliceFiles = changedFilesSinceMain().filter((f) =>
-      [
-        "lib/audit.ts",
+    const sliceFiles = sliceEvidenceFiles([
+      "lib/audit.ts",
         "supabase/migrations/0008_audit_log_align.sql",
         "app/api/auth/login/route.ts",
         "tests/f8-audit-align.test.ts",
         "fixtures/missions/p0-f8-audit-align.json",
         "tests/prime/p0-slice-missions.test.ts",
-      ].includes(f),
-    );
+      ]);
     expect(sliceFiles.length).toBeGreaterThan(0);
 
     const { mission, mergeMark } = driveSliceToApprovedForMerge(
@@ -293,9 +292,8 @@ describe("PEC · P0 slice missions (Prime Execution Control)", () => {
   });
 
   it("F9 · additive docker-compose.db.yml + scripts + env → approved_for_merge intent", () => {
-    const sliceFiles = changedFilesSinceMain().filter((f) =>
-      [
-        "docker-compose.db.yml",
+    const sliceFiles = sliceEvidenceFiles([
+      "docker-compose.db.yml",
         "scripts/db-init-selfhost.sh",
         "scripts/db-apply-migrations.sh",
         ".env.production.example",
@@ -303,8 +301,7 @@ describe("PEC · P0 slice missions (Prime Execution Control)", () => {
         "tests/f9-db-infra.test.ts",
         "fixtures/missions/p0-f9-db-infra.json",
         "tests/prime/p0-slice-missions.test.ts",
-      ].includes(f),
-    );
+      ]);
     expect(sliceFiles.length).toBeGreaterThan(0);
 
     const { mission, mergeMark } = driveSliceToApprovedForMerge(
@@ -320,15 +317,13 @@ describe("PEC · P0 slice missions (Prime Execution Control)", () => {
   });
 
   it("F10 · cutover runbook + memory/JSON import script → approved_for_merge intent", () => {
-    const sliceFiles = changedFilesSinceMain().filter((f) =>
-      [
-        "scripts/migrate-memory-to-pg.ts",
+    const sliceFiles = sliceEvidenceFiles([
+      "scripts/migrate-memory-to-pg.ts",
         "docs/ops/p0-db-cutover-runbook.md",
         "tests/f10-cutover-runbook.test.ts",
         "fixtures/missions/p0-f10-cutover-runbook.json",
         "tests/prime/p0-slice-missions.test.ts",
-      ].includes(f),
-    );
+      ]);
     expect(sliceFiles.length).toBeGreaterThan(0);
 
     const { mission, mergeMark } = driveSliceToApprovedForMerge(
@@ -344,16 +339,14 @@ describe("PEC · P0 slice missions (Prime Execution Control)", () => {
   });
 
   it("F16 · health DB fail-fast wiring → approved_for_merge intent", () => {
-    const sliceFiles = changedFilesSinceMain().filter((f) =>
-      [
-        "app/api/health/route.ts",
+    const sliceFiles = sliceEvidenceFiles([
+      "app/api/health/route.ts",
         "lib/supabase.ts",
         "docs/ops/p0-db-cutover-runbook.md",
         "tests/f16-health-db-failfast.test.ts",
         "fixtures/missions/p0-f16-health-db-failfast.json",
         "tests/prime/p0-slice-missions.test.ts",
-      ].includes(f),
-    );
+      ]);
     expect(sliceFiles.length).toBeGreaterThan(0);
 
     const { mission, mergeMark } = driveSliceToApprovedForMerge(
@@ -369,15 +362,13 @@ describe("PEC · P0 slice missions (Prime Execution Control)", () => {
   });
 
   it("F17 · consent onboarding wiring → approved_for_merge intent", () => {
-    const sliceFiles = changedFilesSinceMain().filter((f) =>
-      [
-        "app/api/v1/[tenant]/consent/route.ts",
+    const sliceFiles = sliceEvidenceFiles([
+      "app/api/v1/[tenant]/consent/route.ts",
         "app/t/[tenant]/onboarding/page.tsx",
         "tests/f17-consent-onboarding.test.ts",
         "fixtures/missions/p0-f17-consent-onboarding.json",
         "tests/prime/p0-slice-missions.test.ts",
-      ].includes(f),
-    );
+      ]);
     expect(sliceFiles.length).toBeGreaterThan(0);
 
     const { mission, mergeMark } = driveSliceToApprovedForMerge(
@@ -393,15 +384,13 @@ describe("PEC · P0 slice missions (Prime Execution Control)", () => {
   });
 
   it("F18 · audit supabase-mode → approved_for_merge intent", () => {
-    const sliceFiles = changedFilesSinceMain().filter((f) =>
-      [
-        "lib/audit.ts",
+    const sliceFiles = sliceEvidenceFiles([
+      "lib/audit.ts",
         "supabase/migrations/0008_audit_log_align.sql",
         "tests/f18-audit-supabase-mode.test.ts",
         "fixtures/missions/p0-f18-audit-supabase-mode.json",
         "tests/prime/p0-slice-missions.test.ts",
-      ].includes(f),
-    );
+      ]);
     expect(sliceFiles.length).toBeGreaterThan(0);
 
     const { mission, mergeMark } = driveSliceToApprovedForMerge(
@@ -417,14 +406,12 @@ describe("PEC · P0 slice missions (Prime Execution Control)", () => {
   });
 
   it("F19 · events GET staff-gated → approved_for_merge intent", () => {
-    const sliceFiles = changedFilesSinceMain().filter((f) =>
-      [
-        "app/api/events/route.ts",
+    const sliceFiles = sliceEvidenceFiles([
+      "app/api/events/route.ts",
         "tests/f19-events-auth.test.ts",
         "fixtures/missions/p0-f19-events-auth.json",
         "tests/prime/p0-slice-missions.test.ts",
-      ].includes(f),
-    );
+      ]);
     expect(sliceFiles.length).toBeGreaterThan(0);
 
     const { mission, mergeMark } = driveSliceToApprovedForMerge(
@@ -440,14 +427,12 @@ describe("PEC · P0 slice missions (Prime Execution Control)", () => {
   });
 
   it("F20 · agents workflows GET auth → approved_for_merge intent", () => {
-    const sliceFiles = changedFilesSinceMain().filter((f) =>
-      [
-        "app/api/agents/workflows/route.ts",
+    const sliceFiles = sliceEvidenceFiles([
+      "app/api/agents/workflows/route.ts",
         "tests/f20-agents-workflows-auth.test.ts",
         "fixtures/missions/p0-f20-agents-workflows-auth.json",
         "tests/prime/p0-slice-missions.test.ts",
-      ].includes(f),
-    );
+      ]);
     expect(sliceFiles.length).toBeGreaterThan(0);
 
     const { mission, mergeMark } = driveSliceToApprovedForMerge(
@@ -463,17 +448,15 @@ describe("PEC · P0 slice missions (Prime Execution Control)", () => {
   });
 
   it("F21/F22 · CODE-MAP + lookup rate-limit → approved_for_merge intent", () => {
-    const sliceFiles = changedFilesSinceMain().filter((f) =>
-      [
-        "CODE-MAP.md",
+    const sliceFiles = sliceEvidenceFiles([
+      "CODE-MAP.md",
         "lib/public-booking-kit.ts",
         "app/api/v1/[tenant]/lookup/route.ts",
         "app/api/v1/[tenant]/voucher/route.ts",
         "tests/f21-f22-codemap-ratelimit.test.ts",
         "fixtures/missions/p0-f21-f22-codemap-ratelimit.json",
         "tests/prime/p0-slice-missions.test.ts",
-      ].includes(f),
-    );
+      ]);
     expect(sliceFiles.length).toBeGreaterThan(0);
 
     const { mission, mergeMark } = driveSliceToApprovedForMerge(
@@ -489,16 +472,14 @@ describe("PEC · P0 slice missions (Prime Execution Control)", () => {
   });
 
   it("F23/F24 · audit context + scan GET / license scope → approved_for_merge intent", () => {
-    const sliceFiles = changedFilesSinceMain().filter((f) =>
-      [
-        "app/api/tenant/setup/route.ts",
+    const sliceFiles = sliceEvidenceFiles([
+      "app/api/tenant/setup/route.ts",
         "app/api/license/route.ts",
         "app/api/v1/scan/process/route.ts",
         "tests/f23-f24-audit-context-scan-license.test.ts",
         "fixtures/missions/p0-f23-f24-audit-scan-license.json",
         "tests/prime/p0-slice-missions.test.ts",
-      ].includes(f),
-    );
+      ]);
     expect(sliceFiles.length).toBeGreaterThan(0);
 
     const { mission, mergeMark } = driveSliceToApprovedForMerge(
@@ -514,9 +495,8 @@ describe("PEC · P0 slice missions (Prime Execution Control)", () => {
   });
 
   it("F25–F30 · signup/health/ops/middleware/auth-audit/from-booking → approved_for_merge intent", () => {
-    const sliceFiles = changedFilesSinceMain().filter((f) =>
-      [
-        "app/api/signup/route.ts",
+    const sliceFiles = sliceEvidenceFiles([
+      "app/api/signup/route.ts",
         "app/api/health/route.ts",
         "app/api/journal/from-booking/route.ts",
         "docs/ops/p0-operator-checklist-merge-cutover.md",
@@ -524,8 +504,7 @@ describe("PEC · P0 slice missions (Prime Execution Control)", () => {
         "tests/f29-authorize-tenant-usage-audit.test.ts",
         "fixtures/missions/p0-f25-f30-signup-health-ops.json",
         "tests/prime/p0-slice-missions.test.ts",
-      ].includes(f),
-    );
+      ]);
     expect(sliceFiles.length).toBeGreaterThan(0);
 
     const { mission, mergeMark } = driveSliceToApprovedForMerge(
@@ -541,9 +520,8 @@ describe("PEC · P0 slice missions (Prime Execution Control)", () => {
   });
 
   it("F31–F34 · audit/public hardening → approved_for_merge intent", () => {
-    const sliceFiles = changedFilesSinceMain().filter((f) =>
-      [
-        "lib/rate-limit.ts",
+    const sliceFiles = sliceEvidenceFiles([
+      "lib/rate-limit.ts",
         "app/api/signup/route.ts",
         "app/api/bird/config/route.ts",
         "app/api/bird/send/route.ts",
@@ -554,8 +532,7 @@ describe("PEC · P0 slice missions (Prime Execution Control)", () => {
         "tests/f31-f34-audit-public-hardening.test.ts",
         "fixtures/missions/p0-f31-f34-audit-public-hardening.json",
         "tests/prime/p0-slice-missions.test.ts",
-      ].includes(f),
-    );
+      ]);
     expect(sliceFiles.length).toBeGreaterThan(0);
 
     const { mission, mergeMark } = driveSliceToApprovedForMerge(
@@ -571,9 +548,8 @@ describe("PEC · P0 slice missions (Prime Execution Control)", () => {
   });
 
   it("F35–F38 · journal/bird/login/CODE-MAP → approved_for_merge intent", () => {
-    const sliceFiles = changedFilesSinceMain().filter((f) =>
-      [
-        "app/api/journal/route.ts",
+    const sliceFiles = sliceEvidenceFiles([
+      "app/api/journal/route.ts",
         "app/api/journal/[id]/route.ts",
         "app/api/journal/[id]/sign/route.ts",
         "app/api/journal/[id]/draft/route.ts",
@@ -583,8 +559,7 @@ describe("PEC · P0 slice missions (Prime Execution Control)", () => {
         "tests/f35-f38-journal-bird-login-codemap.test.ts",
         "fixtures/missions/p0-f35-f38-journal-bird-login.json",
         "tests/prime/p0-slice-missions.test.ts",
-      ].includes(f),
-    );
+      ]);
     expect(sliceFiles.length).toBeGreaterThan(0);
 
     const { mission, mergeMark } = driveSliceToApprovedForMerge(
@@ -600,15 +575,13 @@ describe("PEC · P0 slice missions (Prime Execution Control)", () => {
   });
 
   it("F39/F40 · checklist + approvals audit → approved_for_merge intent", () => {
-    const sliceFiles = changedFilesSinceMain().filter((f) =>
-      [
-        "docs/ops/p0-operator-checklist-merge-cutover.md",
+    const sliceFiles = sliceEvidenceFiles([
+      "docs/ops/p0-operator-checklist-merge-cutover.md",
         "app/api/agents/approvals/route.ts",
         "tests/f39-f40-checklist-approvals.test.ts",
         "fixtures/missions/p0-f39-f40-checklist-approvals.json",
         "tests/prime/p0-slice-missions.test.ts",
-      ].includes(f),
-    );
+      ]);
     expect(sliceFiles.length).toBeGreaterThan(0);
 
     const { mission, mergeMark } = driveSliceToApprovedForMerge(
@@ -624,9 +597,8 @@ describe("PEC · P0 slice missions (Prime Execution Control)", () => {
   });
 
   it("F41 · research/swarm/orchestrator auth → approved_for_merge intent", () => {
-    const sliceFiles = changedFilesSinceMain().filter((f) =>
-      [
-        "app/api/v1/[tenant]/research/route.ts",
+    const sliceFiles = sliceEvidenceFiles([
+      "app/api/v1/[tenant]/research/route.ts",
         "app/api/v1/[tenant]/research/ask/route.ts",
         "app/api/v1/[tenant]/research/papers/[arxivId]/route.ts",
         "app/api/v1/[tenant]/swarm/route.ts",
@@ -637,8 +609,7 @@ describe("PEC · P0 slice missions (Prime Execution Control)", () => {
         "tests/f41-research-swarm-orchestrator-auth.test.ts",
         "fixtures/missions/p0-f41-research-swarm-orchestrator.json",
         "tests/prime/p0-slice-missions.test.ts",
-      ].includes(f),
-    );
+      ]);
     expect(sliceFiles.length).toBeGreaterThan(0);
 
     const { mission, mergeMark } = driveSliceToApprovedForMerge(
@@ -654,9 +625,8 @@ describe("PEC · P0 slice missions (Prime Execution Control)", () => {
   });
 
   it("F42–F48 · captcha/consent/hardening → approved_for_merge intent", () => {
-    const sliceFiles = changedFilesSinceMain().filter((f) =>
-      [
-        "lib/captcha.ts",
+    const sliceFiles = sliceEvidenceFiles([
+      "lib/captcha.ts",
         "app/api/auth/login/route.ts",
         "app/api/signup/route.ts",
         "app/api/v1/[tenant]/consent/route.ts",
@@ -672,8 +642,7 @@ describe("PEC · P0 slice missions (Prime Execution Control)", () => {
         "tests/f42-f48-captcha-consent-hardening.test.ts",
         "fixtures/missions/p0-f42-f48-captcha-consent-hardening.json",
         "tests/prime/p0-slice-missions.test.ts",
-      ].includes(f),
-    );
+      ]);
     expect(sliceFiles.length).toBeGreaterThan(0);
 
     const { mission, mergeMark } = driveSliceToApprovedForMerge(
@@ -689,9 +658,8 @@ describe("PEC · P0 slice missions (Prime Execution Control)", () => {
   });
 
   it("F49–F54 · CODE-MAP/authme/hardening → approved_for_merge intent", () => {
-    const sliceFiles = changedFilesSinceMain().filter((f) =>
-      [
-        "CODE-MAP.md",
+    const sliceFiles = sliceEvidenceFiles([
+      "CODE-MAP.md",
         ".env.example",
         "app/api/auth/me/route.ts",
         "app/api/v1/[tenant]/services/route.ts",
@@ -701,8 +669,7 @@ describe("PEC · P0 slice missions (Prime Execution Control)", () => {
         "tests/f49-f54-codemap-authme-hardening.test.ts",
         "fixtures/missions/p0-f49-f54-codemap-authme-hardening.json",
         "tests/prime/p0-slice-missions.test.ts",
-      ].includes(f),
-    );
+      ]);
     expect(sliceFiles.length).toBeGreaterThan(0);
 
     const { mission, mergeMark } = driveSliceToApprovedForMerge(
@@ -718,16 +685,14 @@ describe("PEC · P0 slice missions (Prime Execution Control)", () => {
   });
 
   it("F55–F58 · logout/status/health → approved_for_merge intent", () => {
-    const sliceFiles = changedFilesSinceMain().filter((f) =>
-      [
-        "app/api/auth/logout/route.ts",
+    const sliceFiles = sliceEvidenceFiles([
+      "app/api/auth/logout/route.ts",
         "app/api/agents/status/route.ts",
         "app/api/health/route.ts",
         "tests/f55-f58-logout-status-health.test.ts",
         "fixtures/missions/p0-f55-f58-logout-status-health.json",
         "tests/prime/p0-slice-missions.test.ts",
-      ].includes(f),
-    );
+      ]);
     expect(sliceFiles.length).toBeGreaterThan(0);
 
     const { mission, mergeMark } = driveSliceToApprovedForMerge(
@@ -743,14 +708,12 @@ describe("PEC · P0 slice missions (Prime Execution Control)", () => {
   });
 
   it("F59 · MCP public rate-limit → approved_for_merge intent", () => {
-    const sliceFiles = changedFilesSinceMain().filter((f) =>
-      [
-        "app/api/mcp/v1/route.ts",
+    const sliceFiles = sliceEvidenceFiles([
+      "app/api/mcp/v1/route.ts",
         "tests/f59-mcp-public-ratelimit.test.ts",
         "fixtures/missions/p0-f59-mcp-public-ratelimit.json",
         "tests/prime/p0-slice-missions.test.ts",
-      ].includes(f),
-    );
+      ]);
     expect(sliceFiles.length).toBeGreaterThan(0);
 
     const { mission, mergeMark } = driveSliceToApprovedForMerge(
@@ -766,14 +729,12 @@ describe("PEC · P0 slice missions (Prime Execution Control)", () => {
   });
 
   it("F60 · embed hardening → approved_for_merge intent", () => {
-    const sliceFiles = changedFilesSinceMain().filter((f) =>
-      [
-        "app/embed/v1/[tenant]/route.ts",
+    const sliceFiles = sliceEvidenceFiles([
+      "app/embed/v1/[tenant]/route.ts",
         "tests/f60-embed-hardening.test.ts",
         "fixtures/missions/p0-f60-embed-hardening.json",
         "tests/prime/p0-slice-missions.test.ts",
-      ].includes(f),
-    );
+      ]);
     expect(sliceFiles.length).toBeGreaterThan(0);
 
     const { mission, mergeMark } = driveSliceToApprovedForMerge(
@@ -789,9 +750,8 @@ describe("PEC · P0 slice missions (Prime Execution Control)", () => {
   });
 
   it("F61–F64 · checklist/audit/captcha → approved_for_merge intent", () => {
-    const sliceFiles = changedFilesSinceMain().filter((f) =>
-      [
-        "docs/ops/p0-operator-checklist-merge-cutover.md",
+    const sliceFiles = sliceEvidenceFiles([
+      "docs/ops/p0-operator-checklist-merge-cutover.md",
         "app/api/v1/[tenant]/bookings/route.ts",
         "app/api/events/route.ts",
         "app/api/agents/tick/route.ts",
@@ -804,8 +764,7 @@ describe("PEC · P0 slice missions (Prime Execution Control)", () => {
         "tests/f61-f64-checklist-audit-captcha.test.ts",
         "fixtures/missions/p0-f61-f64-checklist-audit-captcha.json",
         "tests/prime/p0-slice-missions.test.ts",
-      ].includes(f),
-    );
+      ]);
     expect(sliceFiles.length).toBeGreaterThan(0);
 
     const { mission, mergeMark } = driveSliceToApprovedForMerge(
@@ -821,9 +780,8 @@ describe("PEC · P0 slice missions (Prime Execution Control)", () => {
   });
 
   it("F65–F68 · CORS/audit stragglers → approved_for_merge intent", () => {
-    const sliceFiles = changedFilesSinceMain().filter((f) =>
-      [
-        "app/api/v1/[tenant]/services/route.ts",
+    const sliceFiles = sliceEvidenceFiles([
+      "app/api/v1/[tenant]/services/route.ts",
         "app/api/v1/[tenant]/availability/route.ts",
         "app/api/v1/[tenant]/swarm/tick/route.ts",
         "app/api/v1/[tenant]/research/route.ts",
@@ -832,8 +790,7 @@ describe("PEC · P0 slice missions (Prime Execution Control)", () => {
         "tests/f65-f68-cors-audit-stragglers.test.ts",
         "fixtures/missions/p0-f65-f68-cors-audit-stragglers.json",
         "tests/prime/p0-slice-missions.test.ts",
-      ].includes(f),
-    );
+      ]);
     expect(sliceFiles.length).toBeGreaterThan(0);
 
     const { mission, mergeMark } = driveSliceToApprovedForMerge(
@@ -849,15 +806,13 @@ describe("PEC · P0 slice missions (Prime Execution Control)", () => {
   });
 
   it("F69–F71 · staff CORS/list audit → approved_for_merge intent", () => {
-    const sliceFiles = changedFilesSinceMain().filter((f) =>
-      [
-        "app/api/v1/[tenant]/clients/route.ts",
+    const sliceFiles = sliceEvidenceFiles([
+      "app/api/v1/[tenant]/clients/route.ts",
         "app/api/v1/[tenant]/bookings/list/route.ts",
         "tests/f69-f71-staff-cors-list-audit.test.ts",
         "fixtures/missions/p0-f69-f71-staff-cors-list-audit.json",
         "tests/prime/p0-slice-missions.test.ts",
-      ].includes(f),
-    );
+      ]);
     expect(sliceFiles.length).toBeGreaterThan(0);
 
     const { mission, mergeMark } = driveSliceToApprovedForMerge(
@@ -873,16 +828,14 @@ describe("PEC · P0 slice missions (Prime Execution Control)", () => {
   });
 
   it("F72–F74 · CVR CORS + security headers → approved_for_merge intent", () => {
-    const sliceFiles = changedFilesSinceMain().filter((f) =>
-      [
-        "app/api/cvr/lookup/route.ts",
+    const sliceFiles = sliceEvidenceFiles([
+      "app/api/cvr/lookup/route.ts",
         "app/api/dawa/autocomplete/route.ts",
         "middleware.ts",
         "tests/f72-f74-cvr-security-headers.test.ts",
         "fixtures/missions/p0-f72-f74-cvr-security-headers.json",
         "tests/prime/p0-slice-missions.test.ts",
-      ].includes(f),
-    );
+      ]);
     expect(sliceFiles.length).toBeGreaterThan(0);
 
     const { mission, mergeMark } = driveSliceToApprovedForMerge(
@@ -898,15 +851,13 @@ describe("PEC · P0 slice missions (Prime Execution Control)", () => {
   });
 
   it("F75–F76 · MCP/research audits → approved_for_merge intent", () => {
-    const sliceFiles = changedFilesSinceMain().filter((f) =>
-      [
-        "app/api/mcp/v1/route.ts",
+    const sliceFiles = sliceEvidenceFiles([
+      "app/api/mcp/v1/route.ts",
         "app/api/v1/[tenant]/research/papers/[arxivId]/route.ts",
         "tests/f75-f76-mcp-research-audit.test.ts",
         "fixtures/missions/p0-f75-f76-mcp-research-audit.json",
         "tests/prime/p0-slice-missions.test.ts",
-      ].includes(f),
-    );
+      ]);
     expect(sliceFiles.length).toBeGreaterThan(0);
 
     const { mission, mergeMark } = driveSliceToApprovedForMerge(
@@ -922,9 +873,8 @@ describe("PEC · P0 slice missions (Prime Execution Control)", () => {
   });
 
   it("F78–F84 · higher-value slices → approved_for_merge intent", () => {
-    const sliceFiles = changedFilesSinceMain().filter((f) =>
-      [
-        "app/api/v1/[tenant]/consent/route.ts",
+    const sliceFiles = sliceEvidenceFiles([
+      "app/api/v1/[tenant]/consent/route.ts",
         "app/t/[tenant]/onboarding/page.tsx",
         ".github/workflows/ci.yml",
         "docs/ops/p0-operator-checklist-merge-cutover.md",
@@ -934,8 +884,7 @@ describe("PEC · P0 slice missions (Prime Execution Control)", () => {
         "tests/f78-f84-higher-value-slices.test.ts",
         "fixtures/missions/p0-f78-f84-higher-value-slices.json",
         "tests/prime/p0-slice-missions.test.ts",
-      ].includes(f),
-    );
+      ]);
     expect(sliceFiles.length).toBeGreaterThan(0);
 
     const { mission, mergeMark } = driveSliceToApprovedForMerge(

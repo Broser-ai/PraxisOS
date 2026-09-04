@@ -17,7 +17,10 @@ function cookieHeader(session: {
   return `${SESSION_COOKIE}=${encodeURIComponent(token)}`;
 }
 
-function ownerReq(url: string, init?: RequestInit): NextRequest {
+function ownerReq(
+  url: string,
+  init?: { method?: string; body?: string; headers?: HeadersInit },
+): NextRequest {
   const headers = new Headers(init?.headers);
   headers.set(
     "cookie",
@@ -30,7 +33,11 @@ function ownerReq(url: string, init?: RequestInit): NextRequest {
   if (init?.body && !headers.has("content-type")) {
     headers.set("content-type", "application/json");
   }
-  return new NextRequest(url, { ...init, headers });
+  return new NextRequest(url, {
+    method: init?.method,
+    body: init?.body,
+    headers,
+  });
 }
 
 describe("/api/agents/missions* aliases → prime missions", () => {

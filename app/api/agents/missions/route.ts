@@ -3,7 +3,8 @@
  *
  * Canonical surface remains `/api/v1/[tenant]/prime/missions`.
  * This tree exists so BUILD prompts that list `/api/agents/missions*` resolve
- * without duplicating mission domain logic. Same auth + invariants.
+ * without duplicating mission domain logic. Same auth + invariants
+ * (resolveRequestAuth / requireTenantAccess inside the prime handler).
  */
 import { NextRequest } from "next/server";
 import {

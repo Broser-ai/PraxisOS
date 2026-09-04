@@ -1,6 +1,7 @@
 /**
  * `/api/agents/missions/[missionId]` — GET alias for a single mission view.
- * Delegates to `/api/v1/[tenant]/prime/missions?view=mission&missionId=…`.
+ * Delegates to `/api/v1/[tenant]/prime/missions?view=mission&missionId=…`
+ * (same resolveRequestAuth / requireTenantAccess as the prime handler).
  */
 import { NextRequest } from "next/server";
 import { GET as primeGet } from "@/app/api/v1/[tenant]/prime/missions/route";
