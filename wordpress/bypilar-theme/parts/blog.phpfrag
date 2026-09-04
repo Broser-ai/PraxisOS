@@ -1,0 +1,20 @@
+<main style="padding-top:130px;min-height:70vh">
+  <div class="container" style="max-width:860px">
+    <div class="page-header">
+      <h1 class="heading">Blog</h1>
+    </div>
+
+    
+      </div>
+</main>
+
+<!-- Newsletter -->
+<section class="newsletter">
+  <div class="newsletter-inner">
+    <p class="label" style="margin-bottom:16px">Nyhedsbrev</p>
+    <h3>Tips, tilbud & <em>inspiration</em></h3>
+    <!-- Mailchimp form - erstat action URL med din Mailchimp form action -->
+    <div class="newsletter-form">
+      [mc4wp_form id="newsletter"]    </div>
+  </div>
+</section>
