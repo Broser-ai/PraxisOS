@@ -1,0 +1,5 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="512" height="512" viewBox="0 0 512 512">
+  <rect width="512" height="512" rx="96" fill="#2D2420"/>
+  <circle cx="256" cy="256" r="190" fill="none" stroke="#D4B5A0" stroke-width="6"/>
+  <text x="256" y="326" text-anchor="middle" font-family="'Bodoni Moda', 'Didot', 'Georgia', serif" font-size="260" font-weight="400" fill="#D4B5A0">P</text>
+</svg>
