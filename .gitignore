@@ -58,3 +58,8 @@ PraxisOS-Forarbejde.docx
 .env.sandbox
 .sandbox-verify/
 backups/
+
+# Live secrets (never commit)
+.env.production
+.env.production.bak*
+.env.*.bak*
