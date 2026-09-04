@@ -199,7 +199,15 @@ Test 20–21 dækker seed-as-draft + spawn flow.
 ## JOB B note (PEC komplet vs BUILD)
 
 PEC DEL B–H fra `docs/ops/prime-execution-control-plan.md` er **landet på main via #32**.  
-Eneste dokumenterede API-gap vs nogle BUILD-prompts der nævner `/api/agents/missions*`: den overflade findes **ikke** endnu (bevidst; missions lever under `/api/v1/.../prime/missions`). Gap-fill = tynde aliases — ikke rewrite.
+Eneste dokumenterede API-gap vs BUILD-prompts der nævner `/api/agents/missions*`: den overflade manglede på `main` (missions kun under `/api/v1/.../prime/missions`).
+
+**Gap-fill branch:** `cursor/prime-execution-control-complete-33db`  
+- Tilføjer tynde aliases: `GET/POST /api/agents/missions` + `GET /api/agents/missions/[missionId]` → samme handlers som prime-missions  
+- Tests: `tests/prime/agents-missions-alias.test.ts` (5 cases)  
+- Ingen rewrite af domain; invariants uændrede  
+
+Open PR (manual — agent token kan ikke oprette PR):  
+https://github.com/Broser-ai/PraxisOS/pull/new/cursor/prime-execution-control-complete-33db
 
 ---
 
