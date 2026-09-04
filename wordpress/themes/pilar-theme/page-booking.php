@@ -2,7 +2,7 @@
 /**
  * Template Name: Book Tid
  *
- * Public booking — HTTPS iframe to app.bypilar.dk only (never Planway).
+ * Public booking — HTTPS iframe to app.bypilar.dk only.
  */
 get_header();
 

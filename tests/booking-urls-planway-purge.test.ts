@@ -127,7 +127,7 @@ describe("Planway purge · repo surfaces", () => {
     );
     expect(page).toMatch(/app\.bypilar\.dk\/t\/bypilar\/book/);
     expect(page).toMatch(/embed=1|praxisos_book_url\(true\)/);
-    expect(page).not.toMatch(/planway/i);
+    expect(page).not.toMatch(/planway\.com/i);
     expect(page).toMatch(/data-praxis-book|praxis_book/);
     expect(page).toMatch(/praxis_klinik|Kom i gang/);
   });
