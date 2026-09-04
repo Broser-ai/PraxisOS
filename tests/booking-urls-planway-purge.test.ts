@@ -109,12 +109,15 @@ describe("Planway purge · repo surfaces", () => {
       join(ROOT, "lib"),
       join(ROOT, "components"),
     ];
+    // Only real URLs count: the purge itself must reference the bare host string
+    // in order to detect and rewrite legacy Planway links.
+    const livePlanwayUrl = /(?:https?:)?\/\/[\w.-]*planway\.com/i;
     const hits: string[] = [];
     for (const root of roots) {
       for (const file of walkFiles(root)) {
         if (/\.(png|jpg|jpeg|gif|webp|svg|woff2?|ico)$/i.test(file)) continue;
         const text = readFileSync(file, "utf8");
-        if (/planway\.com/i.test(text)) hits.push(file.replace(ROOT + "/", ""));
+        if (livePlanwayUrl.test(text)) hits.push(file.replace(ROOT + "/", ""));
       }
     }
     expect(hits).toEqual([]);
