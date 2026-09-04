@@ -1,0 +1,118 @@
+<main style="padding-top:130px;min-height:70vh">
+  <div class="container" style="max-width:860px">
+    <p class="label" style="margin-bottom:12px">Behandlinger</p>
+    <h2 class="heading" style="font-size:clamp(32px,4vw,50px);margin-bottom:40px">Hvad kan vi gøre <em>for dig?</em></h2>
+
+    <div class="treatments-tabs">
+      <button class="treatments-tab active" onclick="switchTab('fod',this)">Fodbehandling</button>
+      <button class="treatments-tab" onclick="switchTab('negle',this)">Negle &amp; Manicure</button>
+    </div>
+
+    <div id="tab-fod">
+      <button type="button" class="treatment-row" data-praxis-book="fod-std" style="width:100%;text-align:left;border:0;background:transparent;cursor:pointer">
+        <div style="flex:1">
+          <div class="treatment-tags">
+            <span class="treatment-name">Fodbehandling</span>
+            <span class="mobile-tag" style="font-size:9px;letter-spacing:1px;text-transform:uppercase;color:var(--rose);font-weight:600">🚗 Udekørende</span>
+          </div>
+          <p class="treatment-desc">Velplejede fødder – fodbad, hård hud, negle og cremepleje</p>
+        </div>
+        <div style="text-align:right;margin-left:24px"><div class="treatment-price">300 kr</div></div>
+        <span class="treatment-arrow" style="margin-left:20px;color:var(--gray)">→</span>
+      </button>
+      <button type="button" class="treatment-row" data-praxis-book="fod-ext" style="width:100%;text-align:left;border:0;background:transparent;cursor:pointer">
+        <div style="flex:1">
+          <div class="treatment-tags">
+            <span class="treatment-name">Udvidet fodbehandling</span>
+            <span class="tag">Populær</span>
+            <span class="mobile-tag" style="font-size:9px;letter-spacing:1px;text-transform:uppercase;color:var(--rose);font-weight:600">🚗 Udekørende</span>
+          </div>
+          <p class="treatment-desc">Ekstra tid til hård hud, nedgroede negle og ligtorne</p>
+        </div>
+        <div style="text-align:right;margin-left:24px"><div class="treatment-price">400 kr</div></div>
+        <span class="treatment-arrow" style="margin-left:20px;color:var(--gray)">→</span>
+      </button>
+      <button type="button" class="treatment-row" data-praxis-book="fod-lux" style="width:100%;text-align:left;border:0;background:transparent;cursor:pointer">
+        <div style="flex:1">
+          <div class="treatment-tags">
+            <span class="treatment-name">Luksus fodbehandling</span>
+            <span class="tag">Favorit</span>
+            <span class="mobile-tag" style="font-size:9px;letter-spacing:1px;text-transform:uppercase;color:var(--rose);font-weight:600">🚗 Udekørende</span>
+          </div>
+          <p class="treatment-desc">Peeling, dyb massage og ekstra velvære (75 min)</p>
+        </div>
+        <div style="text-align:right;margin-left:24px"><div class="treatment-price">595 kr</div><div class="treatment-time">75 min</div></div>
+        <span class="treatment-arrow" style="margin-left:20px;color:var(--gray)">→</span>
+      </button>
+    </div>
+
+    <div id="tab-negle" style="display:none">
+      <button type="button" class="treatment-row" data-praxis-book="mani" style="width:100%;text-align:left;border:0;background:transparent;cursor:pointer">
+        <div style="flex:1">
+          <div class="treatment-tags">
+            <span class="treatment-name">Manicure</span>
+          </div>
+          <p class="treatment-desc">Neglebånd, massage, filing og negleolie</p>
+        </div>
+        <div style="text-align:right;margin-left:24px"><div class="treatment-price">239 kr</div></div>
+        <span class="treatment-arrow" style="margin-left:20px;color:var(--gray)">→</span>
+      </button>
+      <button type="button" class="treatment-row" data-praxis-book="lak-taeer" style="width:100%;text-align:left;border:0;background:transparent;cursor:pointer">
+        <div style="flex:1">
+          <div class="treatment-tags">
+            <span class="treatment-name">Lak på tæer</span>
+            <span class="mobile-tag" style="font-size:9px;letter-spacing:1px;text-transform:uppercase;color:var(--rose);font-weight:600">🚗 Udekørende</span>
+          </div>
+          <p class="treatment-desc">Klargøring og lakering af tånegle</p>
+        </div>
+        <div style="text-align:right;margin-left:24px"><div class="treatment-price">110 kr</div></div>
+        <span class="treatment-arrow" style="margin-left:20px;color:var(--gray)">→</span>
+      </button>
+      <button type="button" class="treatment-row" data-praxis-book="aftag-lak" style="width:100%;text-align:left;border:0;background:transparent;cursor:pointer">
+        <div style="flex:1">
+          <div class="treatment-tags">
+            <span class="treatment-name">Aftagning af lak</span>
+            <span class="mobile-tag" style="font-size:9px;letter-spacing:1px;text-transform:uppercase;color:var(--rose);font-weight:600">🚗 Udekørende</span>
+          </div>
+          <p class="treatment-desc">Fjernelse af eksisterende neglelak</p>
+        </div>
+        <div style="text-align:right;margin-left:24px"><div class="treatment-price">29 kr</div></div>
+        <span class="treatment-arrow" style="margin-left:20px;color:var(--gray)">→</span>
+      </button>
+      <button type="button" class="treatment-row" data-praxis-book="aftag-shellac" style="width:100%;text-align:left;border:0;background:transparent;cursor:pointer">
+        <div style="flex:1">
+          <div class="treatment-tags">
+            <span class="treatment-name">Aftagning af shellac</span>
+            <span class="mobile-tag" style="font-size:9px;letter-spacing:1px;text-transform:uppercase;color:var(--rose);font-weight:600">🚗 Udekørende</span>
+          </div>
+          <p class="treatment-desc">Skånsom fjernelse af shellac</p>
+        </div>
+        <div style="text-align:right;margin-left:24px"><div class="treatment-price">59 kr</div></div>
+        <span class="treatment-arrow" style="margin-left:20px;color:var(--gray)">→</span>
+      </button>
+    </div>
+
+    <p style="margin-top:36px;text-align:center">
+      <button type="button" class="btn btn-primary" data-praxis-book>Book tid</button>
+    </p>
+  </div>
+</main>
+
+<script>
+function switchTab(id, btn) {
+  document.getElementById('tab-fod').style.display = id === 'fod' ? '' : 'none';
+  document.getElementById('tab-negle').style.display = id === 'negle' ? '' : 'none';
+  document.querySelectorAll('.treatments-tab').forEach(function (t) { t.classList.remove('active'); });
+  if (btn) btn.classList.add('active');
+}
+</script>
+
+<!-- Newsletter -->
+<section class="newsletter">
+  <div class="newsletter-inner">
+    <p class="label" style="margin-bottom:16px">Nyhedsbrev</p>
+    <h3>Tips, tilbud & <em>inspiration</em></h3>
+    <div class="newsletter-form">
+      [mc4wp_form id="newsletter"]    </div>
+  </div>
+</section>
