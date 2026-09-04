@@ -37,6 +37,16 @@ export type MissionRole =
   | "reviewer"
   | "release_steward";
 
+/** Alias used by the mission-domain foundation API (PEC). */
+export type AgentRole = MissionRole;
+
+export type AgentRunStatus =
+  | "queued"
+  | "running"
+  | "completed"
+  | "failed"
+  | "budget_exhausted";
+
 /** Platform surfaces a mission may touch (policy scoping). */
 export type PlatformScope =
   | "clinic_ops"
@@ -96,13 +106,18 @@ export type Mission = {
   id: string;
   tenantSlug: string;
   title: string;
+  /** Mission objective (same semantic as goal; required by domain foundation). */
   goal: string;
+  /** Explicit objective mirror of `goal` for Mission / Workstream / AgentRun API. */
+  objective: string;
   status: MissionStatus;
   riskLevel: RiskLevel;
   /** Which product surfaces this mission may touch */
   platformScope: PlatformScope[];
   budgets: MissionBudgets;
   usage: MissionBudgetUsage;
+  /** Mission-level acceptance criteria (at least one required by domain repo). */
+  acceptanceCriteria: AcceptanceCriterion[];
   workstreamIds: string[];
   createdBy: string;
   approvedBy?: string;
@@ -136,8 +151,12 @@ export type Workstream = {
   missionId: string;
   tenantSlug: string;
   title: string;
+  /** Workstream objective (required by domain foundation). */
+  objective: string;
   status: WorkstreamStatus;
+  /** Assigned agent role (= AgentRole / MissionRole). */
   role: MissionRole;
+  assignedRole: MissionRole;
   allowedPaths: string[];
   forbiddenPaths: string[];
   acceptanceCriteria: AcceptanceCriterion[];
@@ -165,7 +184,7 @@ export type MissionAgentRun = {
   missionId: string;
   workstreamId?: string;
   role: MissionRole;
-  status: "queued" | "running" | "completed" | "failed" | "budget_exhausted";
+  status: AgentRunStatus;
   tokenUsage: TokenUsageRecord;
   toolCallCount: number;
   /** Link to clinic agent-store run when dispatcher executes via runAgent */
@@ -174,6 +193,9 @@ export type MissionAgentRun = {
   finishedAt?: string;
   error?: string;
 };
+
+/** Domain foundation alias for mission-scoped agent runs. */
+export type AgentRun = MissionAgentRun;
 
 export type TokenUsageRecord = {
   promptTokens: number;
@@ -215,6 +237,9 @@ export type WorkstreamEvidence = {
   createdAt: string;
   updatedAt: string;
 };
+
+/** Completion evidence for a workstream (DoD / review). */
+export type CompletionEvidence = WorkstreamEvidence;
 
 /** Locked execution-control invariants (compose existing hard locks). */
 export const EXECUTION_CONTROL_INVARIANTS = {

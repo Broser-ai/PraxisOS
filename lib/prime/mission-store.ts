@@ -65,13 +65,39 @@ function hydrate(s: MissionStoreRoot): void {
     const path = join(dir, "mission-store.json");
     if (!existsSync(path)) return;
     const raw = JSON.parse(readFileSync(path, "utf8")) as Partial<MissionStoreRoot>;
-    if (Array.isArray(raw.missions)) s.missions = raw.missions.slice(0, 200);
-    if (Array.isArray(raw.workstreams)) s.workstreams = raw.workstreams.slice(0, 400);
+    if (Array.isArray(raw.missions)) {
+      s.missions = raw.missions.slice(0, 200).map(normalizeMission);
+    }
+    if (Array.isArray(raw.workstreams)) {
+      s.workstreams = raw.workstreams.slice(0, 400).map(normalizeWorkstream);
+    }
     if (Array.isArray(raw.evidence)) s.evidence = raw.evidence.slice(0, 400);
     if (Array.isArray(raw.runs)) s.runs = raw.runs.slice(0, 500);
   } catch {
     // ignore corrupt mirror
   }
+}
+
+function normalizeMission(m: Mission): Mission {
+  const goal = m.goal ?? "";
+  return {
+    ...m,
+    goal,
+    objective: m.objective ?? goal,
+    acceptanceCriteria: Array.isArray(m.acceptanceCriteria)
+      ? m.acceptanceCriteria
+      : [],
+  };
+}
+
+function normalizeWorkstream(w: Workstream): Workstream {
+  const role = w.role ?? w.assignedRole ?? "builder";
+  return {
+    ...w,
+    objective: w.objective ?? w.title ?? "",
+    role,
+    assignedRole: w.assignedRole ?? role,
+  };
 }
 
 function persist(): void {
@@ -113,18 +139,28 @@ export function createMission(input: {
   budgets?: Partial<MissionBudgets>;
   platformScope?: PlatformScope[];
   fixtureId?: string;
+  /** Optional mission-level acceptance criteria (domain repo requires ≥1). */
+  acceptanceCriteria?: { text: string }[];
+  objective?: string;
 }): Mission {
   const now = new Date().toISOString();
+  const objective = (input.objective ?? input.goal).trim();
   const mission: Mission = {
     id: nid("msn"),
     tenantSlug: input.tenantSlug,
     title: input.title.trim(),
-    goal: input.goal.trim(),
+    goal: input.goal.trim() || objective,
+    objective,
     status: "draft",
     riskLevel: input.riskLevel ?? "green",
     platformScope: input.platformScope ?? ["prime", "docs"],
     budgets: { ...DEFAULT_MISSION_BUDGETS, ...input.budgets },
     usage: emptyUsage(),
+    acceptanceCriteria: (input.acceptanceCriteria ?? []).map((c, i) => ({
+      id: `mac_${i + 1}`,
+      text: c.text.trim(),
+      status: "pending" as const,
+    })),
     workstreamIds: [],
     createdBy: input.createdBy,
     fixtureId: input.fixtureId,
@@ -164,8 +200,21 @@ export function updateMission(
   const m = getMission(id);
   if (!m) return undefined;
   Object.assign(m, patch, { updatedAt: new Date().toISOString() });
+  if (patch.goal !== undefined && patch.objective === undefined) {
+    m.objective = patch.goal;
+  }
+  if (patch.objective !== undefined && patch.goal === undefined) {
+    m.goal = patch.objective;
+  }
   persist();
   return m;
+}
+
+export function updateMissionStatus(
+  id: string,
+  status: MissionStatus,
+): Mission | undefined {
+  return updateMission(id, { status });
 }
 
 export function appendHumanDecision(
@@ -193,6 +242,8 @@ export function createWorkstream(input: {
   missionId: string;
   title: string;
   role: Workstream["role"];
+  objective?: string;
+  assignedRole?: Workstream["role"];
   allowedPaths?: string[];
   forbiddenPaths?: string[];
   acceptanceCriteria?: { text: string }[];
@@ -201,13 +252,17 @@ export function createWorkstream(input: {
   if (!mission) return { error: "mission_not_found" };
 
   const now = new Date().toISOString();
+  const role = input.assignedRole ?? input.role;
+  const objective = (input.objective ?? input.title).trim();
   const ws: Workstream = {
     id: nid("ws"),
     missionId: mission.id,
     tenantSlug: mission.tenantSlug,
     title: input.title.trim(),
+    objective,
     status: "queued",
-    role: input.role,
+    role,
+    assignedRole: role,
     allowedPaths: input.allowedPaths ?? ["lib/", "app/", "components/", "tests/", "docs/"],
     forbiddenPaths: input.forbiddenPaths ?? [
       ".env",
@@ -262,8 +317,21 @@ export function updateWorkstream(
   const w = getWorkstream(id);
   if (!w) return undefined;
   Object.assign(w, patch, { updatedAt: new Date().toISOString() });
+  if (patch.role !== undefined && patch.assignedRole === undefined) {
+    w.assignedRole = patch.role;
+  }
+  if (patch.assignedRole !== undefined && patch.role === undefined) {
+    w.role = patch.assignedRole;
+  }
   persist();
   return w;
+}
+
+export function updateWorkstreamStatus(
+  id: string,
+  status: WorkstreamStatus,
+): Workstream | undefined {
+  return updateWorkstream(id, { status });
 }
 
 export function saveEvidence(ev: WorkstreamEvidence): WorkstreamEvidence {
@@ -293,6 +361,10 @@ export function createMissionRun(input: Omit<MissionAgentRun, "id">): MissionAge
   return run;
 }
 
+export function getMissionRun(id: string): MissionAgentRun | undefined {
+  return store().runs.find((r) => r.id === id);
+}
+
 export function updateMissionRun(
   id: string,
   patch: Partial<MissionAgentRun>,
@@ -302,6 +374,30 @@ export function updateMissionRun(
   Object.assign(run, patch);
   persist();
   return run;
+}
+
+/** Domain foundation aliases for AgentRun CRUD. */
+export function createAgentRun(input: Omit<MissionAgentRun, "id">): MissionAgentRun {
+  return createMissionRun(input);
+}
+
+export function getAgentRun(id: string): MissionAgentRun | undefined {
+  return getMissionRun(id);
+}
+
+export function updateAgentRun(
+  id: string,
+  patch: Partial<MissionAgentRun>,
+): MissionAgentRun | undefined {
+  return updateMissionRun(id, patch);
+}
+
+export function listAgentRuns(opts?: {
+  missionId?: string;
+  workstreamId?: string;
+  limit?: number;
+}): MissionAgentRun[] {
+  return listMissionRuns(opts);
 }
 
 export function listMissionRuns(opts?: {
