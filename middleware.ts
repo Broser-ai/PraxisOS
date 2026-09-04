@@ -44,6 +44,19 @@ function isFrameablePath(pathname: string): boolean {
   return false;
 }
 
+/**
+ * Frame ancestors allowed to embed public book/embed surfaces.
+ * byPilar WordPress (bypilar.dk / www) + same-origin app host.
+ */
+const BOOKING_FRAME_ANCESTORS = [
+  "'self'",
+  "https://bypilar.dk",
+  "https://www.bypilar.dk",
+  "https://app.bypilar.dk",
+  "http://localhost:*",
+  "http://127.0.0.1:*",
+].join(" ");
+
 /** F73 · apply baseline security headers onto a middleware response. */
 export function applySecurityHeaders(
   res: NextResponse,
@@ -51,7 +64,14 @@ export function applySecurityHeaders(
 ): NextResponse {
   res.headers.set("x-content-type-options", "nosniff");
   res.headers.set("referrer-policy", "strict-origin-when-cross-origin");
-  if (!isFrameablePath(pathname)) {
+  if (isFrameablePath(pathname)) {
+    // Allow WP / customer-site iframes; omit X-Frame-Options (legacy DENY/SAMEORIGIN
+    // would block cross-origin embed). CSP frame-ancestors is the allowlist.
+    res.headers.set(
+      "content-security-policy",
+      `frame-ancestors ${BOOKING_FRAME_ANCESTORS}`,
+    );
+  } else {
     res.headers.set("x-frame-options", "SAMEORIGIN");
   }
   return res;

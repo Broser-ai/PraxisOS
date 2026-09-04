@@ -1,11 +1,14 @@
 import Link from "next/link";
 import { notFound } from "next/navigation";
 import { getTenant } from "@/lib/tenants";
+import { byPilarStaffEntry } from "@/lib/booking-urls";
 
 export default async function TenantHome({ params }: { params: Promise<{ tenant: string }> }) {
   const { tenant: slug } = await params;
   const t = getTenant(slug);
   if (!t) notFound();
+
+  const staff = slug === "bypilar" ? byPilarStaffEntry() : null;
 
   return (
     <div className="mx-auto max-w-[1100px]">
@@ -18,7 +21,7 @@ export default async function TenantHome({ params }: { params: Promise<{ tenant:
         <p className="mt-4 max-w-[620px] text-[15px] text-muted">
           {t.stats?.clients?.toLocaleString("da-DK")}+ tilfredse kunder · {t.stats?.rating}★ · {t.stats?.yearsOperating} år i {t.contact.address.split(",")[0]}.
         </p>
-        <div className="mt-6 flex gap-2">
+        <div className="mt-6 flex flex-wrap gap-2">
           <Link
             href={`/t/${t.slug}/book`}
             className="rounded-[10px] px-5 py-2.5 text-[14px] font-medium"
@@ -32,6 +35,15 @@ export default async function TenantHome({ params }: { params: Promise<{ tenant:
           >
             Se klippekort
           </Link>
+          {staff && (
+            <a
+              href={staff.href}
+              className="rounded-[10px] border border-line px-5 py-2.5 text-[14px] font-medium text-muted hover:text-ink"
+              title={`${staff.label} · ${staff.sublabel}`}
+            >
+              {staff.label} · {staff.sublabel}
+            </a>
+          )}
         </div>
       </section>
 
