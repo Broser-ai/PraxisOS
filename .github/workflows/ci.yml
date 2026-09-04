@@ -69,4 +69,4 @@ jobs:
       # No lint script exists in package.json. This job deliberately does not
       # fake a lint step — add one here if `lint` is ever added.
       - name: Lint status
-        run: echo "lint: unavailable (no lint script in package.json)"
+        run: echo "lint unavailable - no lint script in package.json"
