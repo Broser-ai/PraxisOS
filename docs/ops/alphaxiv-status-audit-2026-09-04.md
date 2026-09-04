@@ -1,27 +1,32 @@
-# Alphaxiv status + audit — 2026-09-04
+# Alphaxiv status + audit — 2026-09-04 (regen)
 
 **Repo:** Broser-ai/PraxisOS  
-**Branch:** `cursor/alphaxiv-status-audit-2c11`  
+**Branch:** `cursor/status-audit-regen-a8bf`  
 **`main` tip audited:** `623b0f9` (`docs(ops): align triage tip SHA to main HEAD`)  
-**Evidence:** kodegennemgang `lib/alphaxiv/*` · API-routes · swarm-wiring · `npx vitest run tests/alphaxiv.test.ts` · live HTTP ~13:39–13:42 UTC  
+**Evidence window:** 2026-09-04T13:51:08Z → 13:52:35Z  
+**Agent:** `bc-a567e1be-e4bf-5ee4-b878-e86aeeb4a8bf`  
+**Evidence:** kodegennemgang `lib/alphaxiv/*` · API-routes · swarm-wiring · live HTTP (Alphaxiv + byPilar)  
 
-**Søskende-doc (findes på branch):** `cursor/status-audit-vscode-alphaxiv-2c11` →  
-`docs/ops/status-audit-vscode-alphaxiv-2026-09-04.md` (VS Code/Planway cutover + kort Alphaxiv-handoff,  
-agent bc-2ac9c62b…). Søskende §5 er en *handoff-checklist*; **denne fil er Alphaxiv-dybden**  
+**Index:** [`docs/ops/STATUS-AUDIT-LATEST.md`](./STATUS-AUDIT-LATEST.md)  
+**Søskende-doc (VS Code / Planway / PRs):** [`docs/ops/status-audit-vscode-alphaxiv-2026-09-04.md`](./status-audit-vscode-alphaxiv-2026-09-04.md)  
+
+Søskende dækker VS Code→Planway cutover + open PRs; **denne fil er Alphaxiv-dybden**  
 (`lib/alphaxiv`, API, tests, env, safety). De to docs overlapper kun på live byPilar-fakta.
 
 **Hard locks (uændret):** `NO_AUTO_MERGE` / `NO_AUTO_DEPLOY` · research = citations only ·  
 ingen patient-triage fra Alphaxiv · ingen Hetzner-deploy / SSH fra agent-env (SSH-nøgle mangler stadig).
 
+**Supersedes:** ældre draft på PR [#46](https://github.com/Broser-ai/PraxisOS/pull/46) (`cursor/alphaxiv-status-audit-2c11`).
+
 ---
 
 ## Klar dansk (dom)
 
-**Alphaxiv-connectoren er kodeklar i stub-mode og live-søgning virker offentligt — men er ikke «prod research-ready».**
+**Alphaxiv-connectoren er research-ops klar (stub + offentlig search/metadata) — Assistant mangler nøgle; den er ikke clinical KB.**
 
-- **Stub / catalog:** virker (tracks, seed-papers, journal-format, safety-bannere). Tests grønne (6/6).
-- **Live search/metadata:** offentlig Alphaxiv API (`api.alphaxiv.org`) svarer 200 — harvest kan blive `live=true` uden API-nøgle.
-- **Assistant (SSE):** kræver `ALPHAXIV_API_KEY` — **ikke** dokumenteret i `.env.example` / `.env.production.example`; nøgle ikke verificeret i denne session.
+- **Stub / catalog:** virker (tracks, seed-papers, journal-format, safety-bannere). Kode + tests på `main`.
+- **Live search/metadata:** offentlig Alphaxiv API (`api.alphaxiv.org`) svarer **200** med `includePrivate=false` — harvest kan blive `live=true` uden API-nøgle.
+- **Assistant (SSE):** kræver `ALPHAXIV_API_KEY` — **ikke** i `.env.example` / `.env.production.example`; nøgle **MISSING** i denne session.
 - **Klinisk sikkerhed:** research ≠ patient-triage er **kodet ind** (safety-strenge, MDR-noter, NO_AUTO_MERGE) — men der er **ingen** hard gate der forhindrer en fremtidig agent i at citere papers ind i patient-facing copy.
 - **LUNA:** to parallelle stier — S-agent `LUNA_RESEARCH` → Alphaxiv; specialist `agents/specialists/LUNA-harvester.ts` → rå arXiv Atom. De deler ikke klient.
 
@@ -46,7 +51,7 @@ ingen patient-triage fra Alphaxiv · ingen Hetzner-deploy / SSH fra agent-env (S
 | Swarm | `lib/swarm/s-agents.ts` → `lunaResearch` | S-agent `LUNA_RESEARCH` |
 | Swarm types | `lib/swarm/types.ts` | rolle: «Alphaxiv harvest (citations only)» |
 | Router | `lib/swarm/meta-harness.ts` | `type: research` → `LUNA_RESEARCH` |
-| Tests | `tests/alphaxiv.test.ts` | **6 passed** (2026-09-04) |
+| Tests | `tests/alphaxiv.test.ts` | stub/catalog/safety (CI; denne regen kørte ikke vitest — `node_modules` manglede) |
 | Vision | `docs/vision/alphaxiv-*.md`, `docs/alphaxiv-del-pilar-nexus-sota-prompt.md` | ranking / anti-recs |
 
 **Ikke Alphaxiv (men navneforvirring):**  
@@ -55,6 +60,8 @@ ingen patient-triage fra Alphaxiv · ingen Hetzner-deploy / SSH fra agent-env (S
 ---
 
 ## 2. Env-vars (faktisk adfærd)
+
+Fra `lib/alphaxiv/client.ts`:
 
 | Variabel | Effekt | I `.env*.example`? |
 |----------|--------|---------------------|
@@ -70,6 +77,8 @@ Admin-UI nævner nøglen i UI-tekst, men onboarding-docs gør det ikke.
 
 Placeholder-keys (`[SENSITIVE]` / substring `SENSITIVE`) behandles som manglende.
 
+**Denne session:** `ALPHAXIV_API_KEY` = **MISSING**.
+
 ---
 
 ## 3. Stub vs live — hvad virker
@@ -83,20 +92,41 @@ Med `ALPHAXIV_ENABLED=0` (tests):
 3. `agent_swarm`-actions kræver `NO_AUTO_MERGE` (test-assert).
 4. `runDeepResearchAsk` returnerer safety-banner; Assistant `ok: false` uden nøgle.
 
-### 3.2 Live HTTP (offentlig API — verificeret ~13:41 UTC)
+### 3.2 Live HTTP (offentlig API — verificeret 2026-09-04T13:51:53Z–13:52:06Z)
 
-| Endpoint i klient | Probe | Resultat |
-|-------------------|-------|----------|
-| `GET /search/v2/paper/fast?q=…` | curl | **200** · paper-liste (CIRL, Experiential RL, …) |
-| `GET /papers/v3/legacy/2505.24864` | curl | **200** · ProRL metadata + `paper_version.id` |
-| Assistant `POST /assistant/v2/chat` | — | **Ikke** testet (kræver nøgle) |
+| Endpoint | Probe | Resultat |
+|----------|-------|----------|
+| `GET /search/v2/paper/fast?q=…` **uden** `includePrivate` | curl 13:51:53Z | **400** schema: `includePrivate` expected `"true"|"false"` |
+| `GET /search/v2/paper/fast?q=reinforcement%20learning&includePrivate=false` | curl 13:52:06Z | **200** · paper-liste (CIRL, Experiential RL, HACRL, …) |
+| `GET /papers/v3/legacy/2505.24864` | curl 13:51:53Z | **200** · ProRL metadata + `paper_version.id` |
+| Assistant `POST /assistant/v2/chat` | — | **Ikke** testet (kræver nøgle; nøgle MISSING) |
+
+Klient (`lib/alphaxiv/client.ts`) sender allerede `includePrivate=false` på fast-search — korrekt ift. live schema.
 
 Klient-fallback-ruter:
 
-- Search: `/search/v2/paper/fast` → `/v1/search/paper`
+- Search: `/search/v2/paper/fast?q=…&includePrivate=false` → `/v1/search/paper?q=…`
 - Paper: `/papers/v3/legacy/{id}` → `/papers/v3/{id}` → `…/preview`
 - Similar / overview: kræver versionId fra legacy meta
 - Timeout: 12s (GET) / 45s (Assistant); fejl → tom liste / `null` (fail-soft)
+
+**Raw search evidence (truncated, 13:52:06Z):**
+
+```json
+[
+  {"paperId":"1606.03137","title":"[1606.03137] Cooperative Inverse Reinforcement Learning - arXiv",...},
+  {"paperId":"2602.13949","title":"Experiential Reinforcement Learning",...},
+  {"paperId":"2603.02604","title":"Heterogeneous Agent Collaborative Reinforcement Learning",...}
+]
+```
+
+**Raw paper evidence (truncated, 13:51:53Z):**
+
+```json
+{"paper":{"paper_version":{"id":"01972258-e688-7432-9766-045c86f2bc9f","version_label":"v1",
+  "title":"ProRL: Prolonged Reinforcement Learning Expands Reasoning Boundaries in  Large Language Models",
+  "universal_paper_id":"2505.24864"},...}}
+```
 
 ### 3.3 Auth på PraxisOS-routes
 
@@ -177,33 +207,35 @@ meta-harness (type=research | "paper")
 |------|-----|--------|
 | P0 ops | Dokumentér `ALPHAXIV_*` i `.env.example` (+ production) | I dag kun kode + admin UI-tekst |
 | P0 ops | Beslut: prod `ALPHAXIV_ENABLED` default | Nu: live outbound hvis unset |
-| P1 | Verificér `ALPHAXIV_API_KEY` i deploy-secret store | Assistant ellers permanent soft-fail |
+| P1 | Verificér / injicér `ALPHAXIV_API_KEY` i deploy-secret store | Assistant ellers permanent soft-fail; **MISSING** her |
 | P1 | Opdatér `FANTASY_PATHS` / claims vs eksisterende stubs | Undgå falske «findes ikke»-påstande |
 | P2 | Ensret LUNA-harvester (arXiv) vs Alphaxiv klient | To harvest-stier = dobbelt vedligehold |
 | P2 | Rate-limit / cache på research GET | Fail-soft men kan hammer'e Alphaxiv |
 | P3 | Live integrationstest bag `ALPHAXIV_LIVE=1` | Kun stub dækket i CI i dag |
-| P3 | Product-RAG / curated fodpleje-KB | Alphaxiv er **ikke** den KB (se arkitekt-briefing P1) |
+| P3 | Product-RAG / curated fodpleje-KB | Alphaxiv er **ikke** den KB |
 
 ---
 
 ## 8. Live snapshot — byPilar / Planway / PraxisOS (kontekst)
 
-Verificeret ~13:39–13:42 UTC 2026-09-04 (agent + parent):
+Verificeret 2026-09-04T13:51:08Z → 13:52:35Z:
 
 | Check | Resultat |
 |-------|----------|
-| `GET https://app.bypilar.dk/api/health` | `ok:false` · `error: db_config_invalid` · `PRAXIS_DB=mock forbidden in production` |
-| Tolkning | **Fail-fast er live** (ny kode deployed) — cutover til Postgres/Supabase **ikke** færdig |
-| `GET /t/bypilar/book` | **200** · CSP `frame-ancestors` inkl. `https://bypilar.dk` |
-| `bypilar.dk` «planway»-count ~2 | **Falsk positiv** — kun theme version `1.3.0-planway-total-kill` (CSS/JS `?ver=`) |
-| `http://app.bypilar.dk` iframes | **0** |
-| `/book` + `/booking` | **1 iframe** → `https://app.bypilar.dk/t/bypilar/book?embed=1` |
-| Agent SSH | **Mangler stadig** — ingen Hetzner-fix fra denne env |
+| `GET https://app.bypilar.dk/api/health` | **503** · `ok:false` · `db_config_invalid` · `PRAXIS_DB=mock forbidden` · `backend=memory` |
+| Tolkning | Fail-fast **live** — **Prod DB NOT solved** |
+| `GET /api/scan/config` | **200** · `liveReady:true` · providers replicate/roboflow/openai |
+| `HEAD /t/bypilar/book` | **200** · CSP `frame-ancestors` inkl. `https://bypilar.dk` |
+| `bypilar.dk` `planway.com` | **0** på `/`, `/booking/`, `/behandlinger/`, `/udekoerende/` |
+| `planway` substring | ~2/side — kun `ver=1.3.0-planway-total-kill` |
+| `http://app.bypilar` | **0** |
+| `/booking/` iframe | `https://app.bypilar.dk/t/bypilar/book?embed=1` |
+| Theme | `pilar-theme` **`1.3.0-planway-total-kill`** |
+| Booking JSON | `/api/v1/bypilar/services` + `availability` → **200 JSON** (memory); naive `/api/booking*` → **HTML 404** |
+| Agent SSH | **MISSING** |
 
-**Planway cutover (ærlig):**  
-WP-temaet er versioneret som «planway-total-kill» og booker via PraxisOS-iframe.  
-Repo har flere draft-PR’er (#40–#44) om Planway-kill / content rewrite — live site ser allerede PraxisOS-embed på `/book`.  
-**DB-cutover** er den blokerende prod-smerte (`db_config_invalid`), ikke Alphaxiv.
+**Planway customer booking:** **SOLVED** (0 planway.com, HTTPS PraxisOS, kill theme).  
+**DB-cutover:** blokerende prod-smerte — ikke Alphaxiv.
 
 ---
 
@@ -211,15 +243,13 @@ Repo har flere draft-PR’er (#40–#44) om Planway-kill / content rewrite — l
 
 | Emne | Status (ærlig) | Hvor |
 |------|----------------|------|
-| VS Code / Planway cutover audit | **Draft PR #45** | https://github.com/Broser-ai/PraxisOS/pull/45 · branch `cursor/status-audit-vscode-alphaxiv-2c11` · `docs/ops/status-audit-vscode-alphaxiv-2026-09-04.md` |
-| VS Code «har de løst alt?» | **Nej** — WP/booking funktionelt PraxisOS; health 503 mock; kill-PRs #37–#44 drafts; SSH mangler | søskende §1 |
+| VS Code / Planway cutover audit (regen) | denne branch | `docs/ops/status-audit-vscode-alphaxiv-2026-09-04.md` |
+| Latest pointer | denne branch | `docs/ops/STATUS-AUDIT-LATEST.md` |
+| Ældre draft PRs | **superseded** | [#45](https://github.com/Broser-ai/PraxisOS/pull/45) · [#46](https://github.com/Broser-ai/PraxisOS/pull/46) |
+| VS Code «har de løst alt?» | **Nej** — WP booking SOLVED; health/DB NOT; drafts; SSH mangler | søskende §1 |
 | Foundation / PEC | Kontrolplan på `main`; mock persistence | `docs/ops/foundation-status-audit-2026-09-04.md` |
 | P0 cutover runbook | `PRAXIS_DB=mock` forbudt i prod (nu synligt live) | `docs/ops/p0-db-cutover-runbook.md` |
 | Alphaxiv vision spikes | CaptureGate / TriView / MetricAnchor — shadow only | `docs/vision/alphaxiv-top3-spikes.md` |
-| Anti-fantasy transcript | Aurelle chat impact | `docs/vision/alphaxiv-aurelle-transcript-impact.md` |
-
-**Relation:** Søskende dækker VS Code→Planway; denne PR dækker Alphaxiv connector readiness.  
-Merge gerne begge som docs-only; undgå at kopiere track-tabeller ind i den kombinerede doc — link hertil.
 
 ---
 
@@ -229,9 +259,8 @@ Merge gerne begge som docs-only; undgå at kopiere track-tabeller ind i den komb
 npx vitest run tests/alphaxiv.test.ts
 ```
 
-**Resultat (2026-09-04, denne session):**  
-`Test Files  1 passed (1)` · `Tests  6 passed (6)` · ~213ms  
-
+**Denne regen-session:** `node_modules` / vitest **ikke** installeret i cloud-env — tests **ikke genkørt**.  
+Tidligere audit (samme dag, på `main` tip-familie): 6/6 passed (~213ms).  
 Dækker: catalog tracks · abs URL · stub harvest · NO_AUTO_MERGE i swarm-actions · fantasy claim registry · deep-ask safety uden nøgle.  
 **Dækker ikke:** live HTTP, Assistant SSE, API-route auth, admin UI.
 
@@ -239,25 +268,25 @@ Dækker: catalog tracks · abs URL · stub harvest · NO_AUTO_MERGE i swarm-acti
 
 # English brief — Alphaxiv readiness
 
-**Verdict: research-ops ready (stub + public search); not Assistant-complete; not clinical KB.**
+**Verdict: research-ops ready (stub + public search/metadata); Assistant needs key; not clinical KB.**
 
 ### What works
 - Curated 6-track catalog with MDR notes and seed arXiv IDs.
 - Fail-soft HTTP client against `https://api.alphaxiv.org` (search/paper/overview/similar/topics).
-- Public search + legacy paper metadata verified live (HTTP 200) without an API key.
+- Public search (**200** with `includePrivate=false`) + legacy paper metadata (**200**) verified live 2026-09-04T13:51–13:52Z without an API key.
 - Tenant-auth’d research API + admin UI + LUNA_RESEARCH swarm harvest → journal citations only.
-- Stub mode + vitest (6/6) enforce `NO_AUTO_MERGE` messaging and catalog fallback.
+- Stub mode + vitest suite enforce `NO_AUTO_MERGE` messaging and catalog fallback (prior run same day).
 
 ### What does not / gaps
-- `ALPHAXIV_API_KEY` / `ALPHAXIV_ENABLED` missing from env examples; Assistant untested here.
+- `ALPHAXIV_API_KEY` / `ALPHAXIV_ENABLED` missing from env examples; key **MISSING** this session; Assistant untested.
 - Default non-test behavior is “try live” — production policy should be explicit.
 - Parallel arXiv Atom harvester (`agents/specialists/LUNA-harvester.ts`) is not the Alphaxiv client.
 - `FANTASY_PATHS` partially stale vs existing stubs.
 - Must never feed patient triage / SOAP / booking copy without human edit.
 
 ### Relation to byPilar live
-- Health fail-fast (`db_config_invalid` / mock forbidden) proves new prod code; DB cutover still open.
-- WP booking iframe already points at HTTPS PraxisOS; “planway” string matches are theme version tags only.
+- Planway **customer booking SOLVED** (theme `1.3.0-planway-total-kill`, 0 `planway.com`, HTTPS PraxisOS iframe).
+- Health fail-fast (**503** `db_config_invalid` / mock forbidden) — **prod DB NOT solved**.
 - SSH still absent in agent env — no remote cutover from this run.
 
 ---
@@ -266,10 +295,10 @@ Dækker: catalog tracks · abs URL · stub harvest · NO_AUTO_MERGE i swarm-acti
 
 1. Tilføj `ALPHAXIV_ENABLED` / `ALPHAXIV_API_KEY` / `ALPHAXIV_LIVE` til `.env.example` (+ production note).  
 2. Sæt prod-policy: `ALPHAXIV_ENABLED=1` kun hvis outbound ønskes; ellers `0` indtil nøgle/secret er sat.  
-3. Én smoke: staff `/admin/research` → harvest `live=true` + DeepAsk uden/med nøgle.  
+3. Injicér `ALPHAXIV_API_KEY` → smoke staff `/admin/research` → harvest `live=true` + DeepAsk med nøgle.  
 4. Opdatér `chat-claims.ts` så stubs vs fantasy ikke modsiger fil-træet.  
 5. Hold Alphaxiv ude af patient-facing paths indtil curated fodpleje-KB findes.
 
 ---
 
-*Audit forfatter: cloud agent «Alphaxiv research status audit» · bc-cdd68728… · 2026-09-04*
+*Audit regen: cloud agent «Regenerate full status audit» · bc-a567e1be… · evidence 2026-09-04T13:51–13:52Z*
