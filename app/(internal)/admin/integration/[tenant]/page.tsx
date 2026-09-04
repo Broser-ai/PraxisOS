@@ -1,13 +1,21 @@
 import Link from "next/link";
 import { notFound } from "next/navigation";
 import { getTenant } from "@/lib/tenants";
+import { BYPILAR_APP_ORIGIN } from "@/lib/bypilar-host";
 
 export default async function IntegrationGuide({ params }: { params: Promise<{ tenant: string }> }) {
   const { tenant: slug } = await params;
   const t = getTenant(slug);
   if (!t) notFound();
 
-  const origin = process.env.NEXT_PUBLIC_BASE_URL || "http://127.0.0.1:3002";
+  // byPilar customer instructions always HTTPS. Other tenants use configured public URL.
+  const configured = (process.env.PRAXIS_PUBLIC_BASE_URL || process.env.NEXT_PUBLIC_BASE_URL || "").replace(/\/$/, "");
+  const origin =
+    t.slug === "bypilar"
+      ? BYPILAR_APP_ORIGIN
+      : configured.startsWith("https://")
+        ? configured
+        : configured || "http://127.0.0.1:3002";
   const embedSrc = `${origin}/embed/v1/${t.slug}`;
   const firstSvc = t.services[0]?.id ?? "fod-med";
 

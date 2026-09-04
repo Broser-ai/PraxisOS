@@ -67,7 +67,7 @@ export default function ClinicSetupPage({ params }: { params: Promise<{ tenant: 
 
   return (
     <div className="mx-auto max-w-[640px]">
-      <div className="kicker">Klinik-setup · B2B licens</div>
+      <div className="kicker">Klinik-setup</div>
       <h1 className="display mt-2 text-[34px] font-semibold leading-tight">
         {step === "done" ? "Klinikken er klar" : `Velkommen, ${t.legalName}`}
       </h1>
@@ -75,7 +75,7 @@ export default function ClinicSetupPage({ params }: { params: Promise<{ tenant: 
       {step === "welcome" && (
         <section className="mt-8 space-y-4">
           <p className="text-[14px] text-muted">
-            Din PraxisOS-tenant er oprettet med <strong>{plan.name}</strong>
+            Din klinik-tenant er oprettet med <strong>{plan.name}</strong>
             {t.license.status === "trial" ? " (30 dages trial)" : ""}.
             Næste skridt: brand + aktiver licens.
           </p>
@@ -184,14 +184,14 @@ export default function ClinicSetupPage({ params }: { params: Promise<{ tenant: 
         <section className="mt-8 space-y-4 text-center">
           <p className="text-[14px] text-muted">
             Log ind med din e-mail og adgangskode <span className="mono">demo</span>.
-            Dine kunder booker på white-label under dit brand.
+            Kunder booker under dit clinic-brand.
           </p>
           <div className="flex flex-wrap justify-center gap-3">
             <Link
-              href="/login"
+              href="/login?next=/dashboard"
               className="rounded-[12px] bg-ink px-5 py-3 text-[14px] font-medium text-paper"
             >
-              Log ind i PraxisOS
+              Klinik-login · Staff
             </Link>
             <Link
               href={`/t/${slug}`}
@@ -205,6 +205,28 @@ export default function ClinicSetupPage({ params }: { params: Promise<{ tenant: 
             >
               Test booking
             </Link>
+          </div>
+          <div className="mt-6 text-left">
+            <div className="kicker mb-2 text-center">Åbn klinik-OS efter login</div>
+            <div className="grid grid-cols-2 gap-2 sm:grid-cols-3">
+              {[
+                ["/dashboard", "Overblik"],
+                ["/kalender", "Kalender"],
+                ["/klienter", "Klienter"],
+                ["/journal", "Journal"],
+                ["/scan", "Fod-scan"],
+                ["/admin/packaging", "Admin"],
+              ].map(([href, label]) => (
+                <Link
+                  key={href}
+                  href={href}
+                  className="rounded-[10px] border border-line px-3 py-2.5 text-[12.5px] hover:bg-paper-2"
+                >
+                  {label}
+                  <div className="mono text-[10px] text-faint">{href}</div>
+                </Link>
+              ))}
+            </div>
           </div>
         </section>
       )}
