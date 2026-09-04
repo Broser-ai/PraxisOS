@@ -54,7 +54,11 @@ $year = (int) gmdate('Y');
 
     <div class="footer-bottom">
       <span>&copy; <?php echo $year; ?> PILAR · Negle &amp; Fodpleje</span>
-      <span><a href="<?php echo esc_url(home_url('/privatlivspolitik/')); ?>" style="opacity:0.5">Privatlivspolitik</a> · CVR: 43947079</span>
+      <span>
+        <?php echo do_shortcode('[praxis_klinik class=""]'); ?>
+        · <a href="<?php echo esc_url(home_url('/privatlivspolitik/')); ?>" style="opacity:0.5">Privatlivspolitik</a>
+        · CVR: 43947079
+      </span>
     </div>
   </div>
 </footer>

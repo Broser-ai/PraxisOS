@@ -19,6 +19,13 @@ WordPress kører **på samme Hetzner** som klinik-OS (`app.bypilar.dk`). Cursor 
 - CTA: `data-praxis-book` (tema `js/main.js` + `/embed/v1/bypilar`)
 - Cutover-runbook: `docs/ops/bypilar-planway-cutover.md`
 - **White-label:** ingen “PraxisOS”-branding på bypilar.dk kundevendte sider
+- Runtime rewrite i `functions.php` stripper Planway fra DB-content/menuer selv før wp-cli cleanup
+
+### Live Planway-kill (Hetzner Console — når SSH mangler)
+
+```bash
+curl -fsSL https://raw.githubusercontent.com/Broser-ai/PraxisOS/cursor/planway-total-kill-live-2c11/scripts/hetzner-console-planway-kill.sh | bash
+```
 
 ## Cursor kan
 

@@ -26,8 +26,9 @@ add_action('wp_enqueue_scripts', function () {
         [],
         null
     );
-    wp_enqueue_style('pilar-style', get_stylesheet_uri(), ['pilar-fonts'], '1.2.0-planway-kill');
-    wp_enqueue_script('pilar-main', get_template_directory_uri() . '/js/main.js', [], '1.2.0-planway-kill', true);
+    // Bump assets so live caches drop http:// iframe + old CTAs after theme push.
+    wp_enqueue_style('pilar-style', get_stylesheet_uri(), ['pilar-fonts'], '1.3.0-planway-total-kill');
+    wp_enqueue_script('pilar-main', get_template_directory_uri() . '/js/main.js', [], '1.3.0-planway-total-kill', true);
 });
 
 add_action('wp_head', function () {
@@ -39,15 +40,111 @@ add_action('wp_head', function () {
 }, 1);
 
 /**
- * Replace unresolved Mailchimp shortcode with a simple mailto CTA.
+ * Canonical public book URL (HTTPS). Prefer mu-plugin helper when loaded.
+ */
+function pilar_book_url(bool $embed = false): string
+{
+    if (function_exists('praxisos_book_url')) {
+        return praxisos_book_url($embed);
+    }
+    return $embed
+        ? 'https://app.bypilar.dk/t/bypilar/book?embed=1'
+        : 'https://app.bypilar.dk/t/bypilar/book';
+}
+
+/**
+ * Strip/replace Planway URLs + force HTTPS clinic booking + white-label copy.
+ * Critical: live WP DB / menus may still contain Planway even after theme deploy.
+ */
+function pilar_rewrite_planway(string $html): string
+{
+    $book = pilar_book_url(false);
+    $book_embed = pilar_book_url(true);
+
+    // Any Planway URL → PraxisOS book (HTTPS)
+    $html = preg_replace(
+        '#https?://[^"\'\s<>]*planway\.com[^"\'\s<>]*#i',
+        $book,
+        $html
+    ) ?? $html;
+
+    // Mixed-content guard for clinic booking
+    $html = str_ireplace('http://app.bypilar.dk', 'https://app.bypilar.dk', $html);
+
+    // Prefer embed URL inside iframes that still point at bare book path
+    $html = preg_replace(
+        '#(<iframe[^>]+src=["\'])https://app\.bypilar\.dk/t/bypilar/book(?:\?embed=1)?(["\'])#i',
+        '$1' . $book_embed . '$2',
+        $html
+    ) ?? $html;
+
+    // Customer-facing: never brand PraxisOS on bypilar.dk
+    $html = str_replace('via PraxisOS', 'hos by Pilar', $html);
+    $html = str_replace('fra PraxisOS', 'hos by Pilar', $html);
+    $html = str_replace(' · PraxisOS', '', $html);
+    $html = str_replace('synkroniseres fra PraxisOS', 'opdateres løbende', $html);
+
+    return $html;
+}
+
+/**
+ * Replace unresolved Mailchimp shortcode + purge Planway from post content.
  */
 add_filter('the_content', function ($content) {
-    return str_replace(
+    $content = str_replace(
         '[mc4wp_form id="newsletter"]',
         '<p style="margin:0"><a class="btn btn-primary" href="mailto:hej@bypilar.dk?subject=Nyhedsbrev">Tilmeld dig på hej@bypilar.dk</a></p>',
         $content
     );
-});
+    return pilar_rewrite_planway((string) $content);
+}, 20);
+
+add_filter('widget_text', function ($text) {
+    return pilar_rewrite_planway((string) $text);
+}, 20);
+
+add_filter('widget_text_content', function ($text) {
+    return pilar_rewrite_planway((string) $text);
+}, 20);
+
+/**
+ * Menus: rewrite Planway custom links at runtime (DB menu items may still point there).
+ */
+add_filter('nav_menu_link_attributes', function ($atts) {
+    if (!empty($atts['href']) && stripos((string) $atts['href'], 'planway.com') !== false) {
+        $atts['href'] = pilar_book_url(false);
+    }
+    if (!empty($atts['href']) && stripos((string) $atts['href'], 'http://app.bypilar.dk') === 0) {
+        $atts['href'] = str_ireplace('http://app.bypilar.dk', 'https://app.bypilar.dk', (string) $atts['href']);
+    }
+    return $atts;
+}, 20);
+
+add_filter('nav_menu_item_url', function ($url) {
+    if (is_string($url) && stripos($url, 'planway.com') !== false) {
+        return pilar_book_url(false);
+    }
+    if (is_string($url) && stripos($url, 'http://app.bypilar.dk') === 0) {
+        return str_ireplace('http://app.bypilar.dk', 'https://app.bypilar.dk', $url);
+    }
+    return $url;
+}, 20);
+
+/**
+ * Belt-and-suspenders: rewrite entire front-end HTML response so leftover Planway
+ * in page builders / cached fragments / custom fields cannot leak to customers.
+ */
+add_action('template_redirect', function () {
+    if (is_admin() || wp_doing_ajax() || wp_doing_cron() || (defined('REST_REQUEST') && REST_REQUEST)) {
+        return;
+    }
+    ob_start(function ($html) {
+        if (!is_string($html) || $html === '') {
+            return $html;
+        }
+        return pilar_rewrite_planway($html);
+    });
+}, 0);
 
 /**
  * Load a theme part HTML fragment (scraped from live Hostinger site).
@@ -65,31 +162,8 @@ function pilar_part(string $name): void
         '<p style="margin:0"><a class="btn btn-primary" href="mailto:hej@bypilar.dk?subject=Nyhedsbrev">Tilmeld dig på hej@bypilar.dk</a></p>',
         $html
     );
-    // Hard purge: never serve Planway booking URLs from theme fragments
-    $book = function_exists('praxisos_book_url')
-        ? praxisos_book_url(false)
-        : 'https://app.bypilar.dk/t/bypilar/book';
-    $book_embed = function_exists('praxisos_book_url')
-        ? praxisos_book_url(true)
-        : 'https://app.bypilar.dk/t/bypilar/book?embed=1';
-    $html = preg_replace(
-        '#https?://[^"\']*planway\.com[^"\']*#i',
-        $book,
-        $html
-    ) ?? $html;
-    $html = str_ireplace('http://app.bypilar.dk', 'https://app.bypilar.dk', $html);
-    $html = str_replace(
-        'https://app.bypilar.dk/t/bypilar/book?embed=1',
-        $book_embed,
-        $html
-    );
-    // Customer-facing: never brand PraxisOS on bypilar.dk
-    $html = str_replace('via PraxisOS', 'hos by Pilar', $html);
-    $html = str_replace('fra PraxisOS', 'hos by Pilar', $html);
-    $html = str_replace(' · PraxisOS', '', $html);
-    $html = str_replace('synkroniseres fra PraxisOS', 'opdateres løbende', $html);
     // phpcs:ignore WordPress.Security.EscapeOutput.OutputNotEscaped -- trusted theme fragment
-    echo $html;
+    echo pilar_rewrite_planway($html);
 }
 
 function pilar_fallback_primary_menu(): void
