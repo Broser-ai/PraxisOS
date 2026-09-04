@@ -37,6 +37,19 @@ Agent pubkey (til `authorized_keys` på Hetzner):
 ssh-ed25519 AAAAC3NzaC1lZDI1NTE5AAAAIKo0tW+F3OGmrhuXhy5No7IXQj2rcre08kNc+LyYEdyT cursor-planway-cutover-57ae
 ```
 
+## Live status (agent snapshot 2026-09-04)
+
+| Side | planway | http://app | https embed | data-praxis-book |
+| --- | --- | --- | --- | --- |
+| `/booking/` | 0 | 1 (mixed content) | 0 | 1 |
+| `/` | 0 | 0 | 0 | 5 |
+| `/behandlinger/` | 0 | 0 | 0 | 0 |
+| `/udekoerende/` | 8 | 0 | 0 | 0 |
+| `main.js` live | ingen `data-praxis-book` handler | | | |
+| `/embed/v1/bypilar` live | `ORIGIN = https://0.0.0.0:3000` (broken) | | | |
+
+Repo-fix er klar; **live kræver Hetzner SSH** (`push-bypilar-theme-live.sh`) + app-redeploy for embed ORIGIN.
+
 ## Verifikation
 
 ```bash
