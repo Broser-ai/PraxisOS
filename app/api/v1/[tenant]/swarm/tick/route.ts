@@ -1,8 +1,9 @@
-import { NextRequest, NextResponse } from "next/server";
-import { decodeSession, SESSION_COOKIE } from "@/lib/auth";
+import { NextResponse } from "next/server";
 import { getTenant } from "@/lib/tenants";
 import { getDaemonState, tickDaemon } from "@/lib/swarm/daemon";
 import { isSwarmEnabled } from "@/lib/swarm/meta-harness";
+import { jsonAuthFail, requireTenantAccess } from "@/lib/request-auth";
+import { auditLogWithContext } from "@/lib/audit";
 
 /**
  * POST /api/v1/{tenant}/swarm/tick
@@ -10,7 +11,7 @@ import { isSwarmEnabled } from "@/lib/swarm/meta-harness";
  * Also accepts Authorization: Bearer cron secret via SWARM_CRON_SECRET.
  */
 export async function POST(
-  req: NextRequest,
+  req: Request,
   ctx: { params: Promise<{ tenant: string }> },
 ) {
   if (!isSwarmEnabled()) {
@@ -28,17 +29,26 @@ export async function POST(
     Boolean(cronSecret) && bearer === `Bearer ${cronSecret}`;
 
   if (!cronOk) {
-    const session = decodeSession(req.cookies.get(SESSION_COOKIE)?.value ?? "");
-    if (!session || session.tenant !== tenant) {
-      return NextResponse.json({ error: "unauthorized" }, { status: 401 });
-    }
-    if (session.role !== "owner" && session.role !== "support") {
-      return NextResponse.json({ error: "forbidden" }, { status: 403 });
+    // F41 · requireTenantAccess for staff path (cron Bearer unchanged)
+    const auth = requireTenantAccess(req, tenant, {
+      roles: ["owner", "support"],
+    });
+    if (!auth.ok) {
+      auditLogWithContext(req, "swarm.tick_unauthorized", {
+        tenant_id: tenant,
+        auth_mode: "session",
+      });
+      return jsonAuthFail(auth);
     }
   }
 
   try {
     const result = await tickDaemon({ tenantSlug: tenant });
+    // F66 · swarm tick mutation audit
+    auditLogWithContext(req, "swarm.tick", {
+      tenant_id: tenant,
+      auth_mode: cronOk ? "cron_secret" : "session",
+    });
     return NextResponse.json({
       ok: true,
       ...result,

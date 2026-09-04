@@ -3,10 +3,22 @@
 // GET /api/cvr/lookup?q=by+pilar    → søg på navn
 //
 // Bruger cvrapi.dk's gratis-tier (1.000 req/dag). Returnerer normaliseret format.
+// F32 · per-IP rate-limit (signup abuse / scrape control).
 
 import { NextResponse } from "next/server";
+import { checkIpRateLimit } from "@/lib/rate-limit";
+
+// F72 · no ACAO * on CVR proxy (same-origin admin UI; rate-limited).
 
 const CVR_API = "https://cvrapi.dk/api";
+const CVR_LIMIT = 60; // / 15 min / IP
+const CVR_WINDOW_MS = 15 * 60 * 1000;
+
+function clientIp(req: Request): string {
+  const xff = req.headers.get("x-forwarded-for");
+  if (xff) return xff.split(",")[0]!.trim();
+  return req.headers.get("x-real-ip") ?? "unknown";
+}
 
 type CvrResult = {
   cvr: string;
@@ -76,6 +88,24 @@ const DEMO_RESULTS: Record<string, CvrResult> = {
 };
 
 export async function GET(req: Request) {
+  const ip = clientIp(req);
+  const limited = checkIpRateLimit(ip, {
+    key: "cvr",
+    limit: CVR_LIMIT,
+    windowMs: CVR_WINDOW_MS,
+  });
+  if (!limited.ok) {
+    return NextResponse.json(
+      { error: "rate_limited", retryAfterMs: limited.retryAfterMs },
+      {
+        status: 429,
+        headers: {
+          "Retry-After": Math.ceil(limited.retryAfterMs / 1000).toString(),
+        },
+      },
+    );
+  }
+
   const url = new URL(req.url);
   const cvr = url.searchParams.get("cvr");
   const q = url.searchParams.get("q");
@@ -87,7 +117,7 @@ export async function GET(req: Request) {
   // Hvis CVR-nummer matcher demo-data, returnér det
   if (cvr && DEMO_RESULTS[cvr]) {
     return NextResponse.json({ result: DEMO_RESULTS[cvr], source: "demo-cache" }, {
-      headers: { "cache-control": "public, max-age=86400", "access-control-allow-origin": "*" },
+      headers: { "cache-control": "public, max-age=86400" },
     });
   }
 
@@ -108,7 +138,7 @@ export async function GET(req: Request) {
         error: "cvr_lookup_failed",
         hint: "cvrapi.dk har en grænse på 1.000 req/dag for gratis brug · prøv igen senere",
         fallback: cvr ? { cvr, name: `CVR-firma ${cvr}`, city: "Danmark" } : null,
-      }, { status: 502, headers: { "access-control-allow-origin": "*" } });
+      }, { status: 502 });
     }
 
     const raw = await res.json();
@@ -131,13 +161,13 @@ export async function GET(req: Request) {
       employees: raw.employees,
     };
     return NextResponse.json({ result, source: "cvrapi" }, {
-      headers: { "cache-control": "public, max-age=86400", "access-control-allow-origin": "*" },
+      headers: { "cache-control": "public, max-age=86400" },
     });
   } catch (err: any) {
     return NextResponse.json({
       error: "network_failure",
       message: err.message,
       fallback: cvr ? { cvr, name: `CVR-firma ${cvr}`, city: "Danmark" } : null,
-    }, { status: 502, headers: { "access-control-allow-origin": "*" } });
+    }, { status: 502 });
   }
 }

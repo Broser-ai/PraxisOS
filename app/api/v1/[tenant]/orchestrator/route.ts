@@ -6,7 +6,7 @@
 // Async sti: ved deadline overskridelse returneres 202 med run_id;
 //            resten af run kører under waitUntil() indtil timeout (INV-14).
 
-import { NextRequest, NextResponse } from "next/server";
+import { NextResponse } from "next/server";
 import {
   buildOrchestrator,
   isOrchestrationEnabled,
@@ -20,8 +20,14 @@ import {
 import type { Role } from "@/lib/agents";
 import { createDefaultLLMCaller } from "@/lib/llm-adapter";
 import { redactPII } from "@/lib/redact";
-import { decodeSession, SESSION_COOKIE, type Role as AuthRole, type Session } from "@/lib/auth";
+import type { Role as AuthRole } from "@/lib/auth";
 import { orchRunMaps } from "@/lib/orchestrator-runs";
+import {
+  jsonAuthFail,
+  requireTenantAccess,
+  type GuardOk,
+} from "@/lib/request-auth";
+import { auditLogWithContext } from "@/lib/audit";
 
 // Shared with GET …/orchestrator/runs/[runId]
 const { inflight: inflightRuns, completed: completedRuns } = orchRunMaps();
@@ -32,7 +38,7 @@ function newRunId(): string {
 }
 
 export async function POST(
-  req: NextRequest,
+  req: Request,
   ctx: { params: Promise<{ tenant: string }> },
 ) {
   if (!isOrchestrationEnabled()) {
@@ -65,16 +71,22 @@ export async function POST(
     return NextResponse.json({ error: "INVALID_JSON" }, { status: 400 });
   }
 
-  // Verificér session-cookie og udled actor_role. Hvis der ikke findes en
-  // gyldig session, afvises kaldet (INV-7 - rolle-baseret dispatch).
-  const cookieHeader = req.cookies.get(SESSION_COOKIE)?.value;
-  const session = decodeSession(cookieHeader ?? "") as Session | null;
-  if (!session || session.tenant !== tenant) {
-    return NextResponse.json({ error: "UNAUTHORIZED" }, { status: 401 });
-  }
+  // F41 · requireTenantAccess (HMAC cookie / verified API key) — INV-7.
+  const auth = requireTenantAccess(req, tenant);
+  if (!auth.ok) return jsonAuthFail(auth);
+  const session = auth as GuardOk;
   // Kun de fire kendte auth-roller matches mod agent-domænets Role. Bemærk
   // at typen `Role` fra agents.ts er identisk med `AuthRole` fra lib/auth.ts.
-  const actorRole: Role = session.role as AuthRole as Role;
+  // API-key callers without a role default to practitioner (least-privilege staff).
+  const actorRole: Role = (session.role ?? "practitioner") as AuthRole as Role;
+
+  // F64 · orchestrator mutation audit (no message content)
+  auditLogWithContext(req, "orchestrator.invoke", {
+    tenant_id: tenant,
+    actor_user_id: session.accountId,
+    target_ref: body.origin ?? "api",
+    auth_mode: "session",
+  });
 
   const origin: Origin = body.origin ?? "api";
   const messages: OrchestratorMessage[] =

@@ -20,13 +20,17 @@ import { getTenant } from "@/lib/tenants";
 
 const BOOKING_WINDOW_MS = 15 * 60 * 1000; // 15 min
 const DEFAULT_BOOKING_LIMIT = 30; // requests / window / IP / tenant
+/** Stricter default for email/code enumeration surfaces (lookup + voucher). */
+const DEFAULT_LOOKUP_LIMIT = 20;
 
 type Bucket = { count: number; firstAt: number };
 const buckets = new Map<string, Bucket>();
+const lookupBuckets = new Map<string, Bucket>();
 
 /** Test helper — clear rate-limit state between cases. */
 export function _resetBookingRateLimitForTests(): void {
   buckets.clear();
+  lookupBuckets.clear();
 }
 
 function envInt(name: string, fallback: number): number {
@@ -107,12 +111,39 @@ export function bookingRateLimit(
   ip: string,
   tenantSlug: string,
 ): { ok: true } | { ok: false; status: 429; retryAfter: number } {
-  const limit = envInt("PRAXIS_BOOKING_RATE_LIMIT", DEFAULT_BOOKING_LIMIT);
-  const key = `${tenantSlug}:${ip}`;
+  return fixedWindowLimit(
+    buckets,
+    `${tenantSlug}:${ip}`,
+    envInt("PRAXIS_BOOKING_RATE_LIMIT", DEFAULT_BOOKING_LIMIT),
+  );
+}
+
+/**
+ * F22 · separate + stricter rate-limit for public lookup/voucher (PII email
+ * enumeration + voucher code brute-force). Isolated from booking bucket so
+ * booking traffic cannot exhaust (or be exhausted by) lookup probes.
+ * Override via PRAXIS_LOOKUP_RATE_LIMIT (default 20 / 15 min).
+ */
+export function publicLookupRateLimit(
+  ip: string,
+  tenantSlug: string,
+): { ok: true } | { ok: false; status: 429; retryAfter: number } {
+  return fixedWindowLimit(
+    lookupBuckets,
+    `lookup:${tenantSlug}:${ip}`,
+    envInt("PRAXIS_LOOKUP_RATE_LIMIT", DEFAULT_LOOKUP_LIMIT),
+  );
+}
+
+function fixedWindowLimit(
+  store: Map<string, Bucket>,
+  key: string,
+  limit: number,
+): { ok: true } | { ok: false; status: 429; retryAfter: number } {
   const now = Date.now();
-  const b = buckets.get(key);
+  const b = store.get(key);
   if (!b || now - b.firstAt > BOOKING_WINDOW_MS) {
-    buckets.set(key, { count: 1, firstAt: now });
+    store.set(key, { count: 1, firstAt: now });
     return { ok: true };
   }
   b.count += 1;

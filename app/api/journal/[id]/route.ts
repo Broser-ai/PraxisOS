@@ -1,6 +1,6 @@
 import { NextResponse } from "next/server";
 import { updateJournalEntry } from "@/lib/journal";
-import { auditLog } from "@/lib/audit";
+import { auditLogWithContext } from "@/lib/audit";
 import { jsonAuthFail, requireJournalAccess } from "@/lib/request-auth";
 
 export const runtime = "nodejs";
@@ -40,10 +40,11 @@ export async function PATCH(req: Request, ctx: { params: Promise<{ id: string }>
   try {
     const entry = updateJournalEntry(id, body);
     if (!entry) return NextResponse.json({ error: "not_found" }, { status: 404 });
-    auditLog("journal.updated", {
+    auditLogWithContext(req, "journal.updated", {
       tenant_id: entry.tenant,
       actor_user_id: auth.accountId,
       target_ref: `journal/${entry.id}`,
+      auth_mode: auth.mode,
     });
     return NextResponse.json({ ok: true, entry });
   } catch (err: unknown) {

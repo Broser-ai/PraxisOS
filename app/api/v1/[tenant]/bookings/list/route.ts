@@ -11,6 +11,7 @@ import {
   jsonAuthFail,
   requireTenantAccess,
 } from "@/lib/request-auth";
+import { auditLogWithContext } from "@/lib/audit";
 
 export const runtime = "nodejs";
 
@@ -38,22 +39,27 @@ export async function GET(
     limit,
   });
 
-  return NextResponse.json(
-    {
-      data: bookings.map((b) => ({
-        id: b.id,
-        status: b.status,
-        startsAt: b.startsAt,
-        durationMin: b.durationMin,
-        service: { id: b.serviceId, name: b.service },
-        client: { id: b.clientId, name: b.clientName },
-        practitioner: b.practitioner,
-        modality: b.modality,
-        priceKr: b.priceKr,
-        paid: b.paid,
-      })),
-      meta: { count: bookings.length, limit, tenant, backend: dataBackend() },
-    },
-    { headers: { "access-control-allow-origin": "*" } },
-  );
+  // F70 · staff list audit (no booking PII dump)
+  auditLogWithContext(req, "booking.list_viewed", {
+    tenant_id: tenant,
+    actor_user_id: auth.accountId,
+    auth_mode: auth.mode,
+  });
+
+  // F69 · staff routes must not advertise ACAO * (same-origin / cookie auth)
+  return NextResponse.json({
+    data: bookings.map((b) => ({
+      id: b.id,
+      status: b.status,
+      startsAt: b.startsAt,
+      durationMin: b.durationMin,
+      service: { id: b.serviceId, name: b.service },
+      client: { id: b.clientId, name: b.clientName },
+      practitioner: b.practitioner,
+      modality: b.modality,
+      priceKr: b.priceKr,
+      paid: b.paid,
+    })),
+    meta: { count: bookings.length, limit, tenant, backend: dataBackend() },
+  });
 }

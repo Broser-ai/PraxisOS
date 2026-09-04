@@ -5,7 +5,7 @@ import { getBooking } from "@/lib/bookings";
 import { ensureJournalForBooking, updateJournalEntry } from "@/lib/journal";
 import type { AlphaScanResult } from "@/lib/scanner/alpha-pipeline";
 import { secretsPublicStatus } from "@/lib/secrets";
-import { auditLog } from "@/lib/audit";
+import { auditLogWithContext } from "@/lib/audit";
 import {
   jsonAuthFail,
   requireRole,
@@ -124,10 +124,12 @@ export async function POST(req: Request) {
   const scan = result.data as AlphaScanResult;
   let journalId: string | undefined;
 
-  auditLog("scan.processed", {
+  // F23 · request context on clinical scan mutation audit
+  auditLogWithContext(req, "scan.processed", {
     tenant_id: tenantId,
     actor_user_id: session.accountId,
     target_ref: `scan/${patientId}`,
+    auth_mode: session.mode,
     meta: { mode: scan.mode, bookingId: booking?.id },
   });
 
@@ -176,8 +178,19 @@ export async function POST(req: Request) {
   });
 }
 
-export async function GET() {
-  const boot = await ensureNexusBooted("bypilar");
+/** Staff-only readiness for clinical scan pipeline (F24 · was unauthenticated). */
+export async function GET(req: Request) {
+  const auth = resolveRequestAuth(req);
+  if (!auth.ok) return jsonAuthFail(auth);
+  const roleGate = requireRole(auth as AuthOk, [
+    "practitioner",
+    "owner",
+    "support",
+  ]);
+  if (!roleGate.ok) return jsonAuthFail(roleGate);
+  const session = auth as AuthOk;
+
+  const boot = await ensureNexusBooted(session.tenant);
   const status = await ariaOrchestrator.dispatch({ type: "status" });
   const secrets = secretsPublicStatus();
   const replicate = secrets.replicate;
@@ -191,10 +204,11 @@ export async function GET() {
       "OPENAI_API_KEY mangler — valgfri for live scan; kræves til LLM-agentsvar (ingen rebuild: /scan eller /admin/bird).",
     );
   }
+  // F26-adjacent: never echo raw secret values — booleans + short hints only.
   return NextResponse.json({
     ...status,
     nexus: boot,
-    tenant: "bypilar",
+    tenant: session.tenant,
     pipeline: "del-pilar-nexus",
     providers: {
       replicate,

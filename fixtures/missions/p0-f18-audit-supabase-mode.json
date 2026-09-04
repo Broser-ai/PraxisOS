@@ -1,0 +1,31 @@
+{
+  "id": "p0-f18-audit-supabase-mode",
+  "title": "P0 F18 · audit supabase-mode e2e/unit",
+  "goal": "Ensure PRAXIS_AUDIT_MODE=supabase maps to audit_log 0008-aligned schema (incl. request context). Accept SUPABASE_URL or NEXT_PUBLIC_SUPABASE_URL. Memory-mode still works; stub silent. Suggestion_only; no auto merge/deploy.",
+  "riskLevel": "yellow",
+  "platformScope": ["clinic_ops", "prime"],
+  "acceptanceCriteria": [
+    { "text": "supabase-mode POSTs aligned columns incl. ip/user_agent/route/request_id/auth_mode" },
+    { "text": "memory-mode still records request context after supabase session" },
+    { "text": "stub mode silent; migration 0008 declares request-context columns" },
+    { "text": "vitest covers; tsc green" }
+  ],
+  "allowedPaths": [
+    "lib/audit.ts",
+    "supabase/migrations/0008_audit_log_align.sql",
+    "tests/f18-audit-supabase-mode.test.ts",
+    "tests/prime/p0-slice-missions.test.ts",
+    "fixtures/missions/p0-f18-audit-supabase-mode.json"
+  ],
+  "forbiddenPaths": [
+    ".env",
+    ".env.production",
+    "clinical-policy"
+  ],
+  "workstreams": [
+    { "role": "scout", "title": "Scout · audit supabase gaps" },
+    { "role": "builder", "title": "Builder · URL align + tests" },
+    { "role": "verifier", "title": "Verifier · f18 audit tests" },
+    { "role": "reviewer", "title": "Reviewer · MDR Art.83 trail" }
+  ]
+}

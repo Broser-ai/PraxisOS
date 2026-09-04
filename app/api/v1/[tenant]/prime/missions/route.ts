@@ -1,7 +1,6 @@
 import { NextRequest, NextResponse } from "next/server";
-import { decodeSession, SESSION_COOKIE } from "@/lib/auth";
 import { getTenant } from "@/lib/tenants";
-import { auditLog } from "@/lib/audit";
+import { auditLogWithContext } from "@/lib/audit";
 import {
   EXECUTION_CONTROL_INVARIANTS,
   appendEvidence,
@@ -24,27 +23,31 @@ import {
   startMission,
   tickMissions,
 } from "@/lib/prime";
-
-function unauthorized() {
-  return NextResponse.json({ error: "unauthorized" }, { status: 401 });
-}
+import {
+  jsonAuthFail,
+  requireTenantAccess,
+  type GuardOk,
+} from "@/lib/request-auth";
 
 function forbidden() {
   return NextResponse.json({ error: "forbidden" }, { status: 403 });
 }
 
-async function requireSession(
+/** F46 · requireTenantAccess replaces raw session-cookie decode helper. */
+function requireSession(
   req: NextRequest,
   tenant: string,
-): Promise<
+):
   | { ok: true; accountId: string; role: string }
-  | { ok: false; response: NextResponse }
-> {
-  const session = decodeSession(req.cookies.get(SESSION_COOKIE)?.value ?? "");
-  if (!session || (session.tenant !== tenant && session.role !== "support")) {
-    return { ok: false, response: unauthorized() };
-  }
-  return { ok: true, accountId: session.accountId, role: session.role };
+  | { ok: false; response: NextResponse } {
+  const auth = requireTenantAccess(req, tenant);
+  if (!auth.ok) return { ok: false, response: jsonAuthFail(auth) };
+  const g = auth as GuardOk;
+  return {
+    ok: true,
+    accountId: g.accountId ?? "unknown",
+    role: g.role ?? (g.mode === "api_key" ? "owner" : "unknown"),
+  };
 }
 
 export async function GET(
@@ -180,10 +183,12 @@ export async function POST(
 
   if (mutatingOwnerActions.has(action)) {
     if (auth.role !== "owner" && auth.role !== "support") {
-      auditLog("prime.mission_forbidden", {
+      // F52 · request-context on forbidden
+      auditLogWithContext(req, "prime.mission_forbidden", {
         tenant_id: tenant,
         actor_user_id: auth.accountId,
-        action,
+        auth_mode: "session",
+        meta: { action },
       });
       return forbidden();
     }
@@ -343,11 +348,11 @@ export async function POST(
           status: result.error === "already_seeded" ? 200 : 400,
         });
       }
-      auditLog("prime.mission_seeded", {
+      auditLogWithContext(req, "prime.mission_seeded", {
         tenant_id: tenant,
         actor_user_id: auth.accountId,
-        fixtureId,
-        missionId: result.id,
+        auth_mode: "session",
+        meta: { fixtureId, missionId: result.id },
       });
       return NextResponse.json(
         {

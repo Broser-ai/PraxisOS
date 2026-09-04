@@ -6,17 +6,24 @@ import {
   tickAutomation,
   ensureWorkflowSubscription,
 } from "@/lib/agents/workflows";
+import { authorizeWorker } from "@/lib/agent-worker-auth";
+import {
+  jsonAuthFail,
+  requireRole,
+  resolveRequestAuth,
+  type AuthOk,
+} from "@/lib/request-auth";
+import { auditLogWithContext } from "@/lib/audit";
 
 export const runtime = "nodejs";
 
-function authorizeWorker(req: Request): boolean {
-  const secret = process.env.AGENT_WORKER_SECRET?.trim() || process.env.PRAXIS_EVENT_SECRET?.trim();
-  if (!secret) return true; // open in demo / first boot
-  const header = req.headers.get("x-agent-worker-secret") || req.headers.get("authorization")?.replace(/^Bearer\s+/i, "");
-  return header === secret;
-}
+export async function GET(req: Request) {
+  // Staff-only workflow list (was unauthenticated — F20 hole from P0 plan A.5).
+  const auth = resolveRequestAuth(req);
+  if (!auth.ok) return jsonAuthFail(auth);
+  const roleGate = requireRole(auth as AuthOk, ["owner", "support"]);
+  if (!roleGate.ok) return jsonAuthFail(roleGate);
 
-export async function GET() {
   ensureWorkflowSubscription();
   return NextResponse.json({
     workflows: listWorkflows().map((w) => ({
@@ -33,7 +40,10 @@ export async function GET() {
 
 export async function POST(req: Request) {
   ensureWorkflowSubscription();
-  if (!authorizeWorker(req)) {
+  if (!authorizeWorker(req).ok) {
+    auditLogWithContext(req, "agent.workflow_unauthorized", {
+      auth_mode: "worker_secret",
+    });
     return NextResponse.json({ error: "unauthorized" }, { status: 401 });
   }
 
@@ -50,6 +60,11 @@ export async function POST(req: Request) {
   switch (action) {
     case "tick": {
       const result = await tickAutomation({ tenant, force: body.force });
+      auditLogWithContext(req, "agent.workflow_run", {
+        tenant_id: tenant,
+        target_ref: "tick",
+        auth_mode: "worker_secret",
+      });
       return NextResponse.json(result);
     }
     case "run": {
@@ -57,10 +72,20 @@ export async function POST(req: Request) {
         return NextResponse.json({ error: "workflowId_required" }, { status: 400 });
       }
       const result = await runWorkflow(body.workflowId, { tenant, force: true });
+      auditLogWithContext(req, "agent.workflow_run", {
+        tenant_id: tenant,
+        target_ref: body.workflowId,
+        auth_mode: "worker_secret",
+      });
       return NextResponse.json({ ok: true, ...result });
     }
     case "run_all_due": {
       const result = await tickAutomation({ tenant, force: Boolean(body.force) });
+      auditLogWithContext(req, "agent.workflow_run", {
+        tenant_id: tenant,
+        target_ref: "run_all_due",
+        auth_mode: "worker_secret",
+      });
       return NextResponse.json(result);
     }
     default: {

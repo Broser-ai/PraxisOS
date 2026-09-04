@@ -1,6 +1,6 @@
 import { NextResponse } from "next/server";
 import { draftSoapForEntry } from "@/lib/journal";
-import { auditLog } from "@/lib/audit";
+import { auditLogWithContext } from "@/lib/audit";
 import { jsonAuthFail, requireJournalAccess } from "@/lib/request-auth";
 import { assertConsent } from "@/lib/consent";
 
@@ -36,10 +36,11 @@ export async function POST(req: Request, ctx: { params: Promise<{ id: string }> 
   }
   try {
     const entry = await draftSoapForEntry(id, { transcript });
-    auditLog("journal.ai_draft", {
+    auditLogWithContext(req, "journal.ai_draft", {
       tenant_id: entry.tenant,
       actor_user_id: auth.accountId,
       target_ref: `journal/${entry.id}`,
+      auth_mode: auth.mode,
       note: "suggestion_only_no_auto_sign",
     });
     return NextResponse.json({ ok: true, entry, agent: "niels" });

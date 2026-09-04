@@ -2,21 +2,57 @@ import { NextResponse } from "next/server";
 import { writeSecrets, secretsPublicStatus, type PraxisSecrets } from "@/lib/secrets";
 import { getBirdPublicStatus, resolveBirdSmsChannelId } from "@/lib/bird";
 import { isLlmConfigured } from "@/lib/agents/llm";
-import { auditLog } from "@/lib/audit";
+import { auditLogWithContext } from "@/lib/audit";
 import {
   jsonAuthFail,
   requireRole,
   resolveRequestAuth,
   type AuthOk,
 } from "@/lib/request-auth";
+import { checkIpRateLimit } from "@/lib/rate-limit";
 
 export const runtime = "nodejs";
 
-export async function GET() {
+function clientIp(req: Request): string {
+  const xff = req.headers.get("x-forwarded-for");
+  if (xff) return xff.split(",")[0]!.trim();
+  return req.headers.get("x-real-ip") ?? "unknown";
+}
+
+/** Public readiness — booleans only (F33 · no key hints on public GET). */
+export async function GET(req: Request) {
+  // F44 · public GET rate-limit (status scrape / abuse control)
+  const limit = checkIpRateLimit(clientIp(req), {
+    key: "bird-config-get",
+    limit: 60,
+    windowMs: 15 * 60 * 1000,
+  });
+  if (!limit.ok) {
+    return NextResponse.json(
+      { error: "rate_limited", retryAfterMs: limit.retryAfterMs },
+      {
+        status: 429,
+        headers: { "Retry-After": String(Math.ceil(limit.retryAfterMs / 1000)) },
+      },
+    );
+  }
+
+  const secrets = secretsPublicStatus();
+  const bird = getBirdPublicStatus();
+  // Drop keyHint from public bird status (partial key material).
+  const { keyHint: _drop, ...birdPublic } = bird as typeof bird & {
+    keyHint?: string | null;
+  };
   return NextResponse.json({
-    bird: getBirdPublicStatus(),
+    bird: birdPublic,
     llm: { configured: isLlmConfigured() },
-    secrets: secretsPublicStatus(),
+    secrets: {
+      birdKey: secrets.birdKey,
+      birdChannel: secrets.birdChannel,
+      openai: secrets.openai,
+      liveScanReady: secrets.liveScanReady,
+      dataDir: secrets.dataDir,
+    },
   });
 }
 
@@ -56,9 +92,10 @@ export async function POST(req: Request) {
     // Persist first so resolve can see newly pasted API key / workspace.
     writeSecrets(patch);
 
-    auditLog("secrets.updated", {
+    auditLogWithContext(req, "secrets.updated", {
       actor_user_id: (auth as AuthOk).accountId,
       target_ref: "config/bird",
+      auth_mode: (auth as AuthOk).mode,
       meta: { fields: Object.keys(patch) },
     });
 

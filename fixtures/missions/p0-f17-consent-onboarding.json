@@ -1,0 +1,33 @@
+{
+  "id": "p0-f17-consent-onboarding",
+  "title": "P0 F17 · consent onboarding wiring",
+  "goal": "Wire onboarding checkboxes to recordConsentEvent via POST /api/v1/{tenant}/consent (channel web_onboarding). Page calls endpoint on Acceptér without breaking UX. Rate-limited; required treatment+journal. Suggestion_only; no patient AI guidance; no clinical policy change.",
+  "riskLevel": "yellow",
+  "platformScope": ["clinic_ops", "auth_journal", "prime"],
+  "acceptanceCriteria": [
+    { "text": "POST /api/v1/{tenant}/consent records consent_events for checked purposes with channel web_onboarding" },
+    { "text": "Required treatment+journal enforced; rate-limit returns 429" },
+    { "text": "onboarding page.tsx calls the endpoint on Acceptér og fortsæt" },
+    { "text": "vitest covers; tsc green" }
+  ],
+  "allowedPaths": [
+    "app/api/v1/[tenant]/consent/",
+    "app/t/[tenant]/onboarding/page.tsx",
+    "lib/consent.ts",
+    "tests/f17-consent-onboarding.test.ts",
+    "tests/prime/p0-slice-missions.test.ts",
+    "fixtures/missions/p0-f17-consent-onboarding.json"
+  ],
+  "forbiddenPaths": [
+    ".env",
+    ".env.production",
+    "clinical-policy",
+    "app/api/bird/"
+  ],
+  "workstreams": [
+    { "role": "scout", "title": "Scout · onboarding consent gap" },
+    { "role": "builder", "title": "Builder · consent POST + page wire" },
+    { "role": "verifier", "title": "Verifier · f17 consent tests" },
+    { "role": "reviewer", "title": "Reviewer · GDPR consent trail" }
+  ]
+}

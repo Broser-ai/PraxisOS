@@ -4,7 +4,7 @@ import { NextResponse } from "next/server";
 import { getTenant } from "@/lib/tenants";
 import { findVoucherByCode } from "@/lib/vouchers";
 import {
-  bookingRateLimit,
+  publicLookupRateLimit,
   clientIp,
   bookingAllowedOrigin,
 } from "@/lib/public-booking-kit";
@@ -17,8 +17,8 @@ export async function GET(
   const t = getTenant(slug);
   if (!t) return NextResponse.json({ error: "tenant_not_found" }, { status: 404 });
 
-  // Rate-limit per IP + tenant (code brute-force control — no login).
-  const limit = bookingRateLimit(clientIp(req), slug);
+  // F22 · stricter separate rate-limit (code brute-force control).
+  const limit = publicLookupRateLimit(clientIp(req), slug);
   if (!limit.ok) {
     return NextResponse.json(
       { error: "rate_limited", retryAfter: limit.retryAfter },
@@ -31,8 +31,16 @@ export async function GET(
   if (allowed) headers["access-control-allow-origin"] = allowed;
 
   const url = new URL(req.url);
-  const code = url.searchParams.get("code") ?? "";
+  const code = (url.searchParams.get("code") ?? "").trim();
   const serviceId = url.searchParams.get("service");
+
+  // F48 · reject short / empty codes before store probe (brute-force friction)
+  if (!code || code.length < 6) {
+    return NextResponse.json(
+      { valid: false, error: "invalid_code" },
+      { status: 400, headers },
+    );
+  }
 
   const v = findVoucherByCode(code, slug);
   if (!v) {

@@ -2,6 +2,9 @@
 //
 // Intern publish/subscribe-system for hele platformen.
 // Agenter abonnerer via lib/agents/workflows (ensureWorkflowSubscription).
+//
+// F19: GET is staff-gated (owner/practitioner/support) — event history is
+// automation/clinic data. POST stays HMAC-signed (machine / internal).
 
 import { NextResponse } from "next/server";
 import {
@@ -11,6 +14,13 @@ import {
   signEventPayload,
 } from "@/lib/event-bus";
 import { ensureWorkflowSubscription } from "@/lib/agents/workflows";
+import {
+  jsonAuthFail,
+  requireRole,
+  resolveRequestAuth,
+  type AuthOk,
+} from "@/lib/request-auth";
+import { auditLogWithContext } from "@/lib/audit";
 
 export const runtime = "nodejs";
 
@@ -20,8 +30,18 @@ export async function POST(req: Request) {
   const raw = await req.text();
 
   const isProd = process.env.NODE_ENV === "production";
-  if (!sig) return NextResponse.json({ error: "missing_signature" }, { status: 401 });
+  if (!sig) {
+    auditLogWithContext(req, "event.publish_unauthorized", {
+      target_ref: "missing_signature",
+      auth_mode: "hmac",
+    });
+    return NextResponse.json({ error: "missing_signature" }, { status: 401 });
+  }
   if (!verifyEventSignature(raw, sig) && isProd) {
+    auditLogWithContext(req, "event.publish_unauthorized", {
+      target_ref: "invalid_signature",
+      auth_mode: "hmac",
+    });
     return NextResponse.json({ error: "invalid_signature" }, { status: 401 });
   }
   // In non-prod, accept demo signature mismatch but prefer valid ones
@@ -44,6 +64,13 @@ export async function POST(req: Request) {
     source: evt.source ?? "api/events",
   });
 
+  // F62 · mutation audit with request context
+  auditLogWithContext(req, "event.published", {
+    tenant_id: evt.tenant,
+    target_ref: stored.id,
+    auth_mode: "hmac",
+  });
+
   return NextResponse.json({
     accepted: true,
     id: stored.id,
@@ -54,6 +81,16 @@ export async function POST(req: Request) {
 }
 
 export async function GET(req: Request) {
+  // Staff-only event list (was unauthenticated — automation-leak).
+  const auth = resolveRequestAuth(req);
+  if (!auth.ok) return jsonAuthFail(auth);
+  const roleGate = requireRole(auth as AuthOk, [
+    "owner",
+    "practitioner",
+    "support",
+  ]);
+  if (!roleGate.ok) return jsonAuthFail(roleGate);
+
   ensureWorkflowSubscription();
   const url = new URL(req.url);
   const tenant = url.searchParams.get("tenant");

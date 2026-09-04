@@ -1,8 +1,11 @@
 import { NextResponse } from "next/server";
 import { getTenant } from "@/lib/tenants";
+import { checkIpRateLimit } from "@/lib/rate-limit";
+import { bookingAllowedOrigin, clientIp } from "@/lib/public-booking-kit";
 
 // GET /api/v1/{tenant}/availability?service=ID&from=YYYY-MM-DD&days=7
 // Returnerer ledige tider — mock-generator, swappes til ægte kalender-engine senere.
+// F65 · ACAO aligns with booking CORS allowlist (same as F6/F60).
 export async function GET(
   req: Request,
   { params }: { params: Promise<{ tenant: string }> }
@@ -10,6 +13,22 @@ export async function GET(
   const { tenant: slug } = await params;
   const t = getTenant(slug);
   if (!t) return NextResponse.json({ error: "tenant_not_found" }, { status: 404 });
+
+  // F51 · public GET rate-limit
+  const limit = checkIpRateLimit(clientIp(req), {
+    key: `availability-get:${slug}`,
+    limit: 120,
+    windowMs: 15 * 60 * 1000,
+  });
+  if (!limit.ok) {
+    return NextResponse.json(
+      { error: "rate_limited", retryAfterMs: limit.retryAfterMs },
+      {
+        status: 429,
+        headers: { "Retry-After": String(Math.ceil(limit.retryAfterMs / 1000)) },
+      },
+    );
+  }
 
   const url = new URL(req.url);
   const serviceId = url.searchParams.get("service");
@@ -31,17 +50,19 @@ export async function GET(
     slots.push({ day: d.toISOString().slice(0, 10), times });
   }
 
+  const headers: Record<string, string> = {
+    "cache-control": "public, max-age=30",
+    vary: "Origin",
+  };
+  const allowed = bookingAllowedOrigin(req, t.slug);
+  if (allowed) headers["access-control-allow-origin"] = allowed;
+
   return NextResponse.json(
     {
       service: { id: service.id, name: service.name, durationMin: service.durationMin },
       timezone: t.timezone,
       slots,
     },
-    {
-      headers: {
-        "cache-control": "public, max-age=30",
-        "access-control-allow-origin": "*",
-      },
-    }
+    { headers },
   );
 }

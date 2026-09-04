@@ -8,10 +8,10 @@
 import { NextResponse } from "next/server";
 import { getTenant } from "@/lib/tenants";
 import { findClientByEmail } from "@/lib/clients";
-import { calculateSubsidies, patientProfiles, SCHEME_LABEL, SCHEME_AUTHORITY } from "@/lib/subsidies";
+import { calculateSubsidies, patientProfiles, SCHEME_LABEL } from "@/lib/subsidies";
 import { listVouchers } from "@/lib/vouchers";
 import {
-  bookingRateLimit,
+  publicLookupRateLimit,
   clientIp,
   bookingAllowedOrigin,
 } from "@/lib/public-booking-kit";
@@ -24,8 +24,8 @@ export async function GET(
   const t = getTenant(slug);
   if (!t) return NextResponse.json({ error: "tenant_not_found" }, { status: 404 });
 
-  // Rate-limit per IP + tenant (PII email enumeration control — no login).
-  const limit = bookingRateLimit(clientIp(req), slug);
+  // F22 · stricter separate rate-limit (PII email enumeration control).
+  const limit = publicLookupRateLimit(clientIp(req), slug);
   if (!limit.ok) {
     return NextResponse.json(
       { error: "rate_limited", retryAfter: limit.retryAfter },
@@ -34,12 +34,21 @@ export async function GET(
   }
 
   const url = new URL(req.url);
-  const email = url.searchParams.get("email") ?? "";
+  const emailRaw = url.searchParams.get("email") ?? "";
+  const email = emailRaw.trim().toLowerCase();
   const serviceId = url.searchParams.get("service");
 
   const headers: Record<string, string> = { "cache-control": "no-store", vary: "Origin" };
   const allowed = bookingAllowedOrigin(req, slug);
   if (allowed) headers["access-control-allow-origin"] = allowed;
+
+  // F48 · reject empty / malformed email before any client store probe
+  if (!email || email.length < 5 || !/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email)) {
+    return NextResponse.json(
+      { error: "invalid_email", known: false },
+      { status: 400, headers },
+    );
+  }
 
   const client = findClientByEmail(email);
   if (!client) {
@@ -61,7 +70,7 @@ export async function GET(
 
   // Klippekort gyldige til denne ydelse + gavekort uanset ydelse
   const vouchers = listVouchers({ tenant: slug, status: "active" })
-    .filter((v) => v.buyer.email.toLowerCase() === email.toLowerCase() || v.recipient?.email.toLowerCase() === email.toLowerCase())
+    .filter((v) => v.buyer.email.toLowerCase() === email || v.recipient?.email.toLowerCase() === email)
     .filter((v) => v.kind === "gift" || v.serviceId === serviceId)
     .map((v) => ({
       code: v.code,
@@ -75,7 +84,8 @@ export async function GET(
   return NextResponse.json({
     known: true,
     client: { name: client.name, age: client.age, mitidVerified: client.mitidVerified },
-    schemes: profile?.schemes.map((s) => ({ scheme: s.scheme, label: SCHEME_LABEL[s.scheme], memberId: s.memberId })) ?? [],
+    // F48 · scheme labels only — no memberId on public lookup
+    schemes: profile?.schemes.map((s) => ({ scheme: s.scheme, label: SCHEME_LABEL[s.scheme] })) ?? [],
     subsidies,
     vouchers,
   }, {

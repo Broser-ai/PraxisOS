@@ -74,9 +74,9 @@ PRAXIS_AUDIT_MODE=supabase     # required before CE-mark
 POSTGRES_PASSWORD=...          # only for docker-compose.db.yml
 ```
 
-Remove/forbid `PRAXIS_DB=mock` in production env. Optionally wire
-`assertProductionDbConfig()` from `lib/supabase.ts` into app boot / `/api/health`
-to fail-fast on mock in prod (additive guard from F9).
+Remove/forbid `PRAXIS_DB=mock` in production env. `assertProductionDbConfig()`
+from `lib/supabase.ts` is wired into `GET /api/health` (F16): production + mock
+(or missing Supabase keys) → **503** `db_config_invalid`.
 
 Restart the app:
 

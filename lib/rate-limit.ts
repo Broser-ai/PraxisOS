@@ -81,3 +81,39 @@ const attemptLog: AttemptLog[] = [
 export function listAttempts(limit = 20): AttemptLog[] {
   return attemptLog.slice(0, limit);
 }
+
+// ---------------------------------------------------------------------------
+// F32 · generic fixed-window IP rate-limit (CVR / DAWA / other public proxies)
+// ---------------------------------------------------------------------------
+
+type IpBucket = { count: number; firstAt: number };
+const ipFixedWindows = new Map<string, IpBucket>();
+
+/** Test helper — clear IP fixed-window buckets. */
+export function _resetIpRateLimitForTests(): void {
+  ipFixedWindows.clear();
+}
+
+/**
+ * Fixed-window per-IP rate limit.
+ * @returns { ok: true } or { ok: false, retryAfterMs }
+ */
+export function checkIpRateLimit(
+  ip: string,
+  opts: { key: string; limit: number; windowMs: number },
+): { ok: true } | { ok: false; retryAfterMs: number } {
+  const storeKey = `${opts.key}:${ip || "unknown"}`;
+  const now = Date.now();
+  const bucket = ipFixedWindows.get(storeKey);
+  if (!bucket || now - bucket.firstAt > opts.windowMs) {
+    ipFixedWindows.set(storeKey, { count: 1, firstAt: now });
+    return { ok: true };
+  }
+  if (bucket.count >= opts.limit) {
+    const retryAfterMs = Math.max(0, opts.windowMs - (now - bucket.firstAt));
+    return { ok: false, retryAfterMs };
+  }
+  bucket.count += 1;
+  ipFixedWindows.set(storeKey, bucket);
+  return { ok: true };
+}

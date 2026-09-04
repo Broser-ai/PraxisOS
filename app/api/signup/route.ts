@@ -1,9 +1,15 @@
 import { NextResponse } from "next/server";
 import { registerOwnerAccount } from "@/lib/auth";
 import { dataBackend, signupTenantInSupabase } from "@/lib/data/repo";
-import { getBackoffMs, recordAttempt } from "@/lib/rate-limit";
+import {
+  getBackoffMs,
+  recordAttempt,
+  requiresCaptcha,
+} from "@/lib/rate-limit";
 import { isSupabaseConfigured } from "@/lib/supabase";
 import { getTenant, registerTenant } from "@/lib/tenants";
+import { auditLogWithContext } from "@/lib/audit";
+import { verifyCaptchaToken } from "@/lib/captcha";
 
 type SignupBody = {
   cvr?: string;
@@ -14,6 +20,7 @@ type SignupBody = {
   contactName?: string;
   slug?: string;
   plan?: string;
+  captcha?: string;
 };
 
 function slugify(s: string): string {
@@ -27,6 +34,8 @@ function slugify(s: string): string {
 /**
  * POST /api/signup — creates tenant + owner account.
  * Uses Supabase when service role is configured; otherwise durable memory.
+ * F25 · emits signup.success / signup.failure / signup.rate_limited audits
+ * (public abuse trail; no patient AI; suggestion_only).
  */
 export async function POST(req: Request) {
   const ip =
@@ -49,17 +58,56 @@ export async function POST(req: Request) {
   const address = body.address?.trim() ?? "";
 
   if (!legalName || !email || !contactName || !slug) {
+    auditLogWithContext(req, "signup.failure", {
+      auth_mode: "public",
+      meta: { reason: "missing_fields", slug: slug || undefined },
+    });
     return NextResponse.json({ error: "missing_fields" }, { status: 400 });
   }
   if (!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email)) {
+    auditLogWithContext(req, "signup.failure", {
+      auth_mode: "public",
+      meta: { reason: "invalid_email" },
+    });
     return NextResponse.json({ error: "invalid_email" }, { status: 400 });
   }
   if (cvr && !/^\d{8}$/.test(cvr)) {
+    auditLogWithContext(req, "signup.failure", {
+      auth_mode: "public",
+      meta: { reason: "invalid_cvr" },
+    });
     return NextResponse.json({ error: "invalid_cvr" }, { status: 400 });
+  }
+
+  // F34 · captcha step-up before backoff; F42 · real Turnstile/hCaptcha verify
+  const captchaNeeded = requiresCaptcha(ip, email);
+  if (captchaNeeded || body.captcha) {
+    const verified = await verifyCaptchaToken({
+      token: body.captcha,
+      ip,
+      required: captchaNeeded,
+    });
+    if (!verified.ok) {
+      auditLogWithContext(req, "signup.failure", {
+        auth_mode: "public",
+        meta: { reason: verified.error },
+      });
+      return NextResponse.json(
+        {
+          error: verified.error,
+          hint: verified.hint ?? "For mange forsøg — løs CAPTCHA og prøv igen",
+        },
+        { status: 429 },
+      );
+    }
   }
 
   const backoff = getBackoffMs(ip, email);
   if (backoff > 0) {
+    auditLogWithContext(req, "signup.rate_limited", {
+      auth_mode: "public",
+      meta: { retryAfterMs: backoff },
+    });
     return NextResponse.json(
       { error: "rate_limited", retryAfterMs: backoff },
       {
@@ -82,6 +130,11 @@ export async function POST(req: Request) {
     });
     if ("error" in result) {
       recordAttempt(ip, email, false);
+      auditLogWithContext(req, "signup.failure", {
+        tenant_id: slug,
+        auth_mode: "public",
+        meta: { reason: result.error, backend: "supabase" },
+      });
       const status =
         result.error === "slug_taken" || result.error === "email_taken"
           ? 409
@@ -103,6 +156,13 @@ export async function POST(req: Request) {
       registerOwnerAccount({ email, name: contactName, tenantSlug: slug });
     }
     recordAttempt(ip, email, true);
+    auditLogWithContext(req, "signup.success", {
+      tenant_id: slug,
+      actor_user_id: result.userId,
+      target_ref: `tenant/${slug}`,
+      auth_mode: "public",
+      meta: { backend: dataBackend(), plan },
+    });
     return NextResponse.json(
       {
         success: true,
@@ -117,6 +177,11 @@ export async function POST(req: Request) {
 
   if (getTenant(slug)) {
     recordAttempt(ip, email, false);
+    auditLogWithContext(req, "signup.failure", {
+      tenant_id: slug,
+      auth_mode: "public",
+      meta: { reason: "slug_taken", backend: "memory" },
+    });
     return NextResponse.json({ error: "slug_taken", slug }, { status: 409 });
   }
 
@@ -132,6 +197,11 @@ export async function POST(req: Request) {
   });
   if ("error" in tenantResult) {
     recordAttempt(ip, email, false);
+    auditLogWithContext(req, "signup.failure", {
+      tenant_id: slug,
+      auth_mode: "public",
+      meta: { reason: tenantResult.error, backend: "memory" },
+    });
     return NextResponse.json({ error: tenantResult.error }, { status: 400 });
   }
 
@@ -142,10 +212,22 @@ export async function POST(req: Request) {
   });
   if ("error" in owner) {
     recordAttempt(ip, email, false);
+    auditLogWithContext(req, "signup.failure", {
+      tenant_id: slug,
+      auth_mode: "public",
+      meta: { reason: owner.error, backend: "memory" },
+    });
     return NextResponse.json({ error: owner.error }, { status: 409 });
   }
 
   recordAttempt(ip, email, true);
+  auditLogWithContext(req, "signup.success", {
+    tenant_id: tenantResult.slug,
+    actor_user_id: owner.id,
+    target_ref: `tenant/${tenantResult.slug}`,
+    auth_mode: "public",
+    meta: { backend: dataBackend(), plan },
+  });
   return NextResponse.json(
     {
       success: true,

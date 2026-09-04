@@ -95,8 +95,10 @@ function getMode(): "memory" | "supabase" | "stub" {
 }
 
 async function persistSupabase(rec: AuditRecord): Promise<void> {
-  const url = process.env.NEXT_PUBLIC_SUPABASE_URL;
-  const key = process.env.SUPABASE_SERVICE_ROLE_KEY;
+  const url =
+    process.env.SUPABASE_URL?.trim() ||
+    process.env.NEXT_PUBLIC_SUPABASE_URL?.trim();
+  const key = process.env.SUPABASE_SERVICE_ROLE_KEY?.trim();
   if (!url || !key) {
     // Fail-loud in production, degrade to memory + warn elsewhere
     if (process.env.NODE_ENV === "production") {
@@ -107,7 +109,7 @@ async function persistSupabase(rec: AuditRecord): Promise<void> {
     return;
   }
   try {
-    await fetch(`${url}/rest/v1/audit_log`, {
+    await fetch(`${url.replace(/\/$/, "")}/rest/v1/audit_log`, {
       method: "POST",
       headers: {
         apikey: key,

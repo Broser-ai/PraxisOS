@@ -1,36 +1,31 @@
 import { NextResponse } from "next/server";
-import {
-  decodeSession,
-  getAccountById,
-  SESSION_COOKIE,
-} from "@/lib/auth";
+import { getAccountById } from "@/lib/auth";
 import { getTenant } from "@/lib/tenants";
+import { sessionFromRequest } from "@/lib/request-auth";
+import { auditLogWithContext } from "@/lib/audit";
 
 export const runtime = "nodejs";
 
 /**
  * GET /api/auth/me — staff session contract for lib/staff-session.ts
  * 200 StaffSession shape · 401 unauthorized
+ * F50 · sessionFromRequest (shared cookie parse) + light auth.me audit.
  */
 export async function GET(req: Request) {
-  const withCookies = req as Request & {
-    cookies?: { get: (n: string) => { value: string } | undefined };
-  };
-  const fromJar = withCookies.cookies?.get?.(SESSION_COOKIE)?.value;
-  let token = fromJar;
-  if (!token) {
-    const header = req.headers.get("cookie") ?? "";
-    const match = header.match(/(?:^|;\s*)praxis_session=([^;]*)/);
-    token = match?.[1] ? decodeURIComponent(match[1]) : undefined;
-  }
-
-  const session = decodeSession(token ?? "");
+  const session = sessionFromRequest(req);
   if (!session) {
     return NextResponse.json({ error: "unauthorized" }, { status: 401 });
   }
 
   const account = getAccountById(session.accountId);
   const tenant = getTenant(session.tenant);
+
+  auditLogWithContext(req, "auth.me", {
+    tenant_id: session.tenant,
+    actor_user_id: session.accountId,
+    auth_mode: "session",
+    meta: { role: session.role },
+  });
 
   return NextResponse.json({
     accountId: session.accountId,

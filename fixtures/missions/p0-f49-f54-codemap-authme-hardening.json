@@ -1,0 +1,35 @@
+{
+  "id": "p0-f49-f54-codemap-authme-hardening",
+  "title": "P0 F49–F54 · CODE-MAP, auth/me, public GET rate-limit, prime/cron audit",
+  "goal": "CODE-MAP+env captcha docs; auth/me sessionFromRequest+audit; services/availability rate-limit; prime auditLogWithContext; cron swarm-tick audit. Suggestion_only; no auto merge/deploy.",
+  "riskLevel": "yellow",
+  "platformScope": ["clinic_ops", "prime"],
+  "acceptanceCriteria": [
+    { "text": "CODE-MAP + .env.example captcha docs" },
+    { "text": "auth/me uses sessionFromRequest + auth.me audit" },
+    { "text": "services/availability public GET rate-limited" },
+    { "text": "prime + cron use auditLogWithContext" },
+    { "text": "vitest covers; tsc green" }
+  ],
+  "allowedPaths": [
+    "CODE-MAP.md",
+    ".env.example",
+    "app/api/auth/me/route.ts",
+    "app/api/v1/[tenant]/services/route.ts",
+    "app/api/v1/[tenant]/availability/route.ts",
+    "app/api/v1/[tenant]/prime/missions/route.ts",
+    "app/api/cron/swarm-tick/route.ts",
+    "docs/ops/p0-operator-checklist-merge-cutover.md",
+    "docs/ops/p0-secure-clinical-core-plan.md",
+    "tests/f49-f54-codemap-authme-hardening.test.ts",
+    "tests/prime/p0-slice-missions.test.ts",
+    "fixtures/missions/p0-f49-f54-codemap-authme-hardening.json"
+  ],
+  "forbiddenPaths": [".env", ".env.production", "clinical-policy"],
+  "workstreams": [
+    { "role": "scout", "title": "Scout · CODE-MAP + public GET gaps" },
+    { "role": "builder", "title": "Builder · F49–F54" },
+    { "role": "verifier", "title": "Verifier · f49-f54 tests" },
+    { "role": "reviewer", "title": "Reviewer · no deploy" }
+  ]
+}

@@ -565,6 +565,85 @@ Små mergeable commits. **Booking-flow regressiones-testes i hvert commit der r�
 
 **Anbefalet merge-rækkefølge:** F1→F2→F3→F4→F6 (beskyt booking midt i auth-rullen)→F5→F7→F8→F9→F10.
 
+### Continue-dev (PR #34 · oven på F4–F10)
+
+| Commit | Formål | Status |
+|--------|--------|--------|
+| **F11** | Middleware strip spoofable `x-praxis-*` | Done |
+| **F12** | Agent worker/cron fail-closed in production | Done |
+| **F13** | MCP `verifyApiKey` + tenant-from-key | Done |
+| **F14** | CI typecheck + vitest | Done |
+| **F15** | Orphan cleanup FootScan/SwarmPanel | Done |
+| **F16** | `/api/health` ← `assertProductionDbConfig` | Done |
+| **F17** | Onboarding → `POST …/consent` → `recordConsentEvent` | Done |
+| **F18** | Audit supabase-mode + request-context tests | Done |
+| **F19** | `GET /api/events` staff-gated | Done |
+| **F20** | `GET /api/agents/workflows` staff-gated | Done |
+| **F21** | CODE-MAP accuracy | Done |
+| **F22** | Lookup/voucher isolated stricter rate-limit | Done |
+| **F23** | Audit request context on tenant setup / license / scan process | Done |
+| **F24** | Staff-gate `GET /api/v1/scan/process` + license GET tenant scope | Done |
+| **F25** | Signup audit (`signup.success` / `.failure` / `.rate_limited`) | Done |
+| **F26** | Health `detail` secrets redaction (`sanitizeHealthDetail`) | Done |
+| **F27** | Operator checklist linking #33+#34 + cutover | Done |
+| **F28** | Middleware strip identity headers edge cases | Done |
+| **F29** | `authorizeTenantRequest` / guard usage audit (grep + tests) | Done |
+| **F30** | Journal from-booking auth tests + audit context | Done |
+| **F31** | Remaining mutation audit context (bird/scan/SMS/clients) | Done |
+| **F32** | CVR / DAWA per-IP rate-limit | Done |
+| **F33** | Strip key hints from public bird/scan config GET | Done |
+| **F34** | Signup captcha step-up (login-parity threshold) | Done |
+| **F35** | Journal mutation audit request context | Done |
+| **F36** | Bird `/api/bird/status` strips `keyHint` | Done |
+| **F37** | Login captcha-before-backoff (signup parity) | Done |
+| **F38** | CODE-MAP refresh for F23–F37 | Done |
+| **F39** | Operator checklist smoke refresh (F31–F38) | Done |
+| **F40** | Agents approvals `approval.decided` audit context | Done |
+| **F41** | Research / swarm / orchestrator → `requireTenantAccess` | Done |
+| **F42** | Real Turnstile/hCaptcha verify (flagged; prod fail-closed stub) | Done |
+| **F43** | Consent route `auditLogWithContext` | Done |
+| **F44** | Public GET rate-limit bird/scan config status | Done |
+| **F45** | Agents/run audit request context | Done |
+| **F46** | Remaining `decodeSession` stragglers (prime missions) | Done |
+| **F47** | Operator checklist update for F23–F40 (+ F41–F48) | Done |
+| **F48** | Lookup/voucher remaining gaps (email/code validate, no memberId) | Done |
+| **F49** | CODE-MAP + `.env.example` captcha docs (F41–F54) | Done |
+| **F50** | `GET /api/auth/me` → `sessionFromRequest` + `auth.me` audit | Done |
+| **F51** | Public GET rate-limit services / availability | Done |
+| **F52** | Prime missions `auditLogWithContext` | Done |
+| **F53** | Cron swarm-tick audit context | Done |
+| **F54** | Checklist / PEC wiring for F49–F54 | Done |
+| **F55** | Logout `logout.success` audit context | Done |
+| **F56** | Agents/status `agent.status_viewed` audit | Done |
+| **F57** | Health GET generous rate-limit | Done |
+| **F58** | Logout/status/health PEC + F29 marker hygiene | Done |
+| **F59** | MCP public surface rate-limit (initialize/ping/tools/list + GET) | Done |
+| **F60** | Embed hardening (`/embed/v1` CORS align + RL + postMessage origin) | Done |
+| **F61** | Operator checklist update for F49–F58 (+ F59–F64 smoke) | Done |
+| **F62** | Mutation-route audit gaps → `auditLogWithContext` | Done |
+| **F63** | Captcha sitekey UI skipped without keys; env placeholders + helper | Done |
+| **F64** | Stragglers: MCP CORS allowlist, swarm/research/orchestrator audits | Done |
+| **F65** | Services/availability CORS align with booking allowlist | Done |
+| **F66** | Swarm/tick + research harvest `auditLogWithContext` | Done |
+| **F67** | MCP unauthorized audit on bad Bearer | Done |
+| **F68** | Agent worker auth → `auditLogWithContext` | Done |
+| **F69** | Strip ACAO `*` from staff clients + bookings/list | Done |
+| **F70** | Staff list audits (`booking.list_viewed` / `client.list_viewed`) | Done |
+| **F71** | Plan/CODE-MAP hygiene for F65–F70 | Done |
+| **F72** | Strip ACAO `*` from CVR/DAWA proxies | Done |
+| **F73** | Middleware security headers (nosniff/referrer/frame; embed frameable) | Done |
+| **F74** | Checklist coverage for F65–F73 | Done |
+| **F75** | MCP `tools/call` → `mcp.tools_call` audit | Done |
+| **F76** | Research paper GET → `research.paper_viewed` audit | Done |
+| **F77** | Operator checklist range bump F11–F76 | Done |
+| **F78** | Guard straggler re-scan (`decodeSession` / `requireTenantAccess`) — no real gaps | Done |
+| **F79** | Consent onboarding already-recorded idempotency + UX error polish | Done |
+| **F80** | Operator checklist refresh merge+#33+#34+cutover through F84 | Done |
+| **F81** | Failing/flaky/type debts — none found at 500 baseline (skipped) | N/A |
+| **F82** | coding-ready + sandbox-verify sync with F4–F84 / ~500+ tests | Done |
+| **F83** | Journal routes consistent `requireTenantAccess` / `requireJournalAccess` | Done |
+| **F84** | CI verify `typecheck`/`test` npm scripts exist before run | Done |
+
 **Explicit out of scope for disse commits:** patient-chat, triage, nye AI-agents, LiveKit voice-consent audio, CE/MDR features, LoRA.
 
 ---

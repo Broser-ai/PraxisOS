@@ -77,7 +77,9 @@ describe("F5 · bird/send", () => {
 
 describe("F5 · bird/config secret write", () => {
   it("GET stays public readiness → 200", async () => {
-    const res = await birdConfigGet();
+    const res = await birdConfigGet(
+      new Request("http://localhost/api/bird/config"),
+    );
     expect(res.status).toBe(200);
   });
 
@@ -114,7 +116,9 @@ describe("F5 · bird/config secret write", () => {
 
 describe("F5 · scan/config secret write", () => {
   it("GET stays public readiness → 200", async () => {
-    const res = await scanConfigGet();
+    const res = await scanConfigGet(
+      new Request("http://localhost/api/scan/config"),
+    );
     expect(res.status).toBe(200);
   });
 

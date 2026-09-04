@@ -1,0 +1,33 @@
+{
+  "id": "p0-f16-health-db-failfast",
+  "title": "P0 F16 · wire assertProductionDbConfig into /api/health",
+  "goal": "Fail-fast readiness: GET /api/health calls assertProductionDbConfig(). Production + PRAXIS_DB=mock (or missing Supabase keys) returns 503 db_config_invalid. Non-production mock remains OK for dev/demo. Suggestion_only; no auto merge/deploy; no clinical policy change.",
+  "riskLevel": "yellow",
+  "platformScope": ["clinic_ops", "prime"],
+  "acceptanceCriteria": [
+    { "text": "GET /api/health invokes assertProductionDbConfig()" },
+    { "text": "production + mock → 503 with error db_config_invalid and reason" },
+    { "text": "non-production mock → 200 ok" },
+    { "text": "vitest covers; tsc green" }
+  ],
+  "allowedPaths": [
+    "app/api/health/route.ts",
+    "lib/supabase.ts",
+    "docs/ops/p0-db-cutover-runbook.md",
+    "tests/f16-health-db-failfast.test.ts",
+    "tests/prime/p0-slice-missions.test.ts",
+    "fixtures/missions/p0-f16-health-db-failfast.json"
+  ],
+  "forbiddenPaths": [
+    ".env",
+    ".env.production",
+    "docker-compose.praxis.yml",
+    "clinical-policy"
+  ],
+  "workstreams": [
+    { "role": "scout", "title": "Scout · health readiness gap" },
+    { "role": "builder", "title": "Builder · health fail-fast wiring" },
+    { "role": "verifier", "title": "Verifier · f16 health tests" },
+    { "role": "reviewer", "title": "Reviewer · cutover safety" }
+  ]
+}

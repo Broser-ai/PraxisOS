@@ -38,16 +38,20 @@ Rapport skrives til `.sandbox-verify/` (gitignored).
 | Lint | *(ingen `lint`-script i package.json)* | skip |
 | Build | `npm run build` | exit 0 |
 
-### Resultat (sandbox-verify branch)
+## Reality sync (F4–F84 · PR #33+#34)
 
-Kørt med `PRAXIS_DB=mock`, `SCAN_QUALITY_THRESHOLD=70`, canary/shadow **OFF**:
+P0 secure clinical core + continue-dev landede i-repo (auth guards, consent,
+audit, booking kit, MCP/embed harden, CI, consent UX idempotency, journal
+guard consistency). Sandbox forbliver mock — den erstatter **ikke** merge eller
+Hetzner-cutover.
 
-| Check | Resultat |
-|-------|----------|
-| `tsc --noEmit` | **PASS** |
-| `vitest run` | **PASS** — 16 files / **83 tests** |
+| Check | Resultat (fortsat udvikling · 2026-09-03) |
+|-------|-------------------------------------------|
+| `tsc --noEmit` / `npm run typecheck` | **PASS** |
+| `vitest run` / `npm test` | **PASS** — **~500+ tests** (PR #34; was ~83 on early sandbox branch) |
 | lint | skip (ikke defineret) |
-| `next build` | **PASS** — 108 routes; standalone output |
+| CI workflow | F14 + F84 script-existence gate |
+| Operator path | [p0-operator-checklist-merge-cutover.md](./p0-operator-checklist-merge-cutover.md) |
 
 Bemærkninger under build (ikke blockers):
 
@@ -68,15 +72,20 @@ Bemærkninger under build (ikke blockers):
 
 Disse er **kendte** og blokerer stadig fuld klinisk go-live — sandbox gør dem ikke væk:
 
-1. **Replicate billing** — Trellis/mesh kræver betalt/gyldig Replicate-konto i prod
-2. **Undeployed custom Roboflow-modeller** — Del Pilar Nexus custom endpoints / canary >0% kræver deploy + privacy-gate
-3. **Formel DPA** — operationel Broser-accept ≠ formaliseret leverandør-DPA
-4. **Plantar E2E** — fuld plantarfoto → quality → inferens → journal end-to-end på patientsti mangler stadig i prod
-5. Hetzner live clinical flags / canary må **ikke** flips via denne sandbox-PR
+1. **Merge #33+#34** — Michael only; agents do not merge
+2. **Hetzner cutover** — `PRAXIS_DB` + migrations + memory import (manual Broser)
+3. **Captcha site keys** — widget deferred until keys exist
+4. **Replicate billing** — Trellis/mesh kræver betalt/gyldig Replicate-konto i prod
+5. **Undeployed custom Roboflow-modeller** — Del Pilar Nexus custom endpoints / canary >0% kræver deploy + privacy-gate
+6. **Formel DPA** — operationel Broser-accept ≠ formaliseret leverandør-DPA
+7. **Plantar E2E** — fuld plantarfoto → quality → inferens → journal end-to-end på patientsti mangler stadig i prod
+8. Hetzner live clinical flags / canary må **ikke** flips via denne sandbox-PR
 
 ## Relaterede filer
 
 - `.env.sandbox.example` — mock fixture env
 - `docker-compose.sandbox.yml` — isoleret compose (adskilt fra `docker-compose.praxis.yml`)
 - `scripts/sandbox-verify.sh` — typecheck + vitest + build
+- `docs/ops/coding-ready.md` — agent-stack + P0 coding readiness
+- `docs/ops/p0-secure-clinical-core-plan.md` — F4–F84 slice table
 - `docs/vision/*` — privacy unlock, shadow eval, model governance

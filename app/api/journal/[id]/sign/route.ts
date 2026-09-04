@@ -1,6 +1,6 @@
 import { NextResponse } from "next/server";
 import { signJournalEntry } from "@/lib/journal";
-import { auditLog } from "@/lib/audit";
+import { auditLogWithContext } from "@/lib/audit";
 import { jsonAuthFail, requireJournalAccess } from "@/lib/request-auth";
 
 export const runtime = "nodejs";
@@ -26,10 +26,11 @@ export async function POST(req: Request, ctx: { params: Promise<{ id: string }> 
   }
   try {
     const entry = await signJournalEntry(id, body);
-    auditLog("journal.signed", {
+    auditLogWithContext(req, "journal.signed", {
       tenant_id: entry.tenant,
       actor_user_id: auth.accountId,
       target_ref: `journal/${entry.id}`,
+      auth_mode: auth.mode,
     });
     return NextResponse.json({ ok: true, entry });
   } catch (err: unknown) {

@@ -3,7 +3,7 @@ import { decideApproval, listApprovals, getRun } from "@/lib/agent-store";
 import { publishEvent } from "@/lib/event-bus";
 import { sendBirdSms, isBirdConfigured } from "@/lib/bird";
 import { signJournalEntry } from "@/lib/journal";
-import { auditLog } from "@/lib/audit";
+import { auditLogWithContext } from "@/lib/audit";
 import {
   jsonAuthFail,
   requireRole,
@@ -98,10 +98,11 @@ export async function POST(req: Request) {
     source: "approvals",
   });
 
-  auditLog("approval.decided", {
+  auditLogWithContext(req, "approval.decided", {
     tenant_id: approval.tenant,
     actor_user_id: session.accountId,
     target_ref: `approval/${approval.id}`,
+    auth_mode: session.mode,
     meta: { decision: body.decision, action: approval.action },
   });
 

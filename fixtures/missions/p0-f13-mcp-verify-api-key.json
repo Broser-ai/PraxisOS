@@ -1,0 +1,35 @@
+{
+  "id": "p0-f13-mcp-verify-api-key",
+  "title": "F13 · MCP /api/mcp/v1 verifyApiKey + tenant-from-key",
+  "riskLevel": "yellow",
+  "platformScope": ["auth", "mcp", "prime"],
+  "goal": "Replace the Bearer-prefix-only auth on /api/mcp/v1 with a real verifyApiKey check that resolves the tenant from the verified key, and pass that tenant into tool execution instead of the hardcoded 'bypilar'. initialize/ping remain open (MCP handshake). Suggestion-only; no auto merge/deploy.",
+  "allowedPaths": [
+    "app/api/mcp/v1/route.ts",
+    "lib/api-keys.ts",
+    "tests/"
+  ],
+  "forbiddenPaths": [
+    ".env",
+    ".env.production",
+    "secrets/",
+    "clinical-policy",
+    "supabase/migrations/",
+    "lib/mcp-tools.ts",
+    "lib/mcp-handlers.ts"
+  ],
+  "acceptanceCriteria": [
+    { "text": "tools/list + tools/call require a verified Bearer key (not just a Bearer prefix)" },
+    { "text": "resolveApiKey resolves tenant from the key across all tenants (no tenant in URL)" },
+    { "text": "tools/call executes against the key's tenant (not hardcoded bypilar)" },
+    { "text": "Revoked / masked / wrong-prefix / no-token → -32001 unauthorized" },
+    { "text": "initialize + ping remain open (MCP handshake)" },
+    { "text": "Vitest covers resolve + route; typecheck green" }
+  ],
+  "workstreams": [
+    { "role": "scout", "title": "Scout · MCP auth surface" },
+    { "role": "builder", "title": "Builder · resolveApiKey + route wiring" },
+    { "role": "verifier", "title": "Verifier · MCP auth tests" },
+    { "role": "reviewer", "title": "Reviewer · API-key security" }
+  ]
+}

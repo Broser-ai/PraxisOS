@@ -1,7 +1,7 @@
 import { NextResponse } from "next/server";
 import { ensureJournalForBooking, getJournalByBooking } from "@/lib/journal";
 import { getBooking } from "@/lib/bookings";
-import { auditLog } from "@/lib/audit";
+import { auditLogWithContext } from "@/lib/audit";
 import { jsonAuthFail, requireTenantAccess } from "@/lib/request-auth";
 
 export const runtime = "nodejs";
@@ -34,10 +34,12 @@ export async function POST(req: Request) {
     const existing = getJournalByBooking(body.bookingId);
     const entry = await ensureJournalForBooking(body.bookingId);
     if (!existing) {
-      auditLog("journal.created_from_booking", {
+      // F30 · request context on from-booking create (auth already requireTenantAccess)
+      auditLogWithContext(req, "journal.created_from_booking", {
         tenant_id: booking.tenant,
         actor_user_id: auth.accountId,
         target_ref: `journal/${entry.id}`,
+        auth_mode: auth.mode,
         bookingId: body.bookingId,
       });
     }

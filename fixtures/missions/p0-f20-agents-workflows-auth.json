@@ -1,0 +1,26 @@
+{
+  "id": "p0-f20-agents-workflows-auth",
+  "title": "P0 F20 · agents workflows GET auth hole",
+  "goal": "Close remaining unauthenticated agents surface: GET /api/agents/workflows requires owner/support. status/run/approvals already gated (F5). Suggestion_only; no auto merge/deploy.",
+  "riskLevel": "yellow",
+  "platformScope": ["clinic_ops", "prime"],
+  "acceptanceCriteria": [
+    { "text": "GET /api/agents/workflows unauthenticated → 401; practitioner/reception → 403" },
+    { "text": "owner/support → 200 workflows list" },
+    { "text": "status/run remain gated (regression)" },
+    { "text": "vitest covers; tsc green" }
+  ],
+  "allowedPaths": [
+    "app/api/agents/workflows/route.ts",
+    "tests/f20-agents-workflows-auth.test.ts",
+    "tests/prime/p0-slice-missions.test.ts",
+    "fixtures/missions/p0-f20-agents-workflows-auth.json"
+  ],
+  "forbiddenPaths": [".env", ".env.production", "clinical-policy"],
+  "workstreams": [
+    { "role": "scout", "title": "Scout · agents auth holes" },
+    { "role": "builder", "title": "Builder · workflows GET gate" },
+    { "role": "verifier", "title": "Verifier · f20 agents tests" },
+    { "role": "reviewer", "title": "Reviewer · automation leak closed" }
+  ]
+}

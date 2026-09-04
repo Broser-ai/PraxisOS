@@ -189,6 +189,53 @@ export function verifyApiKey(
   return { ok: true, key: match };
 }
 
+/**
+ * Resolve a raw Bearer secret to its API key across ALL tenants.
+ *
+ * Used by endpoints that have no tenant in the URL path (e.g. /api/mcp/v1):
+ * the tenant is derived FROM the verified key rather than supplied by the
+ * caller. Rejects masked display secrets, revoked keys, and bad prefixes.
+ *
+ * Returns the matching key (with its `tenant`) on success, or an error code
+ * matching verifyApiKey's vocabulary plus `no_token`.
+ */
+export function resolveApiKey(
+  token: string,
+): { ok: true; key: ApiKey } | { ok: false; error: "no_token" | "invalid_token" | "key_revoked" } {
+  if (!token || !token.trim()) {
+    return { ok: false, error: "no_token" };
+  }
+  if (
+    !token.startsWith("sk_live_") &&
+    !token.startsWith("sk_test_") &&
+    !token.startsWith("pk_live_") &&
+    !token.startsWith("pk_test_")
+  ) {
+    return { ok: false, error: "invalid_token" };
+  }
+  if (token.length < 16) {
+    return { ok: false, error: "invalid_token" };
+  }
+
+  const candidates = apiKeys.filter(
+    (k) => k.status === "active" && !isMaskedSecret(k.hashedSecret),
+  );
+  const match = candidates.find((k) => safeEqualStr(k.hashedSecret, token));
+  if (match) {
+    match.lastUsedAt = new Date().toISOString();
+    return { ok: true, key: match };
+  }
+
+  const revoked = apiKeys.find(
+    (k) =>
+      k.status === "revoked" &&
+      !isMaskedSecret(k.hashedSecret) &&
+      safeEqualStr(k.hashedSecret, token),
+  );
+  if (revoked) return { ok: false, error: "key_revoked" };
+  return { ok: false, error: "invalid_token" };
+}
+
 /** Mask secret for UI — never echo full sk_ back to clients. */
 export function maskApiKeySecret(secret: string): string {
   if (secret.length < 12) return "****";

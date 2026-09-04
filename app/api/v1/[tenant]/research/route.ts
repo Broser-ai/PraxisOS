@@ -1,16 +1,21 @@
-import { NextRequest, NextResponse } from "next/server";
+import { NextResponse } from "next/server";
 import {
   formatFindingForJournal,
   listResearchTracks,
   runResearchHarvest,
 } from "@/lib/alphaxiv";
 import type { ResearchTrackId } from "@/lib/alphaxiv/types";
-import { decodeSession, SESSION_COOKIE } from "@/lib/auth";
 import { writeJournal } from "@/lib/swarm/journal";
 import { getTenant } from "@/lib/tenants";
+import {
+  jsonAuthFail,
+  requireTenantAccess,
+  type GuardOk,
+} from "@/lib/request-auth";
+import { auditLogWithContext } from "@/lib/audit";
 
 export async function GET(
-  req: NextRequest,
+  req: Request,
   ctx: { params: Promise<{ tenant: string }> },
 ) {
   const { tenant } = await ctx.params;
@@ -18,10 +23,9 @@ export async function GET(
     return NextResponse.json({ error: "tenant_not_found" }, { status: 404 });
   }
 
-  const session = decodeSession(req.cookies.get(SESSION_COOKIE)?.value ?? "");
-  if (!session || (session.tenant !== tenant && session.role !== "support")) {
-    return NextResponse.json({ error: "unauthorized" }, { status: 401 });
-  }
+  // F41 · requireTenantAccess (session/API) replaces raw session-cookie decode
+  const auth = requireTenantAccess(req, tenant);
+  if (!auth.ok) return jsonAuthFail(auth);
 
   const url = new URL(req.url);
   const view = url.searchParams.get("view") ?? "tracks";
@@ -41,7 +45,7 @@ export async function GET(
 
 /** POST · harvest + write LUNA journal (optional enqueue handled by swarm separately) */
 export async function POST(
-  req: NextRequest,
+  req: Request,
   ctx: { params: Promise<{ tenant: string }> },
 ) {
   const { tenant } = await ctx.params;
@@ -49,13 +53,11 @@ export async function POST(
     return NextResponse.json({ error: "tenant_not_found" }, { status: 404 });
   }
 
-  const session = decodeSession(req.cookies.get(SESSION_COOKIE)?.value ?? "");
-  if (!session || (session.tenant !== tenant && session.role !== "support")) {
-    return NextResponse.json({ error: "unauthorized" }, { status: 401 });
-  }
-  if (session.role !== "owner" && session.role !== "support") {
-    return NextResponse.json({ error: "forbidden" }, { status: 403 });
-  }
+  const auth = requireTenantAccess(req, tenant, {
+    roles: ["owner", "support"],
+  });
+  if (!auth.ok) return jsonAuthFail(auth);
+  const session = auth as GuardOk;
 
   let body: { trackId?: string; query?: string; limit?: number };
   try {
@@ -68,6 +70,14 @@ export async function POST(
     trackId: body.trackId as ResearchTrackId | undefined,
     query: body.query,
     limit: body.limit,
+  });
+
+  // F66 · research harvest mutation audit (no query text)
+  auditLogWithContext(req, "research.harvest", {
+    tenant_id: tenant,
+    actor_user_id: session.accountId,
+    target_ref: body.trackId ?? "default",
+    auth_mode: "session",
   });
 
   writeJournal({

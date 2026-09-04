@@ -1,6 +1,6 @@
 import { NextResponse } from "next/server";
 import { getTenant, updateTenantSetup, type Service } from "@/lib/tenants";
-import { auditLog } from "@/lib/audit";
+import { auditLogWithContext } from "@/lib/audit";
 import {
   jsonAuthFail,
   requireRole,
@@ -50,10 +50,12 @@ export async function POST(req: Request) {
     return NextResponse.json({ error: result.error }, { status: 400 });
   }
 
-  auditLog("tenant.setup_updated", {
+  // F23 · request context (ip/ua/route/request_id) + auth_mode on mutation audit
+  auditLogWithContext(req, "tenant.setup_updated", {
     tenant_id: slug,
     actor_user_id: session.accountId,
     target_ref: `tenant/${slug}`,
+    auth_mode: session.mode,
   });
 
   return NextResponse.json({

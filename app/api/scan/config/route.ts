@@ -1,17 +1,27 @@
 import { NextResponse } from "next/server";
 import { secretsPublicStatus, writeSecrets, type PraxisSecrets } from "@/lib/secrets";
-import { auditLog } from "@/lib/audit";
+import { auditLogWithContext } from "@/lib/audit";
 import {
   jsonAuthFail,
   requireRole,
   resolveRequestAuth,
   type AuthOk,
 } from "@/lib/request-auth";
+import { checkIpRateLimit } from "@/lib/rate-limit";
 
 export const runtime = "nodejs";
 export const dynamic = "force-dynamic";
 
-function readinessPayload(secrets: ReturnType<typeof secretsPublicStatus>) {
+function clientIp(req: Request): string {
+  const xff = req.headers.get("x-forwarded-for");
+  if (xff) return xff.split(",")[0]!.trim();
+  return req.headers.get("x-real-ip") ?? "unknown";
+}
+
+function readinessPayload(
+  secrets: ReturnType<typeof secretsPublicStatus>,
+  opts: { includeHints: boolean },
+) {
   const blockers: string[] = [];
   if (!secrets.replicate) {
     blockers.push("REPLICATE_API_TOKEN mangler — kræves til live 3D-mesh (liveReady)");
@@ -25,20 +35,24 @@ function readinessPayload(secrets: ReturnType<typeof secretsPublicStatus>) {
       "OPENAI_API_KEY mangler — valgfri; live fod-scan virker uden. Nødvendig for rigtige LLM-agentsvar.",
     );
   }
+  const providers: Record<string, unknown> = {
+    replicate: secrets.replicate,
+    roboflow: secrets.roboflow,
+    openai: secrets.openai,
+  };
+  // F33 · hints only for authenticated secret writers (POST response)
+  if (opts.includeHints) {
+    providers.replicateHint = secrets.replicateHint;
+    providers.roboflowHint = secrets.roboflowHint;
+    providers.openaiHint = secrets.openaiHint;
+  }
   return {
     ok: true as const,
     liveReady: secrets.liveScanReady,
     llmReady: secrets.openai,
     blockers,
     notes,
-    providers: {
-      replicate: secrets.replicate,
-      replicateHint: secrets.replicateHint,
-      roboflow: secrets.roboflow,
-      roboflowHint: secrets.roboflowHint,
-      openai: secrets.openai,
-      openaiHint: secrets.openaiHint,
-    },
+    providers,
     where: {
       replicate: "https://replicate.com/account/api-tokens",
       roboflow: "https://app.roboflow.com/settings/api",
@@ -47,9 +61,27 @@ function readinessPayload(secrets: ReturnType<typeof secretsPublicStatus>) {
   };
 }
 
-/** Broser-only · status for Del Pilar Nexus provider keys */
-export async function GET() {
-  return NextResponse.json(readinessPayload(secretsPublicStatus()));
+/** Public readiness — booleans only (F33 · no key hints on public GET). */
+export async function GET(req: Request) {
+  // F44 · public GET rate-limit
+  const limit = checkIpRateLimit(clientIp(req), {
+    key: "scan-config-get",
+    limit: 60,
+    windowMs: 15 * 60 * 1000,
+  });
+  if (!limit.ok) {
+    return NextResponse.json(
+      { error: "rate_limited", retryAfterMs: limit.retryAfterMs },
+      {
+        status: 429,
+        headers: { "Retry-After": String(Math.ceil(limit.retryAfterMs / 1000)) },
+      },
+    );
+  }
+
+  return NextResponse.json(
+    readinessPayload(secretsPublicStatus(), { includeHints: false }),
+  );
 }
 
 /** Gem Replicate/Roboflow (og valgfri OpenAI) i /data/secrets.json — ingen rebuild */
@@ -88,12 +120,15 @@ export async function POST(req: Request) {
 
   try {
     writeSecrets(patch);
-    auditLog("secrets.updated", {
+    auditLogWithContext(req, "secrets.updated", {
       actor_user_id: (auth as AuthOk).accountId,
       target_ref: "config/scan",
+      auth_mode: (auth as AuthOk).mode,
       meta: { fields: Object.keys(patch) },
     });
-    return NextResponse.json(readinessPayload(secretsPublicStatus()));
+    return NextResponse.json(
+      readinessPayload(secretsPublicStatus(), { includeHints: true }),
+    );
   } catch (err: unknown) {
     const message = err instanceof Error ? err.message : "save_failed";
     return NextResponse.json({ error: message }, { status: 500 });

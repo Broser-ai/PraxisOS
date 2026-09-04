@@ -1,0 +1,37 @@
+{
+  "id": "p0-f78-f84-higher-value-slices",
+  "title": "P0 F78–F84 · higher-value continue-dev (consent UX, journal guards, CI, docs)",
+  "goal": "Shift from diminishing auth micro-slices to higher-value low-risk in-repo work: guard re-scan, consent already-recorded UX, operator checklist+docs sync, journal guard consistency, CI script harden. Suggestion_only; no auto merge/deploy; no clinical policy; no patient AI.",
+  "riskLevel": "yellow",
+  "platformScope": ["clinic_ops", "prime"],
+  "acceptanceCriteria": [
+    { "text": "F78 · no sensitive decodeSession stragglers without tenant guards" },
+    { "text": "F79 · consent re-POST returns alreadyRecorded; UX maps rate_limited/required" },
+    { "text": "F80 · operator checklist covers merge #33+#34 + F78–F84 smoke" },
+    { "text": "F82 · coding-ready + sandbox-verify reflect ~500+ tests / F4–F84" },
+    { "text": "F83 · all journal routes use request-auth guard helpers" },
+    { "text": "F84 · CI verifies typecheck/test scripts exist; vitest+tsc green" }
+  ],
+  "allowedPaths": [
+    "app/api/v1/[tenant]/consent/route.ts",
+    "app/t/[tenant]/onboarding/page.tsx",
+    "app/api/journal/",
+    ".github/workflows/ci.yml",
+    "docs/ops/p0-operator-checklist-merge-cutover.md",
+    "docs/ops/coding-ready.md",
+    "docs/ops/sandbox-verify.md",
+    "docs/ops/p0-secure-clinical-core-plan.md",
+    "CODE-MAP.md",
+    "tests/f78-f84-higher-value-slices.test.ts",
+    "tests/f29-authorize-tenant-usage-audit.test.ts",
+    "tests/prime/p0-slice-missions.test.ts",
+    "fixtures/missions/p0-f78-f84-higher-value-slices.json"
+  ],
+  "forbiddenPaths": [".env", ".env.production", "clinical-policy"],
+  "workstreams": [
+    { "role": "scout", "title": "Scout · F78–F84 gaps vs diminishing auth" },
+    { "role": "builder", "title": "Builder · F78–F84 slices" },
+    { "role": "verifier", "title": "Verifier · f78-f84 tests + tsc" },
+    { "role": "reviewer", "title": "Reviewer · no deploy / invariants" }
+  ]
+}

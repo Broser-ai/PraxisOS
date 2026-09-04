@@ -1,0 +1,31 @@
+{
+  "id": "p0-f11-middleware-strip-x-praxis",
+  "title": "F2 polish · middleware strip spoofable x-praxis-* identity headers",
+  "riskLevel": "yellow",
+  "platformScope": ["auth", "prime"],
+  "goal": "Defense-in-depth at the edge: delete incoming client-set x-praxis-tenant|role|account headers in middleware so they can never reach handlers, regardless of how a guard is written. x-praxis-signature (HMAC webhook) is preserved. Suggestion-only; no auto merge/deploy.",
+  "allowedPaths": [
+    "middleware.ts",
+    "tests/"
+  ],
+  "forbiddenPaths": [
+    ".env",
+    ".env.production",
+    "secrets/",
+    "clinical-policy",
+    "supabase/migrations/",
+    "lib/request-auth.ts"
+  ],
+  "acceptanceCriteria": [
+    { "text": "Middleware deletes x-praxis-tenant, x-praxis-role, x-praxis-account from inbound requests" },
+    { "text": "x-praxis-signature is preserved (events webhook HMAC still works)" },
+    { "text": "Existing request-auth spoof tests still pass (guards already reject; middleware is belt-and-suspenders)" },
+    { "text": "Vitest covers header stripping; typecheck green" }
+  ],
+  "workstreams": [
+    { "role": "scout", "title": "Scout · x-praxis-* header surface" },
+    { "role": "builder", "title": "Builder · middleware strip" },
+    { "role": "verifier", "title": "Verifier · strip + preserve tests" },
+    { "role": "reviewer", "title": "Reviewer · auth policy" }
+  ]
+}

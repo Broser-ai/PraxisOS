@@ -1,0 +1,29 @@
+{
+  "id": "p0-f60-embed-hardening",
+  "title": "P0 F60 · embed hardening + booking CORS alignment",
+  "goal": "Harden /embed/v1: booking CORS allowlist ACAO, rate-limit, postMessage origin check. Suggestion_only; no auto merge/deploy.",
+  "riskLevel": "yellow",
+  "platformScope": ["clinic_ops", "prime"],
+  "acceptanceCriteria": [
+    { "text": "embed ACAO uses bookingAllowedOrigin" },
+    { "text": "embed GET rate-limited" },
+    { "text": "postMessage checks e.origin === ORIGIN" },
+    { "text": "vitest covers; tsc green" }
+  ],
+  "allowedPaths": [
+    "app/embed/v1/[tenant]/route.ts",
+    "tests/f60-embed-hardening.test.ts",
+    "tests/prime/p0-slice-missions.test.ts",
+    "fixtures/missions/p0-f60-embed-hardening.json",
+    "docs/ops/p0-secure-clinical-core-plan.md",
+    "CODE-MAP.md",
+    ".env.example"
+  ],
+  "forbiddenPaths": [".env", ".env.production", "clinical-policy"],
+  "workstreams": [
+    { "role": "scout", "title": "Scout · embed CORS gaps" },
+    { "role": "builder", "title": "Builder · F60 harden" },
+    { "role": "verifier", "title": "Verifier · f60 tests" },
+    { "role": "reviewer", "title": "Reviewer · no deploy" }
+  ]
+}

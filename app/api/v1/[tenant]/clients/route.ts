@@ -9,7 +9,7 @@ import {
   listClientsForTenant,
 } from "@/lib/data/repo";
 import { getTenant } from "@/lib/tenants";
-import { auditLog } from "@/lib/audit";
+import { auditLogWithContext } from "@/lib/audit";
 import {
   jsonAuthFail,
   requireTenantAccess,
@@ -33,23 +33,29 @@ export async function GET(
   if (!auth.ok) return jsonAuthFail(auth);
 
   const clients = await listClientsForTenant(tenant);
-  return NextResponse.json(
-    {
-      data: clients.map((c) => ({
-        id: c.id,
-        name: c.name,
-        email: c.email,
-        phone: c.phone,
-        age: c.age,
-        tag: c.tag,
-        joined: c.joined,
-        lastVisit: c.lastVisit,
-        consentLevel: c.consentLevel,
-      })),
-      meta: { count: clients.length, tenant, backend: dataBackend() },
-    },
-    { headers: { "access-control-allow-origin": "*" } },
-  );
+
+  // F70 · staff list audit (no client PII dump)
+  auditLogWithContext(req, "client.list_viewed", {
+    tenant_id: tenant,
+    actor_user_id: auth.accountId,
+    auth_mode: auth.mode,
+  });
+
+  // F69 · staff routes must not advertise ACAO *
+  return NextResponse.json({
+    data: clients.map((c) => ({
+      id: c.id,
+      name: c.name,
+      email: c.email,
+      phone: c.phone,
+      age: c.age,
+      tag: c.tag,
+      joined: c.joined,
+      lastVisit: c.lastVisit,
+      consentLevel: c.consentLevel,
+    })),
+    meta: { count: clients.length, tenant, backend: dataBackend() },
+  });
 }
 
 export async function POST(
@@ -93,10 +99,11 @@ export async function POST(
     return NextResponse.json({ error: created.error }, { status: 400 });
   }
 
-  auditLog("client.created", {
+  auditLogWithContext(req, "client.created", {
     tenant_id: tenant,
     actor_user_id: auth.accountId,
     target_ref: `client/${created.id}`,
+    auth_mode: auth.mode,
   });
 
   return NextResponse.json(
@@ -110,6 +117,6 @@ export async function POST(
       createdAt: new Date().toISOString(),
       backend: dataBackend(),
     },
-    { status: 201, headers: { "access-control-allow-origin": "*" } },
+    { status: 201 },
   );
 }
