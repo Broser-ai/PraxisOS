@@ -2,9 +2,10 @@
 
 **Repo:** Broser-ai/PraxisOS  
 **Evidence base:** `git log` / `git show` / file existence / vitest  
-**`main` tip audited:** `3e677cea569d8ad56b7a52d3de2cc98449eed0a9`  
-**PR #34 tip compared:** `3d6eb30e2ab604abee485cb82df24e66b5756193` (`cursor/continue-dev-slices-2c11`)  
-**PR #33 tip compared:** `6217c52cc864a5d5f5d0c0f534889b9cee0d2c5b` (`cursor/p0-execution-slices-2c11`)  
+**`main` tip audited (original):** `3e677cea569d8ad56b7a52d3de2cc98449eed0a9`  
+**`main` tip after Broser «færdig kodet alle åbne» land:** `2d3af3fa7d3dd7fb90ea0b1824d27eaf56be0411` — see `docs/ops/open-pr-triage-2026-09-04.md`  
+**PR #34 tip compared:** `3d6eb30e2ab604abee485cb82df24e66b5756193` (`cursor/continue-dev-slices-2c11`) — **now on main** via `8e75573`  
+**PR #33 tip compared:** `6217c52cc864a5d5f5d0c0f534889b9cee0d2c5b` (`cursor/p0-execution-slices-2c11`) — **now on main** via `c17947a`  
 
 **Hard locks (unchanged by this audit):** `NO_AUTO_MERGE` / `NO_AUTO_DEPLOY` · `suggestion_only` · `NO_MODEL_TRAINING` · ingen patient-AI · ingen Hetzner-deploy fra vores arbejde.
 
@@ -18,7 +19,7 @@ Det der er landet, er kontrolplanet (Mission/Workstream/Budget/DoD/dispatcher) +
 **`dbMode=mock` betyder hukommelse.**  
 Live health (dokumenteret i arkitekt-briefing) rapporterer `dbMode: "mock"` / `backend: "memory"`. Mission-store kører memory + valgfri `PRAXIS_DATA_DIR/mission-store.json`. SQL-migrationer `0005`/`0006` ligger i repo — **ikke** wired som runtime store, **ikke** applied på Hetzner af os.
 
-**P0 / patient-AI / Hetzner er pauset** (Broser OOO-acceptance `docs/ops/broser-acceptance-ooo-2026-09-03.md`). Drafts #33/#34 indeholder yderligere P0-slices; de er **ikke** merged til `main`.
+**P0 patient-AI / Hetzner cutover er stadig pauset** (ingen deploy fra agents). Broser-order 2026-09-04 merged **#36 → #33 → #34 → #35** til `main` (F4–F84 + missions aliases + audit). Live health forbliver mock indtil cutover.
 
 ---
 
