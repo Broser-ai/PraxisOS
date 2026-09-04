@@ -54,3 +54,19 @@ jobs:
 
       - name: Test
         run: npm test
+
+      # Named separately so a governance regression is obvious in the PR checks
+      # list, even though `npm test` already covers these files.
+      - name: Planway absence guard
+        run: npx vitest run tests/planway-absence.test.ts
+
+      - name: Agent safety guard
+        run: npx vitest run tests/agent-safety-invariants.test.ts
+
+      - name: Build
+        run: npm run build
+
+      # No lint script exists in package.json. This job deliberately does not
+      # fake a lint step — add one here if `lint` is ever added.
+      - name: Lint status
+        run: echo "lint: unavailable (no lint script in package.json)"
