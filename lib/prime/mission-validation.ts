@@ -112,7 +112,10 @@ export function validateMissionBudgets(
   ];
   for (const key of numericKeys) {
     const n = merged[key];
-    if (typeof n !== "number" || Number.isNaN(n) || n < 0) {
+    // Number.isFinite also rejects Infinity: an infinite budget makes the
+    // exhaustion check in budget-guard unreachable, and JSON.stringify turns it
+    // into null on persist, which then flips it to instant exhaustion.
+    if (typeof n !== "number" || !Number.isFinite(n) || n < 0) {
       return { ok: false, error: "budget_negative_or_invalid", field: key };
     }
   }
