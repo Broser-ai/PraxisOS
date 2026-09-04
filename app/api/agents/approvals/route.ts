@@ -3,10 +3,27 @@ import { decideApproval, listApprovals, getRun } from "@/lib/agent-store";
 import { publishEvent } from "@/lib/event-bus";
 import { sendBirdSms, isBirdConfigured } from "@/lib/bird";
 import { signJournalEntry } from "@/lib/journal";
+import { auditLog } from "@/lib/audit";
+import {
+  jsonAuthFail,
+  requireRole,
+  resolveRequestAuth,
+  type AuthOk,
+} from "@/lib/request-auth";
 
 export const runtime = "nodejs";
 
 export async function GET(req: Request) {
+  // Staff-only approval list (was unauthenticated).
+  const auth = resolveRequestAuth(req);
+  if (!auth.ok) return jsonAuthFail(auth);
+  const roleGate = requireRole(auth as AuthOk, [
+    "owner",
+    "practitioner",
+    "support",
+  ]);
+  if (!roleGate.ok) return jsonAuthFail(roleGate);
+
   const url = new URL(req.url);
   const status = url.searchParams.get("status") as "pending" | "approved" | "rejected" | null;
   return NextResponse.json({
@@ -15,6 +32,18 @@ export async function GET(req: Request) {
 }
 
 export async function POST(req: Request) {
+  // Approval decision — owner/practitioner/support only (was unauthenticated;
+  // could signJournalEntry + sendBirdSms marketing without login).
+  const auth = resolveRequestAuth(req);
+  if (!auth.ok) return jsonAuthFail(auth);
+  const roleGate = requireRole(auth as AuthOk, [
+    "owner",
+    "practitioner",
+    "support",
+  ]);
+  if (!roleGate.ok) return jsonAuthFail(roleGate);
+  const session = auth as AuthOk;
+
   let body: { id?: string; decision?: "approved" | "rejected"; decidedBy?: string };
   try {
     body = await req.json();
@@ -25,7 +54,8 @@ export async function POST(req: Request) {
     return NextResponse.json({ error: "id_and_decision_required" }, { status: 400 });
   }
 
-  const approval = decideApproval(body.id, body.decision, body.decidedBy ?? "clinic-owner");
+  const actor = body.decidedBy ?? session.accountId ?? "clinic-owner";
+  const approval = decideApproval(body.id, body.decision, actor);
   if (!approval) return NextResponse.json({ error: "not_found_or_decided" }, { status: 404 });
 
   if (body.decision === "approved" && approval.action === "journal.sign_soap") {
@@ -33,7 +63,7 @@ export async function POST(req: Request) {
     if (journalId) {
       try {
         await signJournalEntry(journalId, {
-          signedBy: body.decidedBy ?? "clinic-owner",
+          signedBy: actor,
           soap: (approval.payload.soap as any) ?? undefined,
         });
       } catch {
@@ -66,6 +96,13 @@ export async function POST(req: Request) {
     tenant: approval.tenant,
     data: { approvalId: approval.id, action: approval.action, runId: approval.runId },
     source: "approvals",
+  });
+
+  auditLog("approval.decided", {
+    tenant_id: approval.tenant,
+    actor_user_id: session.accountId,
+    target_ref: `approval/${approval.id}`,
+    meta: { decision: body.decision, action: approval.action },
   });
 
   return NextResponse.json({

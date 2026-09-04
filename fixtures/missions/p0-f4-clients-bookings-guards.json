@@ -1,0 +1,36 @@
+{
+  "id": "p0-f4-clients-bookings-guards",
+  "title": "P0 F4 · clients + bookings/list guards",
+  "goal": "Replace weak local checkAuth on clients + bookings/list with requireTenantAccess (verified session cookie OR verifyApiKey Bearer). Enforce cross-tenant isolation, reject spoofed x-praxis-* headers, audit client.created. Suggestion-only; no auto merge/deploy.",
+  "riskLevel": "yellow",
+  "platformScope": ["auth_journal", "clinic_ops", "prime"],
+  "acceptanceCriteria": [
+    { "text": "Unauthenticated GET /api/v1/[tenant]/clients + bookings/list returns 401" },
+    { "text": "Cross-tenant session/Bearer returns 403 tenant_mismatch / 401 invalid_token" },
+    { "text": "Spoofed x-praxis-tenant without cookie returns 401 (not 200)" },
+    { "text": "Verified Bearer uses real verifyApiKey (read:clients / read:bookings scope)" },
+    { "text": "POST client emits audit client.created; vitest covers negative cases; tsc green" }
+  ],
+  "allowedPaths": [
+    "app/api/v1/[tenant]/clients/route.ts",
+    "app/api/v1/[tenant]/bookings/list/route.ts",
+    "lib/request-auth.ts",
+    "lib/audit.ts",
+    "tests/clients-bookings-auth.test.ts",
+    "tests/prime/p0-slice-missions.test.ts",
+    "fixtures/missions/p0-f4-clients-bookings-guards.json"
+  ],
+  "forbiddenPaths": [
+    ".env",
+    ".env.production",
+    "docker-compose.praxis.yml",
+    "supabase/migrations/",
+    "app/api/bird/"
+  ],
+  "workstreams": [
+    { "role": "scout", "title": "Scout · clients/bookings auth surface" },
+    { "role": "builder", "title": "Builder · requireTenantAccess guards" },
+    { "role": "verifier", "title": "Verifier · clients-bookings-auth tests" },
+    { "role": "reviewer", "title": "Reviewer · tenant-isolation policy" }
+  ]
+}

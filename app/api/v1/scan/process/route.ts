@@ -5,6 +5,14 @@ import { getBooking } from "@/lib/bookings";
 import { ensureJournalForBooking, updateJournalEntry } from "@/lib/journal";
 import type { AlphaScanResult } from "@/lib/scanner/alpha-pipeline";
 import { secretsPublicStatus } from "@/lib/secrets";
+import { auditLog } from "@/lib/audit";
+import {
+  jsonAuthFail,
+  requireRole,
+  resolveRequestAuth,
+  type AuthOk,
+} from "@/lib/request-auth";
+import { assertConsent } from "@/lib/consent";
 
 export const runtime = "nodejs";
 export const dynamic = "force-dynamic";
@@ -25,6 +33,17 @@ function isPlaceholder(url: string): boolean {
 
 /** Del Pilar Nexus · ARIA + S-Agent clinical scan */
 export async function POST(req: Request) {
+  // Staff-only clinical scan — was unauthenticated (biometri + AI without login).
+  const auth = resolveRequestAuth(req);
+  if (!auth.ok) return jsonAuthFail(auth);
+  const roleGate = requireRole(auth as AuthOk, [
+    "practitioner",
+    "owner",
+    "support",
+  ]);
+  if (!roleGate.ok) return jsonAuthFail(roleGate);
+  const session = auth as AuthOk;
+
   let body: Body;
   try {
     body = (await req.json()) as Body;
@@ -33,8 +52,32 @@ export async function POST(req: Request) {
   }
 
   const booking = body.bookingId ? getBooking(body.bookingId) : undefined;
-  const tenantId = body.tenantId ?? booking?.tenant ?? "bypilar";
+  const requestedTenant = body.tenantId ?? booking?.tenant ?? "bypilar";
+  // Tenant must come from verified session, not free body — support may cross.
+  if (
+    session.tenant !== requestedTenant &&
+    session.role !== "support"
+  ) {
+    return NextResponse.json({ error: "tenant_mismatch" }, { status: 403 });
+  }
+  const tenantId = requestedTenant;
   const patientId = body.patientId ?? booking?.clientId ?? "demo-patient";
+
+  // Consent gate (P0 §D.3) — photo capture + AI processing BEFORE inference.
+  const photoConsent = assertConsent({
+    tenantId,
+    clientId: patientId,
+    purpose: "photo_capture",
+    actorUserId: session.accountId,
+  });
+  if (!photoConsent.ok) return NextResponse.json(photoConsent.body, { status: photoConsent.status });
+  const aiConsent = assertConsent({
+    tenantId,
+    clientId: patientId,
+    purpose: "ai_processing",
+    actorUserId: session.accountId,
+  });
+  if (!aiConsent.ok) return NextResponse.json(aiConsent.body, { status: aiConsent.status });
 
   await ensureNexusBooted(tenantId);
 
@@ -80,6 +123,13 @@ export async function POST(req: Request) {
 
   const scan = result.data as AlphaScanResult;
   let journalId: string | undefined;
+
+  auditLog("scan.processed", {
+    tenant_id: tenantId,
+    actor_user_id: session.accountId,
+    target_ref: `scan/${patientId}`,
+    meta: { mode: scan.mode, bookingId: booking?.id },
+  });
 
   if (booking) {
     try {

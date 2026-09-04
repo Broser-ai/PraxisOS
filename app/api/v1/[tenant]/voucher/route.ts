@@ -3,6 +3,11 @@
 import { NextResponse } from "next/server";
 import { getTenant } from "@/lib/tenants";
 import { findVoucherByCode } from "@/lib/vouchers";
+import {
+  bookingRateLimit,
+  clientIp,
+  bookingAllowedOrigin,
+} from "@/lib/public-booking-kit";
 
 export async function GET(
   req: Request,
@@ -12,6 +17,19 @@ export async function GET(
   const t = getTenant(slug);
   if (!t) return NextResponse.json({ error: "tenant_not_found" }, { status: 404 });
 
+  // Rate-limit per IP + tenant (code brute-force control — no login).
+  const limit = bookingRateLimit(clientIp(req), slug);
+  if (!limit.ok) {
+    return NextResponse.json(
+      { error: "rate_limited", retryAfter: limit.retryAfter },
+      { status: 429, headers: { "retry-after": String(limit.retryAfter) } },
+    );
+  }
+
+  const headers: Record<string, string> = { vary: "Origin" };
+  const allowed = bookingAllowedOrigin(req, slug);
+  if (allowed) headers["access-control-allow-origin"] = allowed;
+
   const url = new URL(req.url);
   const code = url.searchParams.get("code") ?? "";
   const serviceId = url.searchParams.get("service");
@@ -20,19 +38,19 @@ export async function GET(
   if (!v) {
     return NextResponse.json({ valid: false, error: "Ukendt kode" }, {
       status: 404,
-      headers: { "access-control-allow-origin": "*" },
+      headers,
     });
   }
 
   if (v.status !== "active") {
     return NextResponse.json({ valid: false, error: `Voucher er ${v.status}` }, {
-      headers: { "access-control-allow-origin": "*" },
+      headers,
     });
   }
 
   if (new Date(v.expiresAt) < new Date()) {
     return NextResponse.json({ valid: false, error: "Voucher er udløbet" }, {
-      headers: { "access-control-allow-origin": "*" },
+      headers,
     });
   }
 
@@ -41,7 +59,7 @@ export async function GET(
     return NextResponse.json({
       valid: false,
       error: `Klippekortet er kun gyldigt til "${v.serviceName}"`,
-    }, { headers: { "access-control-allow-origin": "*" } });
+    }, { headers });
   }
 
   return NextResponse.json({
@@ -54,5 +72,5 @@ export async function GET(
       serviceName: v.serviceName,
       expiresAt: v.expiresAt,
     },
-  }, { headers: { "access-control-allow-origin": "*" } });
+  }, { headers });
 }

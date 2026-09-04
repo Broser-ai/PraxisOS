@@ -7,6 +7,7 @@ import {
   requiresCaptcha,
   getAttempts,
 } from "@/lib/rate-limit";
+import { auditLogWithContext } from "@/lib/audit";
 
 export async function POST(req: Request) {
   const ip =
@@ -31,6 +32,10 @@ export async function POST(req: Request) {
 
   const backoff = getBackoffMs(ip, email);
   if (backoff > 0) {
+    auditLogWithContext(req, "login.rate_limited", {
+      actor_user_id: email,
+      meta: { email, ip },
+    });
     return NextResponse.json(
       {
         error: "rate_limited",
@@ -59,6 +64,10 @@ export async function POST(req: Request) {
     (await authenticateAgainstSupabase(email, password));
   if (!acc) {
     recordAttempt(ip, email, false);
+    auditLogWithContext(req, "login.failure", {
+      actor_user_id: email,
+      meta: { email, reason: "invalid_credentials" },
+    });
     return NextResponse.json(
       {
         error: "invalid_credentials",
@@ -90,6 +99,13 @@ export async function POST(req: Request) {
   }
 
   recordAttempt(ip, email, true);
+  auditLogWithContext(req, "login.success", {
+    tenant_id: picked.slug,
+    actor_user_id: acc.id,
+    target_ref: `account/${acc.id}`,
+    auth_mode: "session",
+    meta: { tenant: picked.slug, role: picked.role },
+  });
 
   const session = encodeSession({
     accountId: acc.id,

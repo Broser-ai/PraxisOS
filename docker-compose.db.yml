@@ -1,0 +1,65 @@
+# PraxisOS · self-host Postgres (+ pgvector) for the DB cutover (P0 plan §C/§F9).
+#
+# ADDITIVE — bringing this file up does NOT change the running app. The app
+# still reads PRAXIS_DB from .env.production. Michael runs this on Hetzner
+# during the manual cutover (see docs/ops/p0-db-cutover-runbook.md).
+#
+# Recommended binding: loopback-only 127.0.0.1:5432 (app on same host via
+# Supabase API stack or DATABASE_URL). Change PRAXIS_PG_BIND to a private
+# net only if the app runs on a separate host.
+#
+# Usage:
+#   docker compose -f docker-compose.db.yml --env-file .env.production up -d
+#   docker compose -f docker-compose.db.yml --profile migrate run --rm praxis-db-migrate
+#   docker compose -f docker-compose.db.yml exec praxis-db psql -U praxis -d praxis
+
+services:
+  praxis-db:
+    image: pgvector/pgvector:pg17
+    container_name: praxis_db
+    restart: unless-stopped
+    environment:
+      POSTGRES_USER: ${POSTGRES_USER:-praxis}
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:?POSTGRES_PASSWORD is required}
+      POSTGRES_DB: ${POSTGRES_DB:-praxis}
+      # pgvector extension is created by 0001 migration; keep available.
+    ports:
+      - "${PRAXIS_PG_BIND:-127.0.0.1}:${PRAXIS_PG_PORT:-5432}:5432"
+    volumes:
+      - praxis_pgdata:/var/lib/postgresql/data
+      # Mount migrations read-only so the migrate profile can apply them.
+      - ./supabase/migrations:/migrations:ro
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U ${POSTGRES_USER:-praxis} -d ${POSTGRES_DB:-praxis}"]
+      interval: 10s
+      timeout: 5s
+      retries: 6
+      start_period: 20s
+    networks:
+      - praxis_db_net
+
+  # One-shot migration runner. Idempotent (each migration uses IF NOT EXISTS).
+  # Run with: --profile migrate
+  praxis-db-migrate:
+    image: pgvector/pgvector:pg17
+    container_name: praxis_db_migrate
+    depends_on:
+      praxis-db:
+        condition: service_healthy
+    environment:
+      PGPASSWORD: ${POSTGRES_PASSWORD:?POSTGRES_PASSWORD is required}
+    volumes:
+      - ./supabase/migrations:/migrations:ro
+      - ./scripts/db-apply-migrations.sh:/db-apply-migrations.sh:ro
+    entrypoint: ["/bin/bash", "/db-apply-migrations.sh"]
+    networks:
+      - praxis_db_net
+    profiles:
+      - migrate
+
+volumes:
+  praxis_pgdata:
+
+networks:
+  praxis_db_net:
+    driver: bridge

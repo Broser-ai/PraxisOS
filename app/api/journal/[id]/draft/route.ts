@@ -2,6 +2,7 @@ import { NextResponse } from "next/server";
 import { draftSoapForEntry } from "@/lib/journal";
 import { auditLog } from "@/lib/audit";
 import { jsonAuthFail, requireJournalAccess } from "@/lib/request-auth";
+import { assertConsent } from "@/lib/consent";
 
 export const runtime = "nodejs";
 
@@ -14,6 +15,17 @@ export async function POST(req: Request, ctx: { params: Promise<{ id: string }> 
     write: true,
   });
   if (!auth.ok) return jsonAuthFail(auth);
+
+  // Consent gate (P0 §D.3) — AI processing BEFORE the LLM draft.
+  const aiConsent = assertConsent({
+    tenantId: auth.entry.tenant,
+    clientId: auth.entry.clientId,
+    purpose: "ai_processing",
+    actorUserId: auth.accountId,
+  });
+  if (!aiConsent.ok) {
+    return NextResponse.json(aiConsent.body, { status: aiConsent.status });
+  }
 
   let transcript: string | undefined;
   try {

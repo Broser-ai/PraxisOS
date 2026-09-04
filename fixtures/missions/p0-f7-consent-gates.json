@@ -1,0 +1,37 @@
+{
+  "id": "p0-f7-consent-gates",
+  "title": "P0 F7 · consent lib + migration 0007 + gates on scan/SMS/AI-draft",
+  "goal": "Durable consent_events (lib/consent.ts + migration 0007_consent_events) with enforcement gates BEFORE handling: photo_capture + ai_processing on scan/process, ai_processing on journal draft, sms_transactional/sms_marketing on bird/send. Legacy consentLevel is a documented fallback with audit-warn until backfilled. No raw CPR in evidence. Suggestion_only; no auto merge/deploy.",
+  "riskLevel": "yellow",
+  "platformScope": ["clinic_ops", "prime"],
+  "acceptanceCriteria": [
+    { "text": "scan/process blocks (403 consent_required) for client without photo_capture/ai_processing consent BEFORE inference" },
+    { "text": "journal draft blocks (403 consent_required) when ai_processing revoked BEFORE LLM" },
+    { "text": "bird/send marketing requires clientId + sms_marketing consent; transactional gated when clientId present" },
+    { "text": "recordConsentEvent emits audit consent.recorded; legacy fallback audit-warns; revoke/opt_out blocks" },
+    { "text": "migration 0007_consent_events.sql additive; vitest covers gates; tsc green" }
+  ],
+  "allowedPaths": [
+    "lib/consent.ts",
+    "supabase/migrations/0007_consent_events.sql",
+    "app/api/v1/scan/process/route.ts",
+    "app/api/journal/[id]/draft/route.ts",
+    "app/api/bird/send/route.ts",
+    "tests/f7-consent.test.ts",
+    "tests/prime/p0-slice-missions.test.ts",
+    "fixtures/missions/p0-f7-consent-gates.json"
+  ],
+  "forbiddenPaths": [
+    ".env",
+    ".env.production",
+    "docker-compose.praxis.yml",
+    "app/api/journal/[id]/sign/route.ts",
+    "app/api/bird/config/route.ts"
+  ],
+  "workstreams": [
+    { "role": "scout", "title": "Scout · consent enforcement points" },
+    { "role": "builder", "title": "Builder · consent lib + migration + gates" },
+    { "role": "verifier", "title": "Verifier · f7-consent tests" },
+    { "role": "reviewer", "title": "Reviewer · GDPR/consent policy" }
+  ]
+}

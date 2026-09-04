@@ -25,7 +25,40 @@ export type AuditRecord = {
   tenant_id?: string;
   actor_user_id?: string;
   target_ref?: string;           // fx "scan/scan_bp_001", "config/cfg_bp_003"
+  // Request context (P0 plan §D.1 / §F8) — aligned with audit_log 0008 columns.
+  ip?: string;
+  user_agent?: string;
+  route?: string;
+  request_id?: string;
+  auth_mode?: string;            // "session" | "api_key" | "public" | "machine"
 };
+
+/** Request context extracted from a Request for audit emits. */
+export type AuditRequestContext = {
+  ip?: string;
+  user_agent?: string;
+  route?: string;
+  request_id?: string;
+  auth_mode?: string; // "session" | "api_key" | "public" | "machine"
+};
+
+/** Extract request context (ip, user-agent, route, request_id) from a Request. */
+export function auditRequestContext(req: Request): AuditRequestContext {
+  const xff = req.headers.get("x-forwarded-for");
+  const ip = xff ? xff.split(",")[0]!.trim() : (req.headers.get("x-real-ip") ?? undefined);
+  const userAgent = req.headers.get("user-agent") ?? undefined;
+  let route: string | undefined;
+  try {
+    route = new URL(req.url).pathname;
+  } catch {
+    route = undefined;
+  }
+  const requestId =
+    req.headers.get("x-request-id") ??
+    req.headers.get("x-correlation-id") ??
+    undefined;
+  return { ip, user_agent: userAgent, route, request_id: requestId };
+}
 
 // ---------------------------------------------------------------------------
 // In-memory ring buffer (default sink)
@@ -90,6 +123,12 @@ async function persistSupabase(rec: AuditRecord): Promise<void> {
         target_ref: rec.target_ref ?? null,
         meta: rec.meta,
         level: rec.level,
+        // Request context (audit_log 0008 columns)
+        ip: rec.ip ?? null,
+        user_agent: rec.user_agent ?? null,
+        route: rec.route ?? null,
+        request_id: rec.request_id ?? null,
+        auth_mode: rec.auth_mode ?? null,
       }),
     });
   } catch (err) {
@@ -110,8 +149,15 @@ async function persistSupabase(rec: AuditRecord): Promise<void> {
  *
  * Non-blocking: hvis mode=supabase kaldes fire-and-forget (returnerer void).
  * Fejl i sink må ALDRIG boble tilbage til caller-path.
+ *
+ * Request context (ip, user_agent, route, request_id, auth_mode) may be
+ * supplied either via `context` or as top-level keys in `meta` (extracted).
  */
-export function auditLog(event: string, meta?: AuditMeta): void {
+export function auditLog(
+  event: string,
+  meta?: AuditMeta,
+  context?: AuditRequestContext,
+): void {
   const rec: AuditRecord = {
     event,
     ts: new Date().toISOString(),
@@ -120,8 +166,25 @@ export function auditLog(event: string, meta?: AuditMeta): void {
     tenant_id: extractString(meta, "tenant_id"),
     actor_user_id: extractString(meta, "actor_user_id"),
     target_ref: extractString(meta, "target_ref"),
+    ip: context?.ip ?? extractString(meta, "ip"),
+    user_agent: context?.user_agent ?? extractString(meta, "user_agent"),
+    route: context?.route ?? extractString(meta, "route"),
+    request_id: context?.request_id ?? extractString(meta, "request_id"),
+    auth_mode: context?.auth_mode ?? extractString(meta, "auth_mode"),
   };
   dispatch(rec);
+}
+
+/**
+ * Emit an audit-log record with request context extracted from a Request.
+ * Convenience wrapper around auditLog(event, meta, auditRequestContext(req)).
+ */
+export function auditLogWithContext(
+  req: Request,
+  event: string,
+  meta?: AuditMeta,
+): void {
+  auditLog(event, meta, auditRequestContext(req));
 }
 
 /**
