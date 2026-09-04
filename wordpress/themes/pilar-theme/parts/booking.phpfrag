@@ -1,0 +1,33 @@
+<main style="padding-top:130px;min-height:70vh">
+  <div class="container booking-section">
+    <p class="label" style="margin-bottom:12px">Online Booking</p>
+    <h2 class="heading" style="font-size:clamp(28px,3.5vw,44px);margin-bottom:16px">Book din behandling</h2>
+    <p style="font-size:15px;color:var(--muted);margin-bottom:40px;line-height:1.7">
+      Vælg behandling, dato og tid herunder. Du modtager automatisk bekræftelse på e-mail og SMS-påmindelse 24 timer før.
+    </p>
+
+    <div class="booking-embed" style="margin-bottom:28px">
+      <p style="margin-bottom:16px">
+        <button type="button" class="btn btn-primary" data-praxis-book>Åbn booking</button>
+        <a class="btn btn-outline" href="/behandlinger/" style="margin-left:8px">Se priser</a>
+      </p>
+      <iframe
+        src="https://app.bypilar.dk/t/bypilar/book?embed=1"
+        style="width:100%;min-height:720px;border:1px solid var(--grayL);border-radius:12px;background:#fff"
+        title="Book behandling hos by Pilar"
+        loading="lazy"
+        referrerpolicy="no-referrer-when-downgrade"
+      ></iframe>
+    </div>
+  </div>
+</main>
+
+<!-- Newsletter -->
+<section class="newsletter">
+  <div class="newsletter-inner">
+    <p class="label" style="margin-bottom:16px">Nyhedsbrev</p>
+    <h3>Tips, tilbud & <em>inspiration</em></h3>
+    <div class="newsletter-form">
+      [mc4wp_form id="newsletter"]    </div>
+  </div>
+</section>

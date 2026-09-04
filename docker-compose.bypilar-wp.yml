@@ -1,0 +1,102 @@
+# by Pilar WordPress · kører på samme Hetzner som PraxisOS
+# Styring: ./scripts/wp.sh <wp-cli-args>  (Cursor/SSH)
+services:
+  bypilar_db:
+    image: mariadb:11.4
+    container_name: bypilar_wp_db
+    restart: unless-stopped
+    environment:
+      MYSQL_DATABASE: ${WP_DB_NAME:-bypilar_wp}
+      MYSQL_USER: ${WP_DB_USER:-bypilar}
+      MYSQL_PASSWORD: ${WP_DB_PASSWORD:?set WP_DB_PASSWORD}
+      MYSQL_ROOT_PASSWORD: ${WP_DB_ROOT_PASSWORD:?set WP_DB_ROOT_PASSWORD}
+    volumes:
+      - bypilar_wp_db:/var/lib/mysql
+    networks:
+      - bypilar_wp_net
+    healthcheck:
+      test: ["CMD", "healthcheck.sh", "--connect", "--innodb_initialized"]
+      interval: 10s
+      timeout: 5s
+      retries: 10
+
+  bypilar_wp:
+    image: wordpress:6.8-php8.2-apache
+    container_name: bypilar_wp
+    restart: unless-stopped
+    depends_on:
+      bypilar_db:
+        condition: service_healthy
+    ports:
+      # Direkte adgang før DNS-skift (GoDaddy → Hetzner)
+      - "${WP_HOST_PORT:-8088}:80"
+    environment:
+      WORDPRESS_DB_HOST: bypilar_db:3306
+      WORDPRESS_DB_USER: ${WP_DB_USER:-bypilar}
+      WORDPRESS_DB_PASSWORD: ${WP_DB_PASSWORD}
+      WORDPRESS_DB_NAME: ${WP_DB_NAME:-bypilar_wp}
+      WORDPRESS_TABLE_PREFIX: ${WP_TABLE_PREFIX:-wp_}
+      WORDPRESS_CONFIG_EXTRA: |
+        define('WP_MEMORY_LIMIT', '256M');
+        define('AUTOMATIC_UPDATER_DISABLED', true);
+        define('PRAXISOS_BASE_URL', getenv('PRAXISOS_BASE_URL') ?: 'http://app.bypilar.dk');
+        define('PRAXISOS_INTERNAL_URL', getenv('PRAXISOS_INTERNAL_URL') ?: 'http://praxisos_app:3000');
+        define('PRAXISOS_TENANT', 'bypilar');
+      PRAXISOS_BASE_URL: ${PRAXISOS_BASE_URL:-http://app.bypilar.dk}
+      # Intern Docker-URL til server-side status (browser bruger stadig PRAXISOS_BASE_URL)
+      PRAXISOS_INTERNAL_URL: ${PRAXISOS_INTERNAL_URL:-http://praxisos_app:3000}
+    volumes:
+      - bypilar_wp_data:/var/www/html
+      - ./wordpress/mu-plugins:/var/www/html/wp-content/mu-plugins:ro
+      - ./wordpress/themes/pilar-theme:/var/www/html/wp-content/themes/pilar-theme:ro
+    labels:
+      - "traefik.enable=true"
+      - "traefik.http.routers.bypilar-wp.rule=Host(`bypilar.dk`) || Host(`www.bypilar.dk`)"
+      - "traefik.http.routers.bypilar-wp.entrypoints=web"
+      - "traefik.http.services.bypilar-wp.loadbalancer.server.port=80"
+      - "traefik.http.routers.bypilar-wp-secure.rule=Host(`bypilar.dk`) || Host(`www.bypilar.dk`)"
+      - "traefik.http.routers.bypilar-wp-secure.entrypoints=websecure"
+      - "traefik.http.routers.bypilar-wp-secure.tls=true"
+      - "traefik.http.routers.bypilar-wp-secure.tls.certresolver=le"
+      - "traefik.docker.network=omni_net"
+    networks:
+      - bypilar_wp_net
+      - omni_net
+      - praxisos_default
+
+  # WP-CLI one-shot helper (bruges via scripts/wp.sh)
+  bypilar_wpcli:
+    image: wordpress:cli-php8.2
+    container_name: bypilar_wpcli
+    profiles: ["cli"]
+    user: "33:33"
+    depends_on:
+      - bypilar_wp
+    environment:
+      WORDPRESS_DB_HOST: bypilar_db:3306
+      WORDPRESS_DB_USER: ${WP_DB_USER:-bypilar}
+      WORDPRESS_DB_PASSWORD: ${WP_DB_PASSWORD}
+      WORDPRESS_DB_NAME: ${WP_DB_NAME:-bypilar_wp}
+      PRAXISOS_BASE_URL: ${PRAXISOS_BASE_URL:-http://app.bypilar.dk}
+    volumes:
+      - bypilar_wp_data:/var/www/html
+      - ./wordpress/mu-plugins:/var/www/html/wp-content/mu-plugins:ro
+      - ./wordpress/themes/pilar-theme:/var/www/html/wp-content/themes/pilar-theme:ro
+    networks:
+      - bypilar_wp_net
+    entrypoint: ["wp"]
+    command: ["--info"]
+
+volumes:
+  bypilar_wp_data:
+  bypilar_wp_db:
+
+networks:
+  bypilar_wp_net:
+    name: bypilar_wp_net
+  omni_net:
+    external: true
+    name: omni_net
+  praxisos_default:
+    external: true
+    name: praxisos_default
