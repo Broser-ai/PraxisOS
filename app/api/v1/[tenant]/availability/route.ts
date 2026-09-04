@@ -34,7 +34,18 @@ export async function GET(
   const serviceId = url.searchParams.get("service");
   const days = Math.min(14, Math.max(1, Number(url.searchParams.get("days") ?? "5")));
   const fromParam = url.searchParams.get("from");
-  const service = t.services.find((s) => s.id === serviceId) ?? t.services[0];
+  // Do not silently fall back to services[0] — WP/marketing IDs must match
+  // tenant catalog or the client books the wrong treatment.
+  if (!serviceId) {
+    return NextResponse.json({ error: "missing_service" }, { status: 400 });
+  }
+  const service = t.services.find((s) => s.id === serviceId);
+  if (!service) {
+    return NextResponse.json(
+      { error: "service_not_found", serviceId },
+      { status: 404 },
+    );
+  }
 
   const from = fromParam ? new Date(fromParam) : new Date();
   const slots: { day: string; times: string[] }[] = [];

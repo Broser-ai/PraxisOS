@@ -120,11 +120,17 @@ const bypilar: Tenant = {
     cvr: "43947079",
   },
   stats: { clients: 2400, rating: 4.9, yearsOperating: 7 },
+  // IDs fod-std / fod-ext / fod-lux / mani match live bypilar.dk data-praxis-book
+  // buttons (WordPress pilar-theme). Keep fod-med / fod-scan / gel-mani for
+  // clinical + legacy API/tests.
   services: [
-    { id: "gel-mani",   name: "Gel manicure",        durationMin: 45, priceKr: 395, category: "Negle", modality: ["Klinik"], description: "Klassisk gel-manicure, holder 3-4 uger." },
-    { id: "nail-art",   name: "Nail art",            durationMin: 60, priceKr: 545, category: "Negle", modality: ["Klinik"], description: "Personligt design — vi tegner det du drømmer om." },
-    { id: "fod-med",    name: "Medicinsk fodpleje",  durationMin: 45, priceKr: 495, category: "Fod",   modality: ["Klinik", "Hjemmebesøg"], description: "Til hård hud, ligtorne, nedgroede negle." },
-    { id: "fod-lux",    name: "Luksus fodpleje",     durationMin: 75, priceKr: 745, category: "Fod",   modality: ["Klinik", "Hjemmebesøg"], description: "Fuld behandling + scrub, maske, lakering." },
+    { id: "fod-std",    name: "Fodbehandling",         durationMin: 45, priceKr: 300, category: "Fod",   modality: ["Klinik", "Hjemmebesøg"], description: "Klassisk fodbehandling." },
+    { id: "fod-ext",    name: "Udvidet fodbehandling", durationMin: 60, priceKr: 400, category: "Fod",   modality: ["Klinik", "Hjemmebesøg"], description: "Udvidet fodbehandling — mere tid til dig." },
+    { id: "fod-lux",    name: "Luksus fodbehandling",  durationMin: 75, priceKr: 595, category: "Fod",   modality: ["Klinik", "Hjemmebesøg"], description: "Fuld behandling + scrub, maske, lakering." },
+    { id: "mani",       name: "Manicure",              durationMin: 45, priceKr: 239, category: "Negle", modality: ["Klinik"], description: "Klassisk manicure." },
+    { id: "gel-mani",   name: "Gel manicure",          durationMin: 45, priceKr: 395, category: "Negle", modality: ["Klinik"], description: "Klassisk gel-manicure, holder 3-4 uger." },
+    { id: "nail-art",   name: "Nail art",              durationMin: 60, priceKr: 545, category: "Negle", modality: ["Klinik"], description: "Personligt design — vi tegner det du drømmer om." },
+    { id: "fod-med",    name: "Medicinsk fodpleje",    durationMin: 45, priceKr: 495, category: "Fod",   modality: ["Klinik", "Hjemmebesøg"], description: "Til hård hud, ligtorne, nedgroede negle." },
     { id: "fod-scan",   name: "Fod-scan · Physical AI", durationMin: 30, priceKr: 595, category: "Fod-scan", modality: ["Klinik"], description: "Sub-mm 3D-topologi · plantar pressure · klinisk analyse." },
   ],
 };

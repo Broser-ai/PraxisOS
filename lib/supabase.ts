@@ -109,6 +109,37 @@ export function getAnonSupabase(): SupabaseClient | null {
 }
 
 /**
+ * True when this process must refuse PRAXIS_DB=mock.
+ *
+ * Live Hetzner has historically returned ok:true + dbMode=mock because
+ * NODE_ENV was missing/overridden despite Dockerfile defaults. Also treat
+ * PRAXIS_ENV=production, PRAXIS_REQUIRE_REAL_DB=1, and a public bypilar
+ * base URL as production so health fail-fast cannot be silent.
+ */
+export function isProductionRuntime(): boolean {
+  if (process.env.NODE_ENV === "production") return true;
+  const praxisEnv = process.env.PRAXIS_ENV?.trim().toLowerCase();
+  if (praxisEnv === "production" || praxisEnv === "prod") return true;
+  const requireReal =
+    process.env.PRAXIS_REQUIRE_REAL_DB?.trim().toLowerCase() ?? "";
+  if (requireReal === "1" || requireReal === "true" || requireReal === "yes") {
+    return true;
+  }
+  for (const key of ["PRAXIS_PUBLIC_BASE_URL", "NEXT_PUBLIC_BASE_URL"] as const) {
+    const raw = process.env[key]?.trim();
+    if (!raw) continue;
+    try {
+      const host = new URL(raw.includes("://") ? raw : `https://${raw}`).hostname
+        .toLowerCase();
+      if (host === "app.bypilar.dk" || host === "praxis.bypilar.dk") return true;
+    } catch {
+      // ignore
+    }
+  }
+  return false;
+}
+
+/**
  * Fail-fast guard for production boot (P0 plan §C.2 / §F9 / §F16).
  * Production MUST NOT run on PRAXIS_DB=mock. Wired into GET /api/health
  * (F16) so readiness fails loud on mock-in-prod. Returns { ok: true } when
@@ -118,14 +149,14 @@ export function getAnonSupabase(): SupabaseClient | null {
 export function assertProductionDbConfig():
   | { ok: true; mode: DbMode }
   | { ok: false; reason: string } {
-  if (process.env.NODE_ENV !== "production") {
+  if (!isProductionRuntime()) {
     return { ok: true, mode: DB_MODE };
   }
   if (DB_MODE === "mock") {
     return {
       ok: false,
       reason:
-        "PRAXIS_DB=mock is forbidden in production (NODE_ENV=production). Set PRAXIS_DB=supabase-eu or supabase-local and configure SUPABASE_URL + SUPABASE_SERVICE_ROLE_KEY.",
+        "PRAXIS_DB=mock is forbidden in production. Set PRAXIS_DB=supabase-eu or supabase-local and configure SUPABASE_URL + SUPABASE_SERVICE_ROLE_KEY.",
     };
   }
   if (!isSupabaseConfigured()) {

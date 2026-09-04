@@ -110,10 +110,34 @@ echo ""
 echo "=> Post-deploy checks (local)"
 sleep 5
 curl -sS -o /tmp/scan-config.json -w "scan/config HTTP %{http_code}\n" http://127.0.0.1:3010/api/scan/config || true
+curl -sS -o /tmp/health.json -w "health HTTP %{http_code}\n" http://127.0.0.1:3010/api/health || true
+curl -sS -o /tmp/services.json -w "services HTTP %{http_code}\n" http://127.0.0.1:3010/api/v1/bypilar/services || true
+curl -sS -o /tmp/avail.json -w "availability HTTP %{http_code}\n" \
+  "http://127.0.0.1:3010/api/v1/bypilar/availability?service=fod-std&days=2" || true
+curl -sS -o /dev/null -w "book page HTTP %{http_code}\n" "http://127.0.0.1:3010/t/bypilar/book" || true
 python3 - <<'PY' || true
 import json
-d=json.load(open("/tmp/scan-config.json"))
-print("liveReady", d.get("liveReady"), "blockers", d.get("blockers"))
+try:
+  d=json.load(open("/tmp/scan-config.json"))
+  print("liveReady", d.get("liveReady"), "blockers", d.get("blockers"))
+except Exception as e:
+  print("scan-config parse", e)
+try:
+  h=json.load(open("/tmp/health.json"))
+  print("health ok", h.get("ok"), "dbMode", h.get("dbMode"), "backend", h.get("backend"), "error", h.get("error"))
+  if h.get("dbMode") == "mock" or h.get("backend") == "memory":
+    print("!! BOOKING BACKEND STILL MEMORY — set SUPABASE_SERVICE_ROLE_KEY + PRAXIS_DB=supabase-eu")
+except Exception as e:
+  print("health parse", e)
+try:
+  s=json.load(open("/tmp/services.json"))
+  urls=[x.get("bookUrl","") for x in s.get("services",[])]
+  bad=[u for u in urls if "0.0.0.0" in u or u.startswith("http://127.")]
+  print("services", len(urls), "badOrigins", len(bad))
+  if bad:
+    print("!! bookUrl still internal:", bad[:2])
+except Exception as e:
+  print("services parse", e)
 PY
 grep -E '^SCAN_QUALITY_THRESHOLD=' .env.production
 if [[ -f "${SECRETS_VOL}" ]]; then
@@ -123,5 +147,6 @@ fi
 echo ""
 echo "=========================================="
 echo "  CUTOVER DONE · SHA ${DEPLOYED_SHA}"
-echo "  Public: https://app.bypilar.dk/scan"
+echo "  Public: https://app.bypilar.dk/t/bypilar/book"
+echo "  Planway customer path: OFF (use PraxisOS)"
 echo "=========================================="
