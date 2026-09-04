@@ -1,7 +1,7 @@
 # Open PR triage — 2026-09-04
 
 **Order:** Broser «færdig kodet alle åbne»  
-**`main` tip after stack land:** `2d3af3fa7d3dd7fb90ea0b1824d27eaf56be0411`  
+**`main` tip after stack land:** `adbea38f7c8967f775fdf9220bea21fbdcf68c78`  
 **Verify:** `npx tsc --noEmit` clean · `npx vitest run` → **57 files / 521 tests pass**  
 **Live health:** still expected **`dbMode=mock` / memory** until Broser Hetzner cutover (no deploy from this work).
 
