@@ -20,6 +20,23 @@ Planway-kontoen slettes **ikke** — kun alle indgange fra byPilar fjernes.
 3. Fjern Planway-links/iframes/scripts.
 4. Ryd mixed content (`http://` → `https://`).
 
+## Live deploy (Hetzner)
+
+DNS for `bypilar.dk` peger på Hetzner `167.233.171.184` (ikke Hostinger).
+
+```bash
+# Kræver HETZNER_PRAXIS_SSH_PRIVATE_KEY eller authorized agent-key
+bash scripts/push-bypilar-theme-live.sh
+# alternativ:
+bash scripts/deploy-planway-cutover-wp.sh
+```
+
+Agent pubkey (til `authorized_keys` på Hetzner):
+
+```
+ssh-ed25519 AAAAC3NzaC1lZDI1NTE5AAAAIKo0tW+F3OGmrhuXhy5No7IXQj2rcre08kNc+LyYEdyT cursor-planway-cutover-57ae
+```
+
 ## Verifikation
 
 ```bash

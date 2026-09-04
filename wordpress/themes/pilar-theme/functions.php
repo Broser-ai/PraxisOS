@@ -1,18 +1,11 @@
 <?php
 /**
  * PILAR — Negle & Fodpleje theme
- * Booking: HTTPS app.bypilar.dk only (no Planway).
+ * Hetzner / by Pilar klinik (app.bypilar.dk booking — not Planway).
  */
 
 if (!defined('ABSPATH')) {
     exit;
-}
-
-if (!defined('PILAR_BOOK_ORIGIN')) {
-    define('PILAR_BOOK_ORIGIN', 'https://app.bypilar.dk');
-}
-if (!defined('PILAR_BOOK_EMBED_URL')) {
-    define('PILAR_BOOK_EMBED_URL', PILAR_BOOK_ORIGIN . '/t/bypilar/book?embed=1');
 }
 
 add_action('after_setup_theme', function () {
@@ -35,30 +28,13 @@ add_action('wp_enqueue_scripts', function () {
     );
     wp_enqueue_style('pilar-style', get_stylesheet_uri(), ['pilar-fonts'], '1.2.0-planway-kill');
     wp_enqueue_script('pilar-main', get_template_directory_uri() . '/js/main.js', [], '1.2.0-planway-kill', true);
-
-    // Official embed (HTTPS). Theme main.js is the fallback if ORIGIN is wrong.
-    wp_enqueue_script(
-        'pilar-praxis-embed',
-        PILAR_BOOK_ORIGIN . '/embed/v1/bypilar',
-        [],
-        '1.2.0',
-        true
-    );
-});
-
-add_filter('language_attributes', function ($output) {
-    // White-label: hide "drevet af PraxisOS" badge from embed script
-    if (stripos($output, 'data-praxis-no-badge') === false) {
-        $output .= ' data-praxis-no-badge="1"';
-    }
-    return $output;
 });
 
 add_action('wp_head', function () {
     $icon = get_template_directory_uri() . '/img/favicon.svg';
     echo '<link rel="icon" type="image/svg+xml" href="' . esc_url($icon) . '">' . "\n";
     if (is_front_page()) {
-        echo '<meta name="description" content="Professionel negle- og fodpleje i Aarhus. Fodpleje og fodterapeut i Aarhus — book online hos by Pilar.">' . "\n";
+        echo '<meta name="description" content="Fodpleje og fodterapeut i Aarhus — book online hos by Pilar.">' . "\n";
     }
 }, 1);
 
@@ -71,41 +47,10 @@ add_filter('the_content', function ($content) {
         '<p style="margin:0"><a class="btn btn-primary" href="mailto:hej@bypilar.dk?subject=Nyhedsbrev">Tilmeld dig på hej@bypilar.dk</a></p>',
         $content
     );
-}, 5);
+});
 
 /**
- * Live cutover guard: strip Planway + fix mixed content + de-brand PraxisOS on customer pages.
- */
-add_filter('the_content', 'pilar_cutover_rewrite_html', 20);
-add_filter('widget_text', 'pilar_cutover_rewrite_html', 20);
-
-function pilar_cutover_rewrite_html($html)
-{
-    if (!is_string($html) || $html === '') {
-        return $html;
-    }
-    $html = preg_replace(
-        '#https?://(?:www\.)?bypilar\.planway\.com[^\s"\']*#i',
-        esc_url(home_url('/booking/')),
-        $html
-    );
-    $html = preg_replace(
-        '#https?://(?:www\.)?planway\.com[^\s"\']*#i',
-        esc_url(home_url('/booking/')),
-        $html
-    );
-    $html = str_ireplace('http://app.bypilar.dk', 'https://app.bypilar.dk', $html);
-    // Customer-facing copy: never brand PraxisOS on bypilar.dk
-    $html = str_replace('via PraxisOS', 'hos by Pilar', $html);
-    $html = str_replace('fra PraxisOS', 'hos by Pilar', $html);
-    $html = str_replace(' · PraxisOS', '', $html);
-    $html = str_replace('PraxisOS-kataloget', 'klinikkens katalog', $html);
-    $html = str_replace('synkroniseres fra PraxisOS', 'opdateres løbende', $html);
-    return $html;
-}
-
-/**
- * Load a theme part HTML fragment.
+ * Load a theme part HTML fragment (scraped from live Hostinger site).
  */
 function pilar_part(string $name): void
 {
@@ -114,12 +59,35 @@ function pilar_part(string $name): void
         return;
     }
     $html = file_get_contents($path);
+    // Resolve newsletter shortcode in fragments (not run through the_content)
     $html = str_replace(
         '[mc4wp_form id="newsletter"]',
         '<p style="margin:0"><a class="btn btn-primary" href="mailto:hej@bypilar.dk?subject=Nyhedsbrev">Tilmeld dig på hej@bypilar.dk</a></p>',
         $html
     );
-    $html = pilar_cutover_rewrite_html($html);
+    // Hard purge: never serve Planway booking URLs from theme fragments
+    $book = function_exists('praxisos_book_url')
+        ? praxisos_book_url(false)
+        : 'https://app.bypilar.dk/t/bypilar/book';
+    $book_embed = function_exists('praxisos_book_url')
+        ? praxisos_book_url(true)
+        : 'https://app.bypilar.dk/t/bypilar/book?embed=1';
+    $html = preg_replace(
+        '#https?://[^"\']*planway\.com[^"\']*#i',
+        $book,
+        $html
+    ) ?? $html;
+    $html = str_ireplace('http://app.bypilar.dk', 'https://app.bypilar.dk', $html);
+    $html = str_replace(
+        'https://app.bypilar.dk/t/bypilar/book?embed=1',
+        $book_embed,
+        $html
+    );
+    // Customer-facing: never brand PraxisOS on bypilar.dk
+    $html = str_replace('via PraxisOS', 'hos by Pilar', $html);
+    $html = str_replace('fra PraxisOS', 'hos by Pilar', $html);
+    $html = str_replace(' · PraxisOS', '', $html);
+    $html = str_replace('synkroniseres fra PraxisOS', 'opdateres løbende', $html);
     // phpcs:ignore WordPress.Security.EscapeOutput.OutputNotEscaped -- trusted theme fragment
     echo $html;
 }
