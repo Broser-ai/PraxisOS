@@ -57,13 +57,26 @@ function BookPageInner({ params }: { params: Promise<{ tenant: string }> }) {
 
   const paymentCfg = TENANT_PAYMENT_CONFIG[tenant] ?? TENANT_PAYMENT_CONFIG.bypilar;
 
+  // Embed parent origin for postMessage (bypilar.dk). Fall back to * only when
+  // referrer is absent so WordPress modal handshake still works.
+  const embedParentOrigin = (() => {
+    if (!isEmbed || typeof document === "undefined") return "*";
+    try {
+      const ref = document.referrer;
+      if (!ref) return "*";
+      return new URL(ref).origin;
+    } catch {
+      return "*";
+    }
+  })();
+
   useEffect(() => {
     if (isEmbed) {
       document.documentElement.classList.add("praxis-embed");
-      window.parent?.postMessage({ source: "praxisos", type: "ready" }, "*");
+      window.parent?.postMessage({ source: "praxisos", type: "ready" }, embedParentOrigin);
     }
     return () => document.documentElement.classList.remove("praxis-embed");
-  }, [isEmbed]);
+  }, [isEmbed, embedParentOrigin]);
 
   useEffect(() => {
     fetch(`/api/v1/${tenant}/services`).then((r) => r.json()).then((d) => {
@@ -126,7 +139,10 @@ function BookPageInner({ params }: { params: Promise<{ tenant: string }> }) {
     setStep(5);
 
     if (isEmbed && data?.id) {
-      window.parent?.postMessage({ source: "praxisos", type: "booking_confirmed", booking: data }, "*");
+      window.parent?.postMessage(
+        { source: "praxisos", type: "booking_confirmed", booking: data },
+        embedParentOrigin,
+      );
     }
   };
 
@@ -472,7 +488,7 @@ function BookPageInner({ params }: { params: Promise<{ tenant: string }> }) {
             <a href={`/r/${confirm.id}`} target="_blank" className="flex-1 rounded-[10px] px-5 py-2.5 text-center text-[13px] font-medium" style={{ background: "var(--brand-ink)", color: "var(--brand-paper)" }}>
               Vis kvittering →
             </a>
-            <button className="rounded-[10px] border border-line-2 px-5 py-2.5 text-[13px]" onClick={() => isEmbed && window.parent?.postMessage({ source: "praxisos", type: "close" }, "*")}>
+            <button className="rounded-[10px] border border-line-2 px-5 py-2.5 text-[13px]" onClick={() => isEmbed && window.parent?.postMessage({ source: "praxisos", type: "close" }, embedParentOrigin)}>
               Luk
             </button>
           </div>

@@ -16,6 +16,7 @@ import { NextResponse } from "next/server";
 import { getTenant } from "@/lib/tenants";
 import { bookingAllowedOrigin, clientIp } from "@/lib/public-booking-kit";
 import { checkIpRateLimit } from "@/lib/rate-limit";
+import { publicOrigin } from "@/lib/public-origin";
 
 function envInt(name: string, fallback: number): number {
   const v = process.env[name];
@@ -49,8 +50,7 @@ export async function GET(
     });
   }
 
-  const url = new URL(req.url);
-  const origin = `${url.protocol}//${url.host}`;
+  const origin = publicOrigin(req);
   const accent = t.brand.accent;
 
   const js = `// PraxisOS embed v1 · tenant=${t.slug}

@@ -12,7 +12,11 @@ services:
     environment:
       PORT: "3000"
       HOSTNAME: "0.0.0.0"
-      NEXT_PUBLIC_BASE_URL: ${NEXT_PUBLIC_BASE_URL:-http://167.233.171.184:3010}
+      NODE_ENV: production
+      PRAXIS_ENV: production
+      PRAXIS_REQUIRE_REAL_DB: ${PRAXIS_REQUIRE_REAL_DB:-1}
+      NEXT_PUBLIC_BASE_URL: ${NEXT_PUBLIC_BASE_URL:-https://app.bypilar.dk}
+      PRAXIS_PUBLIC_BASE_URL: ${PRAXIS_PUBLIC_BASE_URL:-https://app.bypilar.dk}
       PRAXIS_DATA_DIR: /data
     volumes:
       - praxis_data:/data
