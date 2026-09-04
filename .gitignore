@@ -63,3 +63,4 @@ backups/
 .env.production
 .env.production.bak*
 .env.*.bak*
+.env.bypilar-wp

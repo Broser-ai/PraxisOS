@@ -54,6 +54,10 @@ services:
       - "traefik.http.routers.bypilar-wp.rule=Host(`bypilar.dk`) || Host(`www.bypilar.dk`)"
       - "traefik.http.routers.bypilar-wp.entrypoints=web"
       - "traefik.http.services.bypilar-wp.loadbalancer.server.port=80"
+      - "traefik.http.routers.bypilar-wp-secure.rule=Host(`bypilar.dk`) || Host(`www.bypilar.dk`)"
+      - "traefik.http.routers.bypilar-wp-secure.entrypoints=websecure"
+      - "traefik.http.routers.bypilar-wp-secure.tls=true"
+      - "traefik.http.routers.bypilar-wp-secure.tls.certresolver=le"
       - "traefik.docker.network=omni_net"
     networks:
       - bypilar_wp_net
