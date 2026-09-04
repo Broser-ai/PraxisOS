@@ -1,39 +1,44 @@
 # Status + audit — VS Code / Cursor agents → Alphaxiv
 
 **Dato:** 2026-09-04 (UTC)  
-**Auditeret af:** Cursor cloud agent (`bc-2ac9c62b-7130-54bd-82c4-bc34bd6f4e32`)  
+**Live evidence window:** 2026-09-04T13:51:08Z → 13:52:35Z  
+**Auditeret af:** Cursor cloud agent (`bc-a567e1be-e4bf-5ee4-b878-e86aeeb4a8bf`)  
 **Repo:** `Broser-ai/PraxisOS`  
 **`main` tip ved audit:** `623b0f956cab3fbbb9f6e6cef3b71adce275203e` — `docs(ops): align triage tip SHA to main HEAD`  
-**Branch for denne audit:** `cursor/status-audit-vscode-alphaxiv-2c11`
+**Branch for denne regen:** `cursor/status-audit-regen-a8bf`  
+**Index:** [`docs/ops/STATUS-AUDIT-LATEST.md`](./STATUS-AUDIT-LATEST.md)  
+**Søskende (Alphaxiv dybde):** [`docs/ops/alphaxiv-status-audit-2026-09-04.md`](./alphaxiv-status-audit-2026-09-04.md)
 
 ---
 
 ## 1. Executive summary (løst / ikke løst)
 
-| Spørgsmål | Dom | Evidens |
-|-----------|-----|---------|
-| Har VS Code / Cursor-agenter *leveret* Planway→PraxisOS cutover i repo? | **Delvist / ja i draft-PRs** | Åbne draft PRs **#37–#44** med theme, embed, kill-scripts, tests, runbooks. **Ikke merged til `main`.** |
-| Er live `bypilar.dk` fri for Planway-*booking*? | **Ja (funktionelt)** | Ingen `planway.com` / `planway.dk` / Planway-widget-URL. Booking iframe = `https://app.bypilar.dk/t/bypilar/book?embed=1`. CTA = `data-praxis-book`. |
-| Er substring `planway` helt væk fra live HTML? | **Nej — kun asset-version** | Alle 4 sider har `ver=1.3.0-planway-total-kill` på `style.css` / `main.js`. Det er **kill-temaets versionsstreng**, ikke en Planway-bookinglink. |
-| Er `http://app.bypilar` (mixed content) væk? | **Ja** | 0 hits på `/`, `/booking/`, `/behandlinger/`, `/udekoerende/`. |
-| Er PraxisOS-booking live og sund? | **Delvist** | `/api/v1/bypilar/services` + `availability` → **HTTP 200** (mock/memory-katalog). `/api/health` → **HTTP 503** `dbMode=mock` forbudt i production. |
-| Kan agenter deploye / flappe DB nu? | **Nej** | `HETZNER_PRAXIS_SSH_PRIVATE_KEY` = **MISSING**. `HCLOUD_TOKEN` = **MISSING**. Kill/push-scripts findes kun på PR-branches — ikke på `main`. |
+| Spørgsmål | Dom | Evidens (fresh curl) |
+|-----------|-----|----------------------|
+| Har VS Code / Cursor-agenter *leveret* Planway→PraxisOS cutover i repo? | **Delvist / ja i draft-PRs** | Åbne draft PRs **#37–#44** (+ status-docs **#45/#46**). **Ikke merged til `main`.** |
+| Er live Planway **customer booking** SOLVED? | **Ja — SOLVED** | Theme `1.3.0-planway-total-kill`; **0** `planway.com` på `/`, `/booking/`, `/behandlinger/`, `/udekoerende/`; iframe → HTTPS PraxisOS |
+| Er substring `planway` helt væk fra live HTML? | **Nej — kun asset-version** | `?ver=1.3.0-planway-total-kill` på `style.css` / `main.js` (2 hits/side) — **ikke** bookinglink |
+| Er `http://app.bypilar` (mixed content) væk? | **Ja** | 0 hits på alle checked sider |
+| Er PraxisOS-booking UI live? | **Ja (UI)** | `/t/bypilar/book` **200**; CSP `frame-ancestors` inkl. `https://bypilar.dk`; embed script **200** |
+| Er prod DB / health SOLVED? | **Nej — NOT solved** | `/api/health` **503** `db_config_invalid` · `PRAXIS_DB=mock` forbidden · `backend=memory` |
+| Kan agenter deploye / flappe DB nu? | **Nej** | `HETZNER_PRAXIS_SSH_PRIVATE_KEY` = **MISSING**. `HCLOUD_TOKEN` = **MISSING**. |
+| Alphaxiv? | **Research-ops ready; ikke clinical KB** | Se søskende-doc; Assistant kræver nøgle |
 
-**Én-sætnings-dom:** Repo-agenterne har *næsten* løst cutover-koden (overlappende draft-PRs), og live WordPress peger allerede på HTTPS PraxisOS — men produktion er **ikke** færdig: mock-DB fail-fast (health 503), cutover-PRs er ikke på `main`, og SSH/Console-adgang mangler stadig for agent-drevet deploy/DB-flip.
+**Én-sætnings-dom:** Live WP-booking er PraxisOS-only (Planway.com væk) — **SOLVED** for kundebooking-fladen. Produktion er **ikke** færdig: health er rød på mock-DB, cutover-PRs er drafts, SSH mangler.
 
-**Broser (Michael) — ærligt svar på «har VS Code løst alt?»:**  
-Nej. VS Code/Cursor har løst **meget af repo-sporet** og live WP ser ud til at køre kill-temaet, men **alt er ikke løst**: health er rød, DB er mock, PRs er drafts, SSH-secrets mangler.
+**Broser (Michael) — «har VS Code løst alt?»:**  
+Nej. Planway-booking-cutover på live WP er løst. **Alt andet er ikke:** health 503, mock DB, overlappende draft-PRs, manglende agent-SSH.
 
 ---
 
 ## 2. Hvad VS Code / Cursor-agenter har leveret
 
-### 2.1 Åbne Planway / byPilar / prod-PRs (2026-09-04)
+### 2.1 Åbne Planway / byPilar / prod / audit-PRs (2026-09-04 ~13:52Z)
 
-Alle nedenstående er **DRAFT** mod `main`, mergeable ifølge GitHub API.
+Alle nedenstående er **DRAFT** mod `main`, `mergeable=MERGEABLE` ifølge GitHub API.
 
 | PR | Branch | Tip | Ahead | Files | Titel |
-|----|--------|-----|-------|-------|-------|
+|----|--------|-----|------:|------:|-------|
 | [#37](https://github.com/Broser-ai/PraxisOS/pull/37) | `cursor/bypilar-setup-visibility-2c11` | `6e18a29` | 1 | 12 | byPilar: surface full clinic OS without PraxisOS branding |
 | [#38](https://github.com/Broser-ai/PraxisOS/pull/38) | `cursor/prod-activate-main-2c11` | `ce67277` | 1 | 4 | ops: remote activate main on Hetzner (scripts + runbook) |
 | [#39](https://github.com/Broser-ai/PraxisOS/pull/39) | `cursor/prod-praxisos-booking-live-d635` | `f7a3cd4` | 1 | 13 | booking: PraxisOS-only live harden + Planway cutover docs |
@@ -42,6 +47,8 @@ Alle nedenstående er **DRAFT** mod `main`, mergeable ifølge GitHub API.
 | [#42](https://github.com/Broser-ai/PraxisOS/pull/42) | `cursor/planway-kill-praxisos-only-2c11` | `2b1c05d` | 8 | 43 | byPilar: kill Planway — PraxisOS booking only (theme + embed) |
 | [#43](https://github.com/Broser-ai/PraxisOS/pull/43) | `cursor/planway-total-kill-live-2c11` | `6cbd5a6` | 10 | 45 | byPilar: Planway total kill — PraxisOS booking only (live-ready) |
 | [#44](https://github.com/Broser-ai/PraxisOS/pull/44) | `cursor/planway-content-rewrite-2c11` | `e7ade61` | 8 | 44 | byPilar: Planway content rewrite — runtime + WP-CLI kill |
+| [#45](https://github.com/Broser-ai/PraxisOS/pull/45) | `cursor/status-audit-vscode-alphaxiv-2c11` | `48e445b` | — | 1 | docs: status audit VS Code + Alphaxiv (ældre draft; **superseded by this regen**) |
+| [#46](https://github.com/Broser-ai/PraxisOS/pull/46) | `cursor/alphaxiv-status-audit-2c11` | `4b0a5e4` | — | 1 | docs: Alphaxiv research status audit (ældre draft; **superseded by this regen**) |
 
 ### 2.2 Leverancer pr. PR (kort)
 
@@ -60,9 +67,9 @@ Alle nedenstående er **DRAFT** mod `main`, mergeable ifølge GitHub API.
 
 Fil-overlap mellem WP-tunge PRs er **meget højt**:
 
-- `#40 ∩ #42/#43` = 38 filer  
-- `#42 ∩ #43` = 43 filer  
-- `#43 ∩ #44` = 40 filer  
+- `#40 ∩ #42/#43` ≈ 38 filer  
+- `#42 ∩ #43` ≈ 43 filer  
+- `#43 ∩ #44` ≈ 40 filer  
 
 **Konklusion:** #40–#44 er parallelle generationer af samme cutover — **ikke** 5 uafhængige merges. Vælg én WP-vinder + additive unikke commits.
 
@@ -71,66 +78,132 @@ Fil-overlap mellem WP-tunge PRs er **meget højt**:
 
 ### 2.4 Allerede på `main` (relevant kontekst)
 
-Fra tidligere triage (`docs/ops/open-pr-triage-2026-09-04.md`): P0-slices / PEC / foundation er landet. Health fail-fast for `PRAXIS_DB=mock` i production findes **allerede på `main`** (`app/api/health/route.ts` + `lib/supabase.ts` `assertProductionDbConfig`).
+Fra triage (`docs/ops/open-pr-triage-2026-09-04.md`): P0-slices / PEC / foundation er landet. Health fail-fast for `PRAXIS_DB=mock` i production findes **allerede på `main`** (`app/api/health/route.ts` + `lib/supabase.ts` `assertProductionDbConfig`) — og er **synligt live** (503).
 
 **Ikke på `main`:** `scripts/push-bypilar-theme-live.sh`, `scripts/hetzner-console-planway-kill.sh`, WP kill-tema-ændringerne i PR-stacken.
 
 ---
 
-## 3. Live verification evidence
+## 3. Live verification evidence (FRESH)
 
-**Tidspunkt:** 2026-09-04T13:39–13:42Z  
-**Metode:** `curl -sL` mod offentlige URL’er fra cloud-agent (ingen SSH).
+**Tidspunkt:** 2026-09-04T13:51:08Z → 13:52:35Z  
+**Metode:** `curl -sS -L` / `-I` / `-i` fra cloud-agent (ingen SSH).
 
 ### 3.1 bypilar.dk — Planway / app.bypilar markører
 
-| Side | Raw `planway` count | Heraf `planway.com`/widget | `http://app.bypilar` | `https://app.bypilar` | Fortolkning |
-|------|--------------------:|---------------------------:|---------------------:|----------------------:|-------------|
-| `/` | 2 | **0** | **0** | 2 | Kun `ver=1.3.0-planway-total-kill` |
-| `/booking/` | 2 | **0** | **0** | 4 | HTTPS book iframe + embed + login |
-| `/behandlinger/` | 2 | **0** | **0** | 2 | CTA → `/booking/` + embed |
-| `/udekoerende/` | 2 | **0** | **0** | 2 | CTA → `/booking/` + embed |
+| Side | HTTP | `planway.com` | `planway` substr | `http://app` | `https://app.bypilar` | Fortolkning |
+|------|-----:|--------------:|-----------------:|-------------:|----------------------:|-------------|
+| `/` | 200 | **0** | 2 | **0** | ≥1 (embed+login) | Kun `ver=1.3.0-planway-total-kill` |
+| `/booking/` | 200 | **0** | 2 | **0** | iframe + login + embed | HTTPS book |
+| `/behandlinger/` | 200 | **0** | 2 | **0** | 2 | CTA → booking |
+| `/udekoerende/` | 200 | **0** | 2 | **0** | 2 | CTA → booking |
+| `/om-os/` | 200 | **0** | 2 | **0** | 2 | — |
+| `/book/` | 200 | **0** | — | **0** | — | OK |
+| `/bestil/`, `/kontakt/`, `/priser/` | 404 | 0 | — | 0 | — | Findes ikke |
 
-**Live booking-bevis (`/booking/`):**
+**Theme / booking-bevis (`/` + `/booking/`):**
 
-- iframe `src="https://app.bypilar.dk/t/bypilar/book?embed=1"`
-- knap `data-praxis-book` («Åbn booking»)
-- staff: `https://app.bypilar.dk/login` («Kom i gang · Klinik»)
-- theme assets: `pilar-theme` **`1.3.0-planway-total-kill`**
-- `main.js` sætter `BOOK_ORIGIN = 'https://app.bypilar.dk'` og stripper `planway.com` / `http://app.bypilar.dk` i iframes
+```text
+# asset version (NOT a Planway booking URL)
+style.css?ver=1.3.0-planway-total-kill
+main.js?ver=1.3.0-planway-total-kill
 
-**Vigtigt:** Tidligere PR-bodies (#41/#42/#43) skrev «Not deployed». **Live HTML nu modsiger det for WP-fladen** — kill-temaet *ser* deployet ud. Repo-`main` har stadig ikke scriptene; deploy er sket uden for denne agents SSH (Console / manuel / anden agent).
+# HTTPS PraxisOS
+https://app.bypilar.dk/t/bypilar/book?embed=1   (iframe on /booking/)
+https://app.bypilar.dk/embed/v1/bypilar?ver=1.3.0
+https://app.bypilar.dk/login
+data-praxis-book  (CTA)
+```
 
-### 3.2 app.bypilar.dk — health + booking smoke
+**Verdict Planway customer booking:** **SOLVED** — 0 `planway.com`, theme kill-string live, PraxisOS HTTPS embed.
 
-| Endpoint | HTTP | Resultat |
-|----------|-----:|----------|
-| `GET /api/health` | **503** | `{"ok":false,"error":"db_config_invalid","reason":"PRAXIS_DB=mock is forbidden in production …","dbMode":"mock","backend":"memory","region":"lokal"}` |
-| `GET /api/v1/bypilar/services` | **200** | Mock-katalog: `gel-mani`, `nail-art`, `fod-med`, `fod-lux`, `fod-scan` (bookUrl → `https://app.bypilar.dk/t/bypilar/book?service=…`) |
-| `GET /api/v1/bypilar/availability?serviceId=fod-std&date=2026-09-07` | **200** | Returnerer slots, men **service falder tilbage til `gel-mani`** (fod-std findes ikke i live mock-katalog) |
-| `GET /t/bypilar/book` | **200** | HTML booking UI |
-| `GET /embed/v1/bypilar` | **200** | Embed-script |
+### 3.2 app.bypilar.dk — health + config + book headers
 
-### 3.3 Secrets / deploy-forsøg fra denne agent
+#### `GET /api/health` — 2026-09-04T13:51:13Z / recheck 13:52:35Z
+
+```http
+HTTP/2 503
+content-type: application/json
+
+{"ok":false,"error":"db_config_invalid","reason":"PRAXIS_DB=mock is forbidden in production (NODE_ENV=production). Set PRAXIS_DB=supabase-eu or supabase-local and configure SUPABASE_URL + SUPABASE_SERVICE_ROLE_KEY.","dbMode":"mock","backend":"memory","region":"lokal","time":"2026-09-04T13:52:35.592Z"}
+```
+
+**Prod DB:** **NOT solved.**
+
+#### `GET /api/scan/config` — 13:51:13Z
+
+```http
+HTTP/2 200
+content-type: application/json
+
+{"ok":true,"liveReady":true,"llmReady":true,"blockers":[],"notes":[],"providers":{"replicate":true,"roboflow":true,"openai":true},...}
+```
+
+#### `HEAD /t/bypilar/book` — 13:51:14Z
+
+```http
+HTTP/2 200
+content-security-policy: frame-ancestors 'self' https://bypilar.dk https://www.bypilar.dk https://app.bypilar.dk http://localhost:* http://127.0.0.1:*
+content-type: text/html; charset=utf-8
+x-powered-by: Next.js
+```
+
+#### `HEAD /t/bypilar/book?embed=1` + `HEAD /embed/v1/bypilar` — 13:51:49–50Z
+
+| Endpoint | HTTP | Content-Type | CSP frame-ancestors |
+|----------|-----:|--------------|---------------------|
+| `/t/bypilar/book?embed=1` | 200 | `text/html` | inkl. `https://bypilar.dk` |
+| `/embed/v1/bypilar` | 200 | `application/javascript` | inkl. `https://bypilar.dk` |
+
+### 3.3 Booking API probes (JSON vs HTML)
+
+| Endpoint | HTTP | Body type | Note |
+|----------|-----:|-----------|------|
+| `GET /api/v1/bypilar/services` | **200** | **JSON** | Mock catalog: `gel-mani`, `nail-art`, `fod-med`, `fod-lux`, `fod-scan` |
+| `GET /api/v1/bypilar/availability?serviceId=fod-std&date=2026-09-07` | **200** | **JSON** | Returns slots but **falls back service → `gel-mani`** (fod-std missing in live mock) |
+| `GET /api/booking` | 404 | **HTML** (Next not-found) | Not a JSON API |
+| `GET /api/bookings` | 404 | **HTML** | — |
+| `GET /api/book` | 404 | **HTML** | — |
+| `GET /api/v1/booking` | 404 | **HTML** | — |
+| `GET /api/public/booking` | 404 | **HTML** | — |
+| `GET /api/t/bypilar/booking` | 404 | **HTML** | — |
+| `GET /api/slots` | 404 | **HTML** | — |
+| `GET /api/availability` | 404 | **HTML** | — |
+
+**Raw services snippet (13:51:48Z):**
+
+```json
+{"tenant":{"slug":"bypilar","name":"by Pilar","currency":"DKK",...},
+ "services":[{"id":"gel-mani",...},{"id":"nail-art",...},{"id":"fod-med",...},{"id":"fod-lux",...},{"id":"fod-scan",...}]}
+```
+
+**Raw availability fallback (asked `fod-std`, got `gel-mani`):**
+
+```json
+{"service":{"id":"gel-mani","name":"Gel manicure","durationMin":45},"timezone":"Europe/Copenhagen","slots":[...]}
+```
+
+### 3.4 Secrets / deploy-forsøg fra denne agent
 
 | Secret / script | Status |
 |-----------------|--------|
 | `HETZNER_PRAXIS_SSH_PRIVATE_KEY` | **MISSING** |
 | `HCLOUD_TOKEN` | **MISSING** |
+| `ALPHAXIV_API_KEY` | **MISSING** |
 | `scripts/push-bypilar-theme-live.sh` (på `main`) | **findes ikke** (kun på PR-branches) |
 | `scripts/hetzner-console-planway-kill.sh` (på `main`) | **findes ikke** |
-| Kørt live push/kill fra denne agent? | **Nej** — blokeret af manglende secrets + scripts ikke på tip |
+| Kørt live push/kill/DB-flip fra denne agent? | **Nej** — blokeret |
 
 ---
 
 ## 4. Remaining blockers
 
-1. **Prod DB stadig `mock`/`memory`** — health 503 indtil `PRAXIS_DB=supabase-eu|supabase-local` + `SUPABASE_URL` + `SUPABASE_SERVICE_ROLE_KEY` (eller selfhost Kong-flip jf. cutover-runbook). Booking APIs svarer stadig 200 på memory — det er **ikke** produktionsklar persistens.
-2. **SSH / Hetzner Console-adgang til agenter** — uden `HETZNER_PRAXIS_SSH_PRIVATE_KEY` (eller manuel Console one-liner) kan agenter ikke re-deploye theme, køre WP-CLI kill, eller remote-activate `main`.
-3. **Cutover-PRs #37–#44 er drafts og overlapper** — `main` mangler kill-scripts + WP-pakke; risiko for konflikt hvis flere merges.
-4. **Service-ID mismatch** — live mock har `gel-mani`/`fod-med`…; PR #39 vil align’e `fod-std`/`fod-ext`/`fod-lux`/`mani` til WP `data-praxis-book`. Live availability for `fod-std` falder tilbage til forkert service.
-5. **Versionsstreng `planway-total-kill`** — kosmetisk/forvirrende i audits der greps på `planway`; overvej rename til `praxisos-only` i næste theme-bump.
-6. **Ældre åbne PRs** (#25 migrate, #11 WP stack, #8 Bird selfhost, #6 gateway, m.fl.) — stadig infra/product; ikke del af dagens Planway-kill, men relevante for Alphaxiv-prioritering.
+1. **Prod DB stadig `mock`/`memory`** — health 503 indtil `PRAXIS_DB=supabase-eu|supabase-local` + `SUPABASE_URL` + `SUPABASE_SERVICE_ROLE_KEY` (eller selfhost Kong-flip). Booking JSON APIs svarer stadig 200 på memory — **ikke** produktionsklar persistens.
+2. **SSH / Hetzner Console-adgang til agenter** — uden nøgle kan agenter ikke re-deploye theme, WP-CLI kill, eller remote-activate `main`.
+3. **Cutover-PRs #37–#44 er drafts og overlapper** — `main` mangler kill-scripts + WP-pakke.
+4. **Service-ID mismatch** — live mock: `gel-mani`/`fod-med`…; PR #39 vil align’e `fod-std`/`fod-ext`/`fod-lux`/`mani`. Live availability for `fod-std` → forkert service.
+5. **Versionsstreng `planway-total-kill`** — kosmetisk/forvirrende for greps; overvej rename til `praxisos-only`.
+6. **Ældre åbne PRs** (#25 migrate, #11 WP stack, #8 Bird, #6 gateway, m.fl.) — infra/product; ikke dagens Planway-kill.
 
 ---
 
@@ -138,21 +211,22 @@ Fra tidligere triage (`docs/ops/open-pr-triage-2026-09-04.md`): P0-slices / PEC 
 
 ### Alphaxiv skal *vide*
 
-- Live WP booking er **PraxisOS HTTPS**, ikke Planway.com — men greps på `planway` vil stadig matche asset-version.
+- Live WP booking er **PraxisOS HTTPS**, ikke Planway.com — greps på `planway` matcher stadig asset-version.
 - Live app health er **bevidst rød** pga. mock-forbud i production (allerede på `main`).
-- Parallel Cursor-agenter har produceret **8 overlappende draft-PRs**; merge kræver menneskelig kuratering.
+- Parallel Cursor-agenter har produceret **8 overlappende draft-PRs (#37–#44)**; merge kræver menneskelig kuratering.
 - Denne agent **kunne ikke** SSH’e eller flappe DB.
+- Dybere Alphaxiv-connector-audit: søskende-doc (research-ops ready; Assistant needs key; not clinical KB).
 
 ### Alphaxiv / Broser bør *gøre* næste
 
 - [ ] **Injicér** `HETZNER_PRAXIS_SSH_PRIVATE_KEY` (eller kør Hetzner Console som root).
-- [ ] **Vælg WP-vinder-PR** (anbefaling nedenfor: land #44-unikke ovenpå #43 *eller* squash #43+#44) + merge #39 + #38 + #37 i rækkefølge.
-- [ ] Efter merge til `main`: kør Console one-liner / `push-bypilar-theme-live.sh` så `main`-tip og live theme er synkroniseret.
-- [ ] **Flip DB** jf. `docs/ops/p0-db-cutover-runbook.md` / `scripts/production-cutover-main.sh` — forlad mock; verificér `GET /api/health` → `ok:true`.
-- [ ] Re-smoke: services IDs matcher WP (`fod-std` …); availability for den rigtige service; POST booking (ikke kun GET).
+- [ ] **Vælg WP-vinder-PR** (anbefaling: land #44-unikke ovenpå #43 *eller* squash #43+#44) + merge #39 + #38 + #37.
+- [ ] Efter merge til `main`: kør Console one-liner / `push-bypilar-theme-live.sh` så tip og live theme er synkroniseret.
+- [ ] **Flip DB** jf. `docs/ops/p0-db-cutover-runbook.md` — forlad mock; verificér `GET /api/health` → `ok:true`.
+- [ ] Re-smoke: services IDs matcher WP; availability for rigtig service; POST booking (ikke kun GET).
 - [ ] Luk/supersede duplicate drafts (#40/#41/#42 når vinder er landet).
 - [ ] (Valgfrit) bump theme version væk fra ordet `planway` i `ver=`.
-- [ ] Respektér kliniske invariants (se §7) — ingen auto-merge/deploy, ingen journal-sign, pathology shadow.
+- [ ] Respektér kliniske invariants (se §7).
 
 ### Console one-liner (når Broser er på host — eksempel fra #44)
 
@@ -160,7 +234,7 @@ Fra tidligere triage (`docs/ops/open-pr-triage-2026-09-04.md`): P0-slices / PEC 
 curl -fsSL https://raw.githubusercontent.com/Broser-ai/PraxisOS/cursor/planway-content-rewrite-2c11/scripts/hetzner-console-planway-kill.sh | bash
 ```
 
-(Efter merge: peg URL’en på `main` i stedet for branch.)
+(Efter merge: peg URL’en på `main`.)
 
 ---
 
@@ -168,10 +242,10 @@ curl -fsSL https://raw.githubusercontent.com/Broser-ai/PraxisOS/cursor/planway-c
 
 | Step | PR | Begrundelse |
 |------|-----|-------------|
-| 1 | **#39** | App-side harden (origin, health/docs, service-ID alignment) — lille, lav overlap med WP-pakke |
-| 2 | **#43** *eller* **#44** som WP-vinder | #43 = total-kill live-ready stack; #44 tilføjer content-rewrite + WP-CLI. **Foretræk:** merge #43, cherry-pick #44’s 4 unikke filer — *eller* squash #44 ovenpå #43 tip |
-| 3 | **#38** | Remote activate / console DB helpers (docs+scripts) |
-| 4 | **#37** | Setup/login white-label synlighed (kan også før #39 hvis ønsket; overlap lille) |
+| 1 | **#39** | App-side harden (origin, health/docs, service-ID alignment) — lille overlap med WP-pakke |
+| 2 | **#43** *eller* **#44** som WP-vinder | #43 = total-kill live-ready; #44 tilføjer content-rewrite + WP-CLI. **Foretræk:** merge #43, cherry-pick #44’s 4 unikke filer |
+| 3 | **#38** | Remote activate / console DB helpers |
+| 4 | **#37** | Setup/login white-label synlighed |
 | — | **Close/supersede** #40, #41, #42 | Absorberet af #43/#44 |
 | — | **Ikke auto-merge** #25/#11/#8/#6 | Infra; kræver SSH + menneskelig cutover-gate |
 
@@ -180,8 +254,6 @@ curl -fsSL https://raw.githubusercontent.com/Broser-ai/PraxisOS/cursor/planway-c
 ---
 
 ## 7. Risk / clinical invariants reminder
-
-Hard locks (må ikke brydes af Alphaxiv, VS Code, eller cloud-agenter):
 
 | Invariant | Betydning |
 |-----------|-----------|
@@ -193,17 +265,17 @@ Hard locks (må ikke brydes af Alphaxiv, VS Code, eller cloud-agenter):
 | `PATHOLOGY_SHADOW` | Pathology forbliver shadow / ikke auto-action |
 | Class IIa features | Frozen uden CE — ikke «tænd» i prod som klinisk autonomi |
 
-Booking cutover må **ikke** forveksles med klinisk go-live: PraxisOS book UI på mock DB ≠ godkendt produktionspersistens.
+Booking cutover ≠ klinisk go-live: PraxisOS book UI på mock DB ≠ godkendt produktionspersistens.
 
 ---
 
 ## 8. Alphaxiv brief (EN)
 
-**Verdict:** Cursor/VS Code agents delivered substantial Planway→PraxisOS cutover work as **draft PRs #37–#44** (heavily overlapping). Live `bypilar.dk` already serves the **`1.3.0-planway-total-kill`** theme with **HTTPS PraxisOS** embeds and **zero** `planway.com` / `http://app.bypilar` booking links. That is **not** the same as “everything solved”: `/api/health` is **503** (`PRAXIS_DB=mock` forbidden in production), booking APIs still answer from **memory**, cutover scripts are **not on `main`**, and **`HETZNER_PRAXIS_SSH_PRIVATE_KEY` / `HCLOUD_TOKEN` are missing** so this agent could not push or DB-flip.
+**Verdict:** Cursor/VS Code agents delivered substantial Planway→PraxisOS cutover work as **draft PRs #37–#44** (heavily overlapping). Live `bypilar.dk` already serves theme **`1.3.0-planway-total-kill`** with **HTTPS PraxisOS** embeds and **zero** `planway.com` / `http://app.bypilar` booking links — **Planway customer booking = SOLVED**. That is **not** “everything solved”: `/api/health` is **503** (`PRAXIS_DB=mock` forbidden), booking JSON still serves **memory**, cutover scripts are **not on `main`**, and **`HETZNER_PRAXIS_SSH_PRIVATE_KEY` / `HCLOUD_TOKEN` are missing**. Alphaxiv connector is **research-ops ready** (stub + public search); **Assistant needs key**; **not** a clinical KB — see sibling audit.
 
-**Do next:** (1) inject SSH or run Hetzner Console, (2) merge curated stack `#39 → #43(+#44 uniques) → #38 → #37`, supersede `#40–#42`, (3) flip off mock DB per cutover runbook, (4) re-smoke health + services/availability/POST with WP-aligned service IDs, (5) keep clinical invariants (`NO_AUTO_MERGE` / `NO_AUTO_DEPLOY` / `suggestion_only` / no journal auto-sign).
+**Do next:** (1) inject SSH or run Hetzner Console, (2) merge curated stack `#39 → #43(+#44 uniques) → #38 → #37`, supersede `#40–#42`, (3) flip off mock DB per cutover runbook, (4) re-smoke health + services/availability/POST with WP-aligned IDs, (5) keep clinical invariants.
 
-**Evidence anchors:** `main` = `623b0f9…`; live theme ver `planway-total-kill`; health 503 mock; services 200 mock catalog `[gel-mani, nail-art, fod-med, fod-lux, fod-scan]`.
+**Evidence anchors (2026-09-04T13:51–13:52Z):** `main` = `623b0f9…`; theme `planway-total-kill`; health 503 mock; services 200 mock `[gel-mani, nail-art, fod-med, fod-lux, fod-scan]`; availability `fod-std` → `gel-mani`; naive `/api/booking*` paths return **HTML 404**.
 
 ---
 
@@ -211,8 +283,12 @@ Booking cutover må **ikke** forveksles med klinisk go-live: PraxisOS book UI p�
 
 | Felt | Værdi |
 |------|-------|
+| Regen agent | `bc-a567e1be-e4bf-5ee4-b878-e86aeeb4a8bf` |
 | `git fetch origin main` tip | `623b0f956cab3fbbb9f6e6cef3b71adce275203e` |
+| Evidence window (UTC) | 2026-09-04T13:51:08Z → 13:52:35Z |
 | SSH deploy forsøgt | Nej (secrets missing) |
-| Live Planway booking claimed gone? | **Ja — curl beviser ingen planway.com; kun version substring** |
-| Live prod claimed healthy? | **Nej — health 503** |
+| Live Planway booking claimed gone? | **Ja — SOLVED** (0 planway.com; kill theme live) |
+| Live prod claimed healthy? | **Nej — health 503 / mock forbidden** |
+| Supersedes | PR #45 / #46 earlier drafts |
 | Doc path | `docs/ops/status-audit-vscode-alphaxiv-2026-09-04.md` |
+| Index | `docs/ops/STATUS-AUDIT-LATEST.md` |
