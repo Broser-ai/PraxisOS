@@ -1,0 +1,111 @@
+<main style="padding-top:130px;min-height:70vh">
+  <div class="container" style="max-width:860px">
+    <p class="label" style="margin-bottom:12px">Udekørende</p>
+    <h2 class="heading" style="font-size:clamp(32px,4vw,50px);margin-bottom:16px">Vi kommer til <em>dig</em></h2>
+    <p style="font-size:16px;line-height:1.75;color:var(--muted);max-width:540px;margin-bottom:48px;font-weight:300">
+      Få professionel negle- og fodpleje i dit eget hjem, på dit plejehjem eller din arbejdsplads. Vi medbringer alt udstyr og sikrer en tryg, hygiejnisk behandling.
+    </p>
+
+    <div class="mobile-info-grid">
+      <div class="mobile-info-card"><div class="mobile-info-icon">🚗</div><div class="mobile-info-title">Vi kører til dig</div><div class="mobile-info-desc">Aarhus & omegn — op til 25 km fra centrum</div></div>
+      <div class="mobile-info-card"><div class="mobile-info-icon">🕐</div><div class="mobile-info-title">Fleksible tider</div><div class="mobile-info-desc">Også aften & weekend efter aftale</div></div>
+      <div class="mobile-info-card"><div class="mobile-info-icon">🏠</div><div class="mobile-info-title">Alle steder</div><div class="mobile-info-desc">Privat hjem, plejehjem, arbejdsplads eller event</div></div>
+    </div>
+
+    <div class="mobile-price-bar">
+      <div>
+        <h3 style="font-family:var(--display);font-size:20px">Udekørende tillæg</h3>
+        <div style="font-size:13px;color:var(--gray);margin-top:4px">Tillægget dækker transport, opsætning & ekstra hygiejne</div>
+      </div>
+      <div style="font-family:var(--display);font-size:28px">+150 kr</div>
+    </div>
+
+    <p style="font-size:12px;letter-spacing:2px;text-transform:uppercase;font-weight:600;margin-bottom:20px">Tilgængelige behandlinger</p>
+
+          <a class="treatment-row" href="/booking/" data-praxis-book>
+        <div style="flex:1">
+          <span class="treatment-name">Gel-lak Hænder</span>
+          <div class="treatment-desc" style="margin-top:4px">Klassisk gel-lak med op til 3 ugers holdbarhed</div>
+        </div>
+        <div style="text-align:right;margin-left:24px">
+          <div class="treatment-price">545 kr</div>
+          <div class="treatment-time">45 min · inkl. tillæg</div>
+        </div>
+      </a>
+          <a class="treatment-row" href="/booking/" data-praxis-book>
+        <div style="flex:1">
+          <span class="treatment-name">Gel-lak Tæer</span>
+          <div class="treatment-desc" style="margin-top:4px">Perfekt pedicure med langvarig gel-lak</div>
+        </div>
+        <div style="text-align:right;margin-left:24px">
+          <div class="treatment-price">495 kr</div>
+          <div class="treatment-time">35 min · inkl. tillæg</div>
+        </div>
+      </a>
+          <a class="treatment-row" href="/booking/" data-praxis-book>
+        <div style="flex:1">
+          <span class="treatment-name">Kombi Hænder + Tæer</span>
+          <div class="treatment-desc" style="margin-top:4px">Komplet gel-lak på begge</div>
+        </div>
+        <div style="text-align:right;margin-left:24px">
+          <div class="treatment-price">795 kr</div>
+          <div class="treatment-time">75 min · inkl. tillæg</div>
+        </div>
+      </a>
+          <a class="treatment-row" href="/booking/" data-praxis-book>
+        <div style="flex:1">
+          <span class="treatment-name">Soak-Off + Ny Lak</span>
+          <div class="treatment-desc" style="margin-top:4px">Skånsom fjernelse + ny påføring</div>
+        </div>
+        <div style="text-align:right;margin-left:24px">
+          <div class="treatment-price">595 kr</div>
+          <div class="treatment-time">60 min · inkl. tillæg</div>
+        </div>
+      </a>
+          <a class="treatment-row" href="/booking/" data-praxis-book>
+        <div style="flex:1">
+          <span class="treatment-name">Medicinsk Fodpleje</span>
+          <div class="treatment-desc" style="margin-top:4px">Negle, hård hud, ligtorne & revner</div>
+        </div>
+        <div style="text-align:right;margin-left:24px">
+          <div class="treatment-price">645 kr</div>
+          <div class="treatment-time">45 min · inkl. tillæg</div>
+        </div>
+      </a>
+          <a class="treatment-row" href="/booking/" data-praxis-book>
+        <div style="flex:1">
+          <span class="treatment-name">Luksus Fodbehandling</span>
+          <div class="treatment-desc" style="margin-top:4px">Peeling, maske, paraffinbad & massage</div>
+        </div>
+        <div style="text-align:right;margin-left:24px">
+          <div class="treatment-price">895 kr</div>
+          <div class="treatment-time">75 min · inkl. tillæg</div>
+        </div>
+      </a>
+          <a class="treatment-row" href="/booking/" data-praxis-book>
+        <div style="flex:1">
+          <span class="treatment-name">Diabetisk Fodpleje</span>
+          <div class="treatment-desc" style="margin-top:4px">Specialiseret nænsom pleje</div>
+        </div>
+        <div style="text-align:right;margin-left:24px">
+          <div class="treatment-price">745 kr</div>
+          <div class="treatment-time">60 min · inkl. tillæg</div>
+        </div>
+      </a>
+    
+    <div style="margin-top:40px;text-align:center">
+      <button type="button" class="btn btn-primary" data-praxis-book>Book Udekørende Tid</button>
+    </div>
+  </div>
+</main>
+
+<!-- Newsletter -->
+<section class="newsletter">
+  <div class="newsletter-inner">
+    <p class="label" style="margin-bottom:16px">Nyhedsbrev</p>
+    <h3>Tips, tilbud & <em>inspiration</em></h3>
+    <!-- Mailchimp form - erstat action URL med din Mailchimp form action -->
+    <div class="newsletter-form">
+      [mc4wp_form id="newsletter"]    </div>
+  </div>
+</section>

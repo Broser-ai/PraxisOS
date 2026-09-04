@@ -1,14 +1,15 @@
 // GET /embed/v1/{tenant}  → JS-snippet til kundens eget website.
 //
 // bypilar.dk indsætter ÉN linje i deres <head>:
-//   <script src="https://api.praxis.app/embed/v1/bypilar" defer></script>
+//   <script src="https://app.bypilar.dk/embed/v1/bypilar" defer></script>
 //
 // Derefter virker alle disse mønstre uden mere kode:
 //   <button data-praxis-book>Book tid</button>
-//   <button data-praxis-book="fod-med">Book medicinsk fodpleje</button>
-//   <a data-praxis-book="nail-art" data-praxis-mode="popup">Book i nyt vindue</a>
+//   <button data-praxis-book="fod-std">Book fodbehandling</button>
+//   <a data-praxis-book="fod-lux" data-praxis-mode="popup">Book i nyt vindue</a>
 //
-// Programmatisk:  PraxisOS.open("fod-med"); PraxisOS.close();
+// Programmatisk:  PraxisOS.open("fod-std"); PraxisOS.close();
+// White-label: byPilar surfaces hide the "drevet af PraxisOS" badge.
 //
 // F60 · hardening: booking CORS alignment (ACAO allowlist), per-IP rate-limit,
 // postMessage origin check against ORIGIN (not just e.data.source).
@@ -16,6 +17,7 @@ import { NextResponse } from "next/server";
 import { getTenant } from "@/lib/tenants";
 import { bookingAllowedOrigin, clientIp } from "@/lib/public-booking-kit";
 import { checkIpRateLimit } from "@/lib/rate-limit";
+import { publicBookingOrigin } from "@/lib/booking-urls";
 
 function envInt(name: string, fallback: number): number {
   const v = process.env[name];
@@ -49,16 +51,18 @@ export async function GET(
     });
   }
 
-  const url = new URL(req.url);
-  const origin = `${url.protocol}//${url.host}`;
+  const origin = publicBookingOrigin(req);
   const accent = t.brand.accent;
+  // White-label on byPilar customer hosts: no product-name badge.
+  const whiteLabel = t.slug === "bypilar";
 
-  const js = `// PraxisOS embed v1 · tenant=${t.slug}
+  const js = `// by Pilar booking embed v1 · tenant=${t.slug}
 (function () {
   if (window.__praxisLoaded) return; window.__praxisLoaded = true;
   var ORIGIN = ${JSON.stringify(origin)};
   var TENANT = ${JSON.stringify(t.slug)};
   var ACCENT = ${JSON.stringify(accent)};
+  var WHITE_LABEL = ${JSON.stringify(whiteLabel)};
 
   // ---- inject minimal CSS ----
   var css = '@keyframes prxFade{from{opacity:0}to{opacity:1}}'
@@ -116,10 +120,10 @@ export async function GET(
     open(svc, mode);
   });
 
-  // ---- "drevet af"-badge (kan slås fra med data-praxis-no-badge på <html>) ----
-  if (!document.documentElement.hasAttribute('data-praxis-no-badge')) {
+  // ---- optional badge (off for byPilar white-label; or data-praxis-no-badge) ----
+  if (!WHITE_LABEL && !document.documentElement.hasAttribute('data-praxis-no-badge')) {
     var badge = document.createElement('div'); badge.className = 'prx-badge';
-    badge.textContent = '⚡ drevet af PraxisOS';
+    badge.textContent = 'booking';
     document.body && document.body.appendChild(badge);
   }
 
