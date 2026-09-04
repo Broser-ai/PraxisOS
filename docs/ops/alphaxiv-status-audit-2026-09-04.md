@@ -211,7 +211,7 @@ Repo har flere draft-PR’er (#40–#44) om Planway-kill / content rewrite — l
 
 | Emne | Status (ærlig) | Hvor |
 |------|----------------|------|
-| VS Code / Planway cutover audit | **Skrevet** på sibling-branch (draft PR forventes) | branch `cursor/status-audit-vscode-alphaxiv-2c11` · `docs/ops/status-audit-vscode-alphaxiv-2026-09-04.md` |
+| VS Code / Planway cutover audit | **Draft PR #45** | https://github.com/Broser-ai/PraxisOS/pull/45 · branch `cursor/status-audit-vscode-alphaxiv-2c11` · `docs/ops/status-audit-vscode-alphaxiv-2026-09-04.md` |
 | VS Code «har de løst alt?» | **Nej** — WP/booking funktionelt PraxisOS; health 503 mock; kill-PRs #37–#44 drafts; SSH mangler | søskende §1 |
 | Foundation / PEC | Kontrolplan på `main`; mock persistence | `docs/ops/foundation-status-audit-2026-09-04.md` |
 | P0 cutover runbook | `PRAXIS_DB=mock` forbudt i prod (nu synligt live) | `docs/ops/p0-db-cutover-runbook.md` |
