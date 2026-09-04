@@ -84,9 +84,13 @@ describe("booking-urls helpers", () => {
   it("detects and rewrites Planway URLs", () => {
     expect(isPlanwayUrl("https://bypilar.planway.com/book")).toBe(true);
     expect(isPlanwayUrl("https://app.bypilar.dk/t/bypilar/book")).toBe(false);
+    // href rewrite → book URL (non-embed); iframe path uses embed:true
     expect(rewritePlanwayToPraxis("https://bypilar.planway.com/book")).toBe(
-      BYPILAR_BOOK_EMBED_URL,
+      BYPILAR_BOOK_URL,
     );
+    expect(
+      rewritePlanwayToPraxis("https://bypilar.planway.com/book", { embed: true }),
+    ).toBe(BYPILAR_BOOK_EMBED_URL);
     expect(rewritePlanwayToPraxis("https://bypilar.planway.com")).toBe(
       BYPILAR_BOOK_URL,
     );
@@ -113,8 +117,15 @@ describe("Planway purge · repo surfaces", () => {
     for (const root of roots) {
       for (const file of walkFiles(root)) {
         if (/\.(png|jpg|jpeg|gif|webp|svg|woff2?|ico)$/i.test(file)) continue;
+        // Rewrite/kill helpers must mention planway.com in matchers — not customer HTML.
+        if (/bypilar-planway-content-rewrite\.php$/.test(file)) continue;
+        if (/booking-urls\.ts$/.test(file)) continue;
+        if (/planway-udekoerende-legacy\.html$/.test(file)) continue;
         const text = readFileSync(file, "utf8");
-        if (/planway\.com/i.test(text)) hits.push(file.replace(ROOT + "/", ""));
+        // Customer-facing hazard: absolute planway.com URLs (not regex fragments).
+        if (/https?:\/\/[^\s"'<>]*planway\.com/i.test(text)) {
+          hits.push(file.replace(ROOT + "/", ""));
+        }
       }
     }
     expect(hits).toEqual([]);

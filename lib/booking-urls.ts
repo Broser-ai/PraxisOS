@@ -88,22 +88,82 @@ export function isPlanwayUrl(href: string): boolean {
   }
 }
 
+const PLANWAY_KEEP_QUERY = [
+  "service",
+  "treatment",
+  "behandling",
+  "id",
+  "product",
+  "sku",
+] as const;
+
 /**
  * Rewrite a Planway booking href to the PraxisOS byPilar book URL.
  * Unknown Planway paths map to the generic book page.
+ * Preserves useful query keys when present (parity with WP MU-plugin).
  */
 export function rewritePlanwayToPraxis(
   href: string,
   opts: { service?: string | null; embed?: boolean } = {},
 ): string {
-  if (!isPlanwayUrl(href) && !/planway/i.test(href)) {
+  if (!isPlanwayUrl(href) && !/planway\.com/i.test(href)) {
     return href;
   }
-  return publicBookUrl(BYPILAR_TENANT, {
-    service: opts.service,
-    embed: opts.embed ?? /\/book/i.test(href),
-    origin: BYPILAR_PUBLIC_ORIGIN,
-  });
+
+  let service = opts.service ?? null;
+  try {
+    const u = new URL(href);
+    for (const key of PLANWAY_KEEP_QUERY) {
+      const v = u.searchParams.get(key);
+      if (v && key === "service") service = service ?? v;
+    }
+    // Prefer explicit opts.service; else first kept param named service
+    const keep: Record<string, string> = {};
+    for (const key of PLANWAY_KEEP_QUERY) {
+      const v = u.searchParams.get(key);
+      if (v) keep[key] = v;
+    }
+    if (opts.service) keep.service = opts.service;
+    const embed = opts.embed ?? false;
+    const url = new URL(BYPILAR_BOOK_URL);
+    for (const [k, v] of Object.entries(keep)) url.searchParams.set(k, v);
+    if (embed) url.searchParams.set("embed", "1");
+    return url.toString();
+  } catch {
+    return publicBookUrl(BYPILAR_TENANT, {
+      service,
+      embed: opts.embed ?? /\/book/i.test(href),
+      origin: BYPILAR_PUBLIC_ORIGIN,
+    });
+  }
+}
+
+/**
+ * WordPress content-layer purge (mirrors bypilar_purge_planway_html).
+ * Rewrites planway.com hrefs/iframes and forces HTTPS on app.bypilar.dk.
+ */
+export function purgePlanwayHtml(html: string): string {
+  if (!html) return html;
+  let out = html.replace(/http:\/\/app\.bypilar\.dk/gi, "https://app.bypilar.dk");
+
+  out = out.replace(
+    /(<iframe\b[^>]*?\bsrc\s*=\s*)(['"])([^'"]*planway\.com[^'"]*)(\2)/gis,
+    (_m, pre: string, q: string, url: string, q2: string) =>
+      `${pre}${q}${rewritePlanwayToPraxis(url, { embed: true })}${q2}`,
+  );
+
+  out = out.replace(
+    /(\bhref\s*=\s*)(['"])([^'"]*planway\.com[^'"]*)(\2)/gi,
+    (_m, pre: string, q: string, url: string, q2: string) =>
+      `${pre}${q}${rewritePlanwayToPraxis(url, { embed: false })}${q2}`,
+  );
+
+  out = out.replace(
+    /https?:\/\/[^\s"'<>]*planway\.com[^\s"'<>]*/gi,
+    (url) => rewritePlanwayToPraxis(url, { embed: false }),
+  );
+
+  return out;
 }
 
 /** Staff entry href + white-label label for byPilar customer hosts. */
