@@ -49,9 +49,36 @@ export async function GET(
     });
   }
 
+  // Prefer public HTTPS host (Traefik / reverse proxy). Never ship 0.0.0.0 to browsers.
   const url = new URL(req.url);
-  const origin = `${url.protocol}//${url.host}`;
+  const xfProto = (req.headers.get("x-forwarded-proto") || "").split(",")[0].trim();
+  const xfHost = (req.headers.get("x-forwarded-host") || "").split(",")[0].trim();
+  const hostHeader = (req.headers.get("host") || "").split(",")[0].trim();
+  const envPublic =
+    process.env.PRAXIS_PUBLIC_ORIGIN?.trim() ||
+    process.env.NEXT_PUBLIC_APP_URL?.trim() ||
+    "";
+  let origin = envPublic.replace(/\/$/, "");
+  if (!origin) {
+    const host = xfHost || hostHeader || url.host;
+    const proto =
+      xfProto ||
+      (url.protocol === "https:" ? "https" : host.includes("localhost") ? "http" : "https");
+    if (
+      host &&
+      !/^0\.0\.0\.0(?::\d+)?$/.test(host) &&
+      !/^(localhost|127\.0\.0\.1)(?::\d+)?$/.test(host)
+    ) {
+      origin = `${proto}://${host}`;
+    } else if (t.slug === "bypilar") {
+      origin = "https://app.bypilar.dk";
+    } else {
+      origin = `${url.protocol}//${url.host}`;
+    }
+  }
   const accent = t.brand.accent;
+  // byPilar customer hosts: never show PraxisOS vendor badge (white-label)
+  const hideBadgeDefault = t.slug === "bypilar";
 
   const js = `// PraxisOS embed v1 · tenant=${t.slug}
 (function () {
@@ -59,6 +86,7 @@ export async function GET(
   var ORIGIN = ${JSON.stringify(origin)};
   var TENANT = ${JSON.stringify(t.slug)};
   var ACCENT = ${JSON.stringify(accent)};
+  var HIDE_BADGE = ${hideBadgeDefault ? "true" : "false"};
 
   // ---- inject minimal CSS ----
   var css = '@keyframes prxFade{from{opacity:0}to{opacity:1}}'
@@ -116,8 +144,8 @@ export async function GET(
     open(svc, mode);
   });
 
-  // ---- "drevet af"-badge (kan slås fra med data-praxis-no-badge på <html>) ----
-  if (!document.documentElement.hasAttribute('data-praxis-no-badge')) {
+  // ---- vendor badge (off by default for byPilar; also data-praxis-no-badge) ----
+  if (!HIDE_BADGE && !document.documentElement.hasAttribute('data-praxis-no-badge')) {
     var badge = document.createElement('div'); badge.className = 'prx-badge';
     badge.textContent = '⚡ drevet af PraxisOS';
     document.body && document.body.appendChild(badge);
