@@ -109,7 +109,7 @@ export async function GET(
     data: listMissions({ tenantSlug: tenant, limit: 40 }),
     invariants: EXECUTION_CONTROL_INVARIANTS,
     apiNote:
-      "Prime missions live under /api/v1/[tenant]/prime/missions (not /api/agents/missions*). Agent-worker tick calls this dispatcher via tickAutomation.",
+      "Prime missions: canonical /api/v1/[tenant]/prime/missions; alias /api/agents/missions(+/:missionId). Agent-worker tick calls dispatcher via tickAutomation.",
   });
 }
 

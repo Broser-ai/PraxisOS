@@ -17,6 +17,8 @@
 
 ### Option B — API
 
+Same actions work on the alias `POST $BASE/api/agents/missions` (optional `"tenant":"bypilar"` in body).
+
 ```bash
 # 1) Seed draft (idempotent by fixtureId)
 curl -X POST "$BASE/api/v1/bypilar/prime/missions" \
