@@ -32,14 +32,20 @@ describe("F73 · middleware security headers", () => {
     expect(res.headers.get("x-frame-options")).toBe("SAMEORIGIN");
   });
 
-  it("embed + book paths stay frameable (no X-Frame-Options)", () => {
+  it("embed + book paths stay frameable (no X-Frame-Options) + CSP ancestors", () => {
     const embed = applySecurityHeaders(NextResponse.next(), "/embed/v1/bypilar");
     expect(embed.headers.get("x-frame-options")).toBeNull();
+    expect(embed.headers.get("content-security-policy") ?? "").toMatch(
+      /frame-ancestors/,
+    );
     const book = applySecurityHeaders(
       NextResponse.next(),
       "/t/bypilar/book",
     );
     expect(book.headers.get("x-frame-options")).toBeNull();
+    expect(book.headers.get("content-security-policy") ?? "").toMatch(
+      /bypilar\.dk/,
+    );
   });
 
   it("middleware response includes security headers", () => {
