@@ -20,7 +20,33 @@ Planway-kontoen slettes **ikke** — kun alle indgange fra byPilar fjernes.
 3. Fjern Planway-links/iframes/scripts.
 4. Ryd mixed content (`http://` → `https://`).
 
+## Content-layer kill (runtime + DB)
+
+Even if `post_content` / widgets / menus still contain Planway HTML, the MU-plugin
+`wordpress/mu-plugins/bypilar-planway-content-rewrite.php` rewrites on every public request:
+
+- `the_content` / `widget_text` / `widget_block_content` / `wp_nav_menu_items`
+- `nav_menu_link_attributes`
+- Full-page `ob_start` safety net (theme fragments + cached HTML)
+
+Rules:
+
+| Match | Becomes |
+| --- | --- |
+| `href=*planway.com*` | `https://app.bypilar.dk/t/bypilar/book` (keeps useful `service`/… query) |
+| `iframe src=*planway.com*` | `https://app.bypilar.dk/t/bypilar/book?embed=1` |
+| `http://app.bypilar.dk` | `https://app.bypilar.dk` |
+
+Deploy-time DB scrub:
+
+```bash
+bash scripts/wp-cli-kill-planway.sh          # remote (SSH)
+bash scripts/wp-cli-kill-planway.sh --local  # inside WP container
+bash scripts/push-bypilar-theme-live.sh      # theme + both MU-plugins + wp-cli kill
+```
+
 ## Live deploy (Hetzner)
+
 
 DNS for `bypilar.dk` peger på Hetzner `167.233.171.184` (ikke Hostinger).
 
@@ -29,9 +55,10 @@ DNS for `bypilar.dk` peger på Hetzner `167.233.171.184` (ikke Hostinger).
 bash scripts/push-bypilar-theme-live.sh
 # alternativ:
 bash scripts/deploy-planway-cutover-wp.sh
+bash scripts/wp-cli-kill-planway.sh
 
 # Eller direkte i Hetzner Console (root):
-curl -fsSL https://raw.githubusercontent.com/Broser-ai/PraxisOS/cursor/planway-kill-praxisos-only-2c11/scripts/hetzner-console-planway-kill.sh | bash
+curl -fsSL https://raw.githubusercontent.com/Broser-ai/PraxisOS/cursor/planway-content-rewrite-2c11/scripts/hetzner-console-planway-kill.sh | bash
 ```
 
 Agent pubkey (til `authorized_keys` på Hetzner):
@@ -40,7 +67,7 @@ Agent pubkey (til `authorized_keys` på Hetzner):
 ssh-ed25519 AAAAC3NzaC1lZDI1NTE5AAAAIKo0tW+F3OGmrhuXhy5No7IXQj2rcre08kNc+LyYEdyT cursor-planway-cutover-57ae
 ```
 
-## Live status (agent snapshot 2026-09-04)
+## Live status (agent snapshot 2026-09-04 · pre content-rewrite deploy)
 
 | Side | planway | http://app | https embed | data-praxis-book |
 | --- | --- | --- | --- | --- |
@@ -51,7 +78,8 @@ ssh-ed25519 AAAAC3NzaC1lZDI1NTE5AAAAIKo0tW+F3OGmrhuXhy5No7IXQj2rcre08kNc+LyYEdyT
 | `main.js` live | ingen `data-praxis-book` handler | | | |
 | `/embed/v1/bypilar` live | `ORIGIN = https://0.0.0.0:3000` (broken) | | | |
 
-Repo-fix er klar; **live kræver Hetzner SSH** (`push-bypilar-theme-live.sh`) + app-redeploy for embed ORIGIN.
+Repo has content-rewrite MU-plugin + theme filters + WP-CLI kill.
+**Live still needs Hetzner SSH** (`push-bypilar-theme-live.sh`) so `/udekoerende/` drops to 0 and booking iframe goes HTTPS.
 
 ## Verifikation
 
