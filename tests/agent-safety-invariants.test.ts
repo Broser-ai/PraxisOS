@@ -11,6 +11,7 @@ import { join, relative } from "node:path";
 
 import { SWARM_INVARIANTS } from "@/lib/swarm/types";
 import { PRIME_INVARIANTS } from "@/lib/prime/types";
+import { CLINICAL_POLICY } from "@/lib/swarm/clinical-policy";
 
 const ROOT = join(__dirname, "..");
 const SCAN_DIRS = ["app", "lib", "components", "agents", "modules", "scripts"];
@@ -86,6 +87,18 @@ describe("Agent safety · hard invariants", () => {
     expect(PRIME_INVARIANTS.PATHOLOGY_SHADOW_UNTIL_GATES).toBe(true);
     expect(PRIME_INVARIANTS.AI_SUGGESTIONS_ONLY).toBe(true);
     expect(PRIME_INVARIANTS.HUMAN_ADJUDICATION_REQUIRED).toBe(true);
+  });
+
+  it("clinical suggestion-only invariants stay enabled", () => {
+    expect(CLINICAL_POLICY.clinical_status).toBe("suggestion_only");
+    expect(CLINICAL_POLICY.NO_AUTO_JOURNAL_SIGN).toBe(true);
+  });
+
+  it("CI workflow keeps typecheck, tests and build", () => {
+    const ci = readFileSync(join(ROOT, ".github", "workflows", "ci.yml"), "utf8");
+    expect(ci).toMatch(/npm run typecheck/);
+    expect(ci).toMatch(/\bnpm test\b/);
+    expect(ci).toMatch(/npm run build/);
   });
 
   it("no runtime file disables an invariant", () => {

@@ -26,7 +26,18 @@ const SCAN_DIRS = [
   "wordpress",
 ];
 
-const SCAN_FILES = ["middleware.ts", "next.config.ts", "next.config.js"];
+const SCAN_FILES = [
+  "middleware.ts",
+  "next.config.ts",
+  "next.config.js",
+  "next.config.mjs",
+  "next.config.cjs",
+  "package.json",
+  "vercel.json",
+  ".env.example",
+  ".env.production.example",
+  ".env.sandbox.example",
+];
 
 const SKIP_DIRS = new Set([
   "node_modules",
@@ -122,5 +133,13 @@ describe("Planway absence · active surfaces", () => {
 
   it("scans a non-empty set of active files", () => {
     expect(activeSurfaceFiles().length).toBeGreaterThan(50);
+  });
+
+  it("scans the live Next.js config and root env/package config", () => {
+    const rel = activeSurfaceFiles().map((file) => relative(ROOT, file));
+    expect(rel).toContain("next.config.mjs");
+    expect(rel).toContain(".env.example");
+    expect(rel).toContain("package.json");
+    expect(rel).toContain("vercel.json");
   });
 });
