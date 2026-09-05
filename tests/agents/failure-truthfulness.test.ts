@@ -36,6 +36,12 @@ function mockChatJson(body: unknown, init?: { status?: number }) {
   );
 }
 
+/** Denial text may mention FINISH; a false successful FINISH must not appear. */
+function assertNoFalseFinish(reply: string) {
+  const withoutDenial = reply.replace(/Ingen FINISH\/success\.?/g, "");
+  expect(withoutDenial).not.toMatch(/\bFINISH\b/);
+}
+
 describe("agent runtime · provider failure truthfulness", () => {
   beforeEach(() => {
     unsetProvider();
@@ -69,10 +75,13 @@ describe("agent runtime · provider failure truthfulness", () => {
     expect(fetchSpy).not.toHaveBeenCalled();
     expect(result.run.status).toBe("blocked");
     expect(result.run.errorCode).toBe("provider_unavailable");
-    expect(result.run.status).not.toBe("completed");
+    expect(["completed", "success", "finished"]).not.toContain(result.run.status);
     expect(result.reply).toMatch(/Ingen FINISH\/success/);
+    assertNoFalseFinish(result.reply);
     expect(result.run.toolCalls).toEqual([]);
     expect(result.run.simulated).not.toBe(true);
+    expect(result.run.nonExecuting).toBe(true);
+    expect(result.run.notRealLlmResult).toBe(true);
   });
 
   it("provider timeout → provider_timeout, not completed", async () => {
@@ -96,9 +105,36 @@ describe("agent runtime · provider failure truthfulness", () => {
 
     expect(result.run.status).toBe("failed");
     expect(result.run.errorCode).toBe("provider_timeout");
-    expect(result.run.status).not.toBe("completed");
+    expect(["completed", "success", "finished"]).not.toContain(result.run.status);
     expect(result.run.notRealLlmResult).toBe(true);
     expect(result.reply).toMatch(/provider_timeout/);
+    expect(result.reply).toMatch(/Ingen FINISH\/success/);
+    assertNoFalseFinish(result.reply);
+  });
+
+  it("AbortError timeout → provider_timeout, not completed", async () => {
+    setFakeProviderKey();
+    const abortErr = new Error("The operation was aborted");
+    abortErr.name = "AbortError";
+    vi.stubGlobal(
+      "fetch",
+      vi.fn(async () => {
+        throw abortErr;
+      }),
+    );
+
+    const result = await runAgent({
+      message: "hej",
+      agentId: "aria",
+      tenant: "bypilar",
+      autoRoute: false,
+    });
+
+    expect(result.run.status).toBe("failed");
+    expect(result.run.errorCode).toBe("provider_timeout");
+    expect(["completed", "success", "finished"]).not.toContain(result.run.status);
+    expect(result.reply).toMatch(/Ingen FINISH\/success/);
+    assertNoFalseFinish(result.reply);
   });
 
   it("provider throw → provider_error, not completed", async () => {
@@ -120,7 +156,31 @@ describe("agent runtime · provider failure truthfulness", () => {
     expect(result.run.status).toBe("failed");
     expect(result.run.errorCode).toBe("provider_error");
     expect(result.run.error).toMatch(/ECONNREFUSED/);
-    expect(result.run.status).not.toBe("completed");
+    expect(["completed", "success", "finished"]).not.toContain(result.run.status);
+    expect(result.reply).toMatch(/Ingen FINISH\/success/);
+    assertNoFalseFinish(result.reply);
+  });
+
+  it("HTTP 500 via runAgent → provider_error, not completed/FINISH", async () => {
+    setFakeProviderKey();
+    vi.stubGlobal(
+      "fetch",
+      mockChatJson({ error: { message: "upstream boom" } }, { status: 500 }),
+    );
+
+    const result = await runAgent({
+      message: "hej",
+      agentId: "aria",
+      tenant: "bypilar",
+      autoRoute: false,
+    });
+
+    expect(result.run.status).toBe("failed");
+    expect(result.run.errorCode).toBe("provider_error");
+    expect(["completed", "success", "finished"]).not.toContain(result.run.status);
+    expect(result.reply).toMatch(/provider_error/);
+    expect(result.reply).toMatch(/Ingen FINISH\/success/);
+    assertNoFalseFinish(result.reply);
   });
 
   it("simulated fallback is marked simulated + non_executing + not_real_llm_result and claims no work", async () => {
@@ -144,6 +204,11 @@ describe("agent runtime · provider failure truthfulness", () => {
     expect(result.run.notRealLlmResult).toBe(true);
     expect(result.run.toolCalls).toEqual([]);
     expect(result.run.errorCode).toBe("provider_unavailable");
+    // Simulated fallback must NEVER look finished/successful
+    expect(result.run.status).toBe("blocked");
+    expect(["completed", "success", "finished", "awaiting_approval"]).not.toContain(
+      result.run.status,
+    );
     const lower = result.reply.toLowerCase();
     expect(lower).toMatch(/simulated/);
     expect(lower).toMatch(/non_executing/);
@@ -152,7 +217,65 @@ describe("agent runtime · provider failure truthfulness", () => {
     // Must not claim booking/tool/model/code work was done
     expect(lower).not.toMatch(/jeg har reserveret/);
     expect(lower).not.toMatch(/soap-udkast klar/);
-    expect(result.reply).not.toMatch(/\bFINISH\b/);
+    assertNoFalseFinish(result.reply);
+  });
+
+  it("simulated fallback on timeout is failed + provider_timeout, never completed", async () => {
+    setFakeProviderKey();
+    process.env.OPENAI_TIMEOUT_MS = "50";
+    const timeoutErr = new Error("The operation was aborted due to timeout");
+    timeoutErr.name = "TimeoutError";
+    vi.stubGlobal(
+      "fetch",
+      vi.fn(async () => {
+        throw timeoutErr;
+      }),
+    );
+
+    const result = await runAgent({
+      message: "book en tid",
+      agentId: "aria",
+      tenant: "bypilar",
+      autoRoute: false,
+      allowSimulatedFallback: true,
+    });
+
+    expect(result.mode).toBe("simulated");
+    expect(result.run.simulated).toBe(true);
+    expect(result.run.nonExecuting).toBe(true);
+    expect(result.run.notRealLlmResult).toBe(true);
+    expect(result.run.toolCalls).toEqual([]);
+    expect(result.run.status).toBe("failed");
+    expect(result.run.errorCode).toBe("provider_timeout");
+    expect(["completed", "success", "finished"]).not.toContain(result.run.status);
+    assertNoFalseFinish(result.reply);
+  });
+
+  it("simulated fallback on provider error is failed + provider_error, never completed", async () => {
+    setFakeProviderKey();
+    vi.stubGlobal(
+      "fetch",
+      vi.fn(async () => {
+        throw new Error("ECONNREFUSED simulated");
+      }),
+    );
+
+    const result = await runAgent({
+      message: "book en tid",
+      agentId: "aria",
+      tenant: "bypilar",
+      autoRoute: false,
+      allowSimulatedFallback: true,
+    });
+
+    expect(result.mode).toBe("simulated");
+    expect(result.run.simulated).toBe(true);
+    expect(result.run.nonExecuting).toBe(true);
+    expect(result.run.toolCalls).toEqual([]);
+    expect(result.run.status).toBe("failed");
+    expect(result.run.errorCode).toBe("provider_error");
+    expect(["completed", "success", "finished"]).not.toContain(result.run.status);
+    assertNoFalseFinish(result.reply);
   });
 
   it("real provider success path still works (stubbed fetch, no external calls)", async () => {
@@ -188,6 +311,8 @@ describe("agent runtime · provider failure truthfulness", () => {
     expect(result.mode).toBe("llm");
     expect(result.run.status).toBe("completed");
     expect(result.run.errorCode).toBeUndefined();
+    expect(result.run.simulated).toBe(false);
+    expect(result.run.nonExecuting).toBe(false);
     expect(result.run.notRealLlmResult).toBe(false);
     expect(result.reply).toContain("Aria");
   });
@@ -243,6 +368,61 @@ describe("chatCompletions · machine-readable provider codes", () => {
     expect(res.ok).toBe(false);
     if (!res.ok) {
       expect(res.code).toBe("provider_unavailable");
+    }
+  });
+
+  it("TimeoutError → provider_timeout", async () => {
+    setFakeProviderKey();
+    const timeoutErr = new Error("The operation was aborted due to timeout");
+    timeoutErr.name = "TimeoutError";
+    vi.stubGlobal(
+      "fetch",
+      vi.fn(async () => {
+        throw timeoutErr;
+      }),
+    );
+    const res = await chatCompletions({
+      messages: [{ role: "user", content: "hi" }],
+    });
+    expect(res.ok).toBe(false);
+    if (!res.ok) {
+      expect(res.code).toBe("provider_timeout");
+    }
+  });
+
+  it("AbortError → provider_timeout", async () => {
+    setFakeProviderKey();
+    const abortErr = new Error("The operation was aborted");
+    abortErr.name = "AbortError";
+    vi.stubGlobal(
+      "fetch",
+      vi.fn(async () => {
+        throw abortErr;
+      }),
+    );
+    const res = await chatCompletions({
+      messages: [{ role: "user", content: "hi" }],
+    });
+    expect(res.ok).toBe(false);
+    if (!res.ok) {
+      expect(res.code).toBe("provider_timeout");
+    }
+  });
+
+  it("network throw → provider_error", async () => {
+    setFakeProviderKey();
+    vi.stubGlobal(
+      "fetch",
+      vi.fn(async () => {
+        throw new Error("ECONNREFUSED simulated");
+      }),
+    );
+    const res = await chatCompletions({
+      messages: [{ role: "user", content: "hi" }],
+    });
+    expect(res.ok).toBe(false);
+    if (!res.ok) {
+      expect(res.code).toBe("provider_error");
     }
   });
 });
