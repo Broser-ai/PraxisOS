@@ -70,7 +70,7 @@ describe("agent runtime · provider failure truthfulness", () => {
     expect(result.run.status).toBe("blocked");
     expect(result.run.errorCode).toBe("provider_unavailable");
     expect(result.run.status).not.toBe("completed");
-    expect(result.reply.toLowerCase()).not.toContain("finish");
+    expect(result.reply).toMatch(/Ingen FINISH\/success/);
     expect(result.run.toolCalls).toEqual([]);
     expect(result.run.simulated).not.toBe(true);
   });
@@ -97,7 +97,8 @@ describe("agent runtime · provider failure truthfulness", () => {
     expect(result.run.status).toBe("failed");
     expect(result.run.errorCode).toBe("provider_timeout");
     expect(result.run.status).not.toBe("completed");
-    expect(result.mode).not.toBe("llm");
+    expect(result.run.notRealLlmResult).toBe(true);
+    expect(result.reply).toMatch(/provider_timeout/);
   });
 
   it("provider throw → provider_error, not completed", async () => {
@@ -180,7 +181,8 @@ describe("agent runtime · provider failure truthfulness", () => {
     });
 
     expect(fetchMock).toHaveBeenCalledTimes(1);
-    const calledUrl = String(fetchMock.mock.calls[0]?.[0] ?? "");
+    const firstCall = fetchMock.mock.calls[0] as unknown as [string, RequestInit?];
+    const calledUrl = String(firstCall?.[0] ?? "");
     expect(calledUrl).toContain("127.0.0.1:9");
     expect(calledUrl).not.toContain("api.openai.com");
     expect(result.mode).toBe("llm");
