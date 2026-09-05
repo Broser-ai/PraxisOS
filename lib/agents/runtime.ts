@@ -6,16 +6,24 @@ import {
   createRun,
   updateRun,
   type AgentRun,
+  type AgentRunStatus,
   type AgentToolCall,
 } from "@/lib/agent-store";
 import { buildSystemPrompt, toolsForAgent } from "@/lib/agents/prompts";
 import {
   chatCompletions,
+  classifyProviderError,
   isLlmConfigured,
+  isSimulatedOutcome,
   llmModel,
   toOpenAiTools,
   type LlmMessage,
+  type ProviderOutcome,
 } from "@/lib/agents/llm";
+
+/** Marks a reply that no model produced. Asserted by tests. */
+export const SIMULATED_PREFIX =
+  "[simulated · non-executing · not a real LLM result]";
 import { listBookings } from "@/lib/bookings";
 import { listClients, getClient } from "@/lib/clients";
 import { calculateSubsidies, bestSubsidy } from "@/lib/subsidies";
@@ -378,6 +386,8 @@ export async function runAgent(input: RunAgentInput): Promise<RunAgentResult> {
           }
         : undefined;
 
+    let providerOutcome: ProviderOutcome = "ok";
+
     if (preferLlm) {
       const llm = await llmReply(
         agentId,
@@ -388,8 +398,9 @@ export async function runAgent(input: RunAgentInput): Promise<RunAgentResult> {
         budget,
       );
       if (llm.reply.startsWith("LLM-fejl:")) {
+        providerOutcome = classifyProviderError({ error: llm.reply });
         const h = await heuristicReply(agentId, input.message, tenant, run.id, input.trigger ?? "chat");
-        reply = `${llm.reply}\n\n${h.reply}`;
+        reply = `${llm.reply}\n\n${SIMULATED_PREFIX}\n${h.reply}`;
         toolCalls = [...llm.toolCalls, ...h.toolCalls];
         mode = "heuristic";
         tokenUsage = llm.usage;
@@ -401,26 +412,42 @@ export async function runAgent(input: RunAgentInput): Promise<RunAgentResult> {
         tokenUsage = llm.usage;
       }
     } else {
+      providerOutcome = "not_configured";
       const h = await heuristicReply(agentId, input.message, tenant, run.id, input.trigger ?? "chat");
-      reply = h.reply;
+      reply = `${SIMULATED_PREFIX}\n${h.reply}`;
       toolCalls = h.toolCalls;
     }
+
+    const simulated = isSimulatedOutcome(providerOutcome);
 
     const needsApproval = toolCalls.some((t) => {
       const r = t.result as any;
       return r && typeof r === "object" && (r.status === "draft_pending_approval" || r.requiresApproval || r.status === "pending_approval");
     });
 
+    // A reply produced without a model call is never completed work. Missing
+    // configuration blocks; a provider that was reached and failed is a failure.
+    const status: AgentRunStatus = simulated
+      ? providerOutcome === "not_configured"
+        ? "blocked"
+        : "failed"
+      : needsApproval
+        ? "awaiting_approval"
+        : "completed";
+
     const updated =
       updateRun(run.id, {
-        status: needsApproval ? "awaiting_approval" : "completed",
+        status,
         output: reply,
         toolCalls,
         mode,
         model,
         finishedAt: new Date().toISOString(),
-        requiresApproval: needsApproval,
+        requiresApproval: simulated ? false : needsApproval,
         tokenUsage,
+        providerOutcome,
+        simulated,
+        error: simulated ? `provider_${providerOutcome}` : undefined,
       }) ?? run;
 
     return { run: updated, agentId, reply, mode };

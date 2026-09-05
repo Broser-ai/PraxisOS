@@ -4,9 +4,17 @@ import { randomBytes } from "node:crypto";
 import { appendFileSync, existsSync, mkdirSync, writeFileSync, readFileSync } from "node:fs";
 import { join } from "node:path";
 import type { AgentId } from "@/lib/agents";
+import type { ProviderOutcome } from "@/lib/agents/llm";
 import { resolveSecret } from "@/lib/secrets";
 
-export type AgentRunStatus = "queued" | "running" | "completed" | "failed" | "awaiting_approval";
+export type AgentRunStatus =
+  | "queued"
+  | "running"
+  | "completed"
+  | "failed"
+  | "awaiting_approval"
+  // No model was contacted — the reply is simulated, not finished work.
+  | "blocked";
 
 export type AgentToolCall = {
   name: string;
@@ -34,6 +42,10 @@ export type AgentRun = {
   finishedAt?: string;
   requiresApproval?: boolean;
   approvalId?: string;
+  /** Machine-readable result of contacting the LLM provider. */
+  providerOutcome?: ProviderOutcome;
+  /** True when the reply was produced without any model call. */
+  simulated?: boolean;
   /** Optional Prime Execution Control linkage */
   missionId?: string;
   workstreamId?: string;

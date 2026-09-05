@@ -200,3 +200,37 @@ export function toOpenAiTools(
     },
   }));
 }
+
+/**
+ * Machine-readable outcome of contacting the LLM provider.
+ *
+ * `not_configured` and every failure kind mean no model produced the reply, so
+ * callers must not report the run as completed work.
+ */
+export type ProviderOutcome =
+  | "ok"
+  | "not_configured"
+  | "timeout"
+  | "unavailable"
+  | "budget_exhausted"
+  | "error";
+
+/** Classify a provider failure into a stable, machine-readable kind. */
+export function classifyProviderError(input: {
+  error?: string;
+  statusCode?: number;
+  budgetExhausted?: boolean;
+}): Exclude<ProviderOutcome, "ok"> {
+  if (input.budgetExhausted) return "budget_exhausted";
+  const msg = (input.error ?? "").toLowerCase();
+  if (/mangler|missing|not configured|no api key/.test(msg)) return "not_configured";
+  if (/timeout|timed out|etimedout|abort/.test(msg)) return "timeout";
+  if (input.statusCode === 429 || (input.statusCode ?? 0) >= 500) return "unavailable";
+  if (/network|econnrefused|enotfound|fetch failed/.test(msg)) return "unavailable";
+  return "error";
+}
+
+/** True when the reply did not come from a real model call. */
+export function isSimulatedOutcome(outcome: ProviderOutcome): boolean {
+  return outcome !== "ok";
+}
