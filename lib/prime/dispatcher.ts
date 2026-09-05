@@ -264,6 +264,67 @@ function personaForRole(role: MissionRole): string {
   }
 }
 
+/**
+ * Distinct execution identity per role within a workstream.
+ *
+ * The persona above is a prompt template, and scout, verifier and reviewer all
+ * resolve to `frej` — so persona alone cannot tell two roles apart. Identity is
+ * what the separation invariants below are enforced on. Giving each role its own
+ * provider session is a separate mission; this only guarantees that the roles
+ * are distinguishable and never silently collapse into one actor.
+ */
+export function executionIdentityForRole(input: {
+  missionId: string;
+  workstreamId: string;
+  role: MissionRole;
+}): string {
+  return `prime:${input.missionId}:${input.workstreamId}:${input.role}`;
+}
+
+export type RoleSeparationResult =
+  | { ok: true }
+  | { ok: false; error: string; conflictingRole: MissionRole };
+
+/**
+ * A role may not be filled by the identity that already filled an upstream role
+ * on the same workstream: a builder cannot verify its own work, and a verifier
+ * cannot review its own verdict.
+ */
+const UPSTREAM_ROLE: Partial<Record<MissionRole, MissionRole>> = {
+  verifier: "builder",
+  reviewer: "verifier",
+};
+
+export function assertRoleSeparation(input: {
+  missionId: string;
+  workstreamId: string;
+  role: MissionRole;
+  /** Identities that already acted on this workstream, keyed by role. */
+  priorIdentities: Partial<Record<MissionRole, string>>;
+  /** Test-only escape hatch. Never set in production code paths. */
+  allowSameIdentity?: boolean;
+}): RoleSeparationResult {
+  if (input.allowSameIdentity) return { ok: true };
+
+  const upstream = UPSTREAM_ROLE[input.role];
+  if (!upstream) return { ok: true };
+
+  const mine = executionIdentityForRole({
+    missionId: input.missionId,
+    workstreamId: input.workstreamId,
+    role: input.role,
+  });
+  const theirs = input.priorIdentities[upstream];
+  if (theirs && theirs === mine) {
+    return {
+      ok: false,
+      error: `${input.role}_cannot_be_own_${upstream}`,
+      conflictingRole: upstream,
+    };
+  }
+  return { ok: true };
+}
+
 async function runRoleAgent(ws: Workstream, mission: Mission): Promise<{
   agentRunId: string;
   reply: string;
