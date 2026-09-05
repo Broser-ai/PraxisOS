@@ -231,10 +231,11 @@ function finishSimulated(
   tokenUsage?: AgentRun["tokenUsage"],
 ): RunAgentResult {
   const sim = simulatedFallbackReply(agentId, reason, code);
+  // Opt-in simulated reply is still a miss — never completed/success/finished.
+  const status = code === "provider_unavailable" ? "blocked" : "failed";
   const updated =
     updateRun(run.id, {
-      // Marked simulated — must never be read as a real LLM FINISH
-      status: "completed",
+      status,
       output: sim.reply,
       toolCalls: [],
       mode: "simulated",
