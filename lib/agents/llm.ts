@@ -36,6 +36,12 @@ export type LlmUsage = {
   estimated: boolean;
 };
 
+/** Machine-readable provider failure codes — never treat these as success. */
+export type ProviderErrorCode =
+  | "provider_unavailable"
+  | "provider_timeout"
+  | "provider_error";
+
 export type LlmChatResult =
   | {
       ok: true;
@@ -45,7 +51,13 @@ export type LlmChatResult =
       raw?: unknown;
       usage?: LlmUsage;
     }
-  | { ok: false; error: string; statusCode?: number; budgetExhausted?: boolean };
+  | {
+      ok: false;
+      error: string;
+      code: ProviderErrorCode;
+      statusCode?: number;
+      budgetExhausted?: boolean;
+    };
 
 /** Optional mission budget context — when set, BudgetGuard reserve/record wraps the call. */
 export type LlmBudgetContext = {
@@ -53,6 +65,28 @@ export type LlmBudgetContext = {
   workstreamId?: string;
   role?: MissionRole;
 };
+
+const DEFAULT_TIMEOUT_MS = 30_000;
+
+function llmTimeoutMs(): number {
+  const raw = process.env.OPENAI_TIMEOUT_MS?.trim();
+  if (!raw) return DEFAULT_TIMEOUT_MS;
+  const n = Number(raw);
+  return Number.isFinite(n) && n > 0 ? n : DEFAULT_TIMEOUT_MS;
+}
+
+function isTimeoutError(err: unknown): boolean {
+  if (!err || typeof err !== "object") return false;
+  const name = (err as { name?: string }).name ?? "";
+  const msg = String((err as { message?: string }).message ?? "").toLowerCase();
+  return (
+    name === "AbortError" ||
+    name === "TimeoutError" ||
+    msg.includes("timeout") ||
+    msg.includes("timed out") ||
+    msg.includes("aborted")
+  );
+}
 
 export function isLlmConfigured(): boolean {
   return Boolean(resolveSecret("OPENAI_API_KEY"));
@@ -70,7 +104,13 @@ export async function chatCompletions(opts: {
   toolCallsSoFar?: number;
 }): Promise<LlmChatResult> {
   const apiKey = resolveSecret("OPENAI_API_KEY");
-  if (!apiKey) return { ok: false, error: "OPENAI_API_KEY mangler" };
+  if (!apiKey) {
+    return {
+      ok: false,
+      error: "OPENAI_API_KEY mangler",
+      code: "provider_unavailable",
+    };
+  }
 
   let reservationRunId: string | undefined;
   let reservedTokens = 0;
@@ -91,6 +131,7 @@ export async function chatCompletions(opts: {
       return {
         ok: false,
         error: reserved.reason ?? "budget_exhausted",
+        code: "provider_error",
         budgetExhausted: reserved.code === "budget_exhausted",
       };
     }
@@ -103,6 +144,7 @@ export async function chatCompletions(opts: {
     "",
   );
   const model = llmModel();
+  const timeoutMs = llmTimeoutMs();
 
   try {
     const res = await fetch(`${base}/chat/completions`, {
@@ -118,12 +160,15 @@ export async function chatCompletions(opts: {
         tools: opts.tools?.length ? opts.tools : undefined,
         tool_choice: opts.tools?.length ? "auto" : undefined,
       }),
+      signal: AbortSignal.timeout(timeoutMs),
     });
     const raw: any = await res.json().catch(() => null);
     if (!res.ok) {
+      const unavailable = res.status === 503 || res.status === 502 || res.status === 429;
       return {
         ok: false,
         error: raw?.error?.message || `OpenAI HTTP ${res.status}`,
+        code: unavailable ? "provider_unavailable" : "provider_error",
         statusCode: res.status,
       };
     }
@@ -184,7 +229,18 @@ export async function chatCompletions(opts: {
       usage,
     };
   } catch (err: any) {
-    return { ok: false, error: err?.message || "llm_network_error" };
+    if (isTimeoutError(err)) {
+      return {
+        ok: false,
+        error: err?.message || "llm_timeout",
+        code: "provider_timeout",
+      };
+    }
+    return {
+      ok: false,
+      error: err?.message || "llm_network_error",
+      code: "provider_error",
+    };
   }
 }
 

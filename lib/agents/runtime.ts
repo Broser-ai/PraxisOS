@@ -1,10 +1,11 @@
-// PraxisOS agent runtime · LLM tool-loop + heuristic fallback
+// PraxisOS agent runtime · LLM tool-loop + truthful provider failure reporting
 
 import { getAgent, routeMessage, type AgentId } from "@/lib/agents";
 import { executeMcpTool } from "@/lib/mcp-handlers";
 import {
   createRun,
   updateRun,
+  type AgentProviderErrorCode,
   type AgentRun,
   type AgentToolCall,
 } from "@/lib/agent-store";
@@ -15,11 +16,10 @@ import {
   llmModel,
   toOpenAiTools,
   type LlmMessage,
+  type ProviderErrorCode,
 } from "@/lib/agents/llm";
-import { listBookings } from "@/lib/bookings";
-import { listClients, getClient } from "@/lib/clients";
+import { getClient } from "@/lib/clients";
 import { calculateSubsidies, bestSubsidy } from "@/lib/subsidies";
-import { listEvents } from "@/lib/event-bus";
 
 export type RunAgentInput = {
   message: string;
@@ -30,6 +30,12 @@ export type RunAgentInput = {
   eventId?: string;
   autoRoute?: boolean;
   maxToolRounds?: number;
+  /**
+   * Opt-in only. When set, missing/failing provider may return a clearly marked
+   * simulated reply (simulated + non_executing + not_real_llm_result) — never
+   * silent success and never tool/model/code work claims.
+   */
+  allowSimulatedFallback?: boolean;
   /** Prime Execution Control — wires BudgetGuard into chatCompletions */
   missionId?: string;
   workstreamId?: string;
@@ -40,7 +46,13 @@ export type RunAgentResult = {
   run: AgentRun;
   agentId: AgentId;
   reply: string;
-  mode: "llm" | "heuristic";
+  mode: "llm" | "heuristic" | "simulated";
+};
+
+const TRUTHFULNESS_MARKERS = {
+  simulated: true as const,
+  nonExecuting: true as const,
+  notRealLlmResult: true as const,
 };
 
 function parseArgs(raw: string): Record<string, unknown> {
@@ -52,189 +64,47 @@ function parseArgs(raw: string): Record<string, unknown> {
   }
 }
 
-async function heuristicReply(
+/**
+ * Non-executing simulated fallback — never claims tool/model/code work was done.
+ * Only used when allowSimulatedFallback is explicitly set.
+ */
+function simulatedFallbackReply(
   agentId: AgentId,
-  message: string,
-  tenant: string,
-  runId: string,
-  trigger: AgentRun["trigger"],
-): Promise<{ reply: string; toolCalls: AgentToolCall[] }> {
+  reason: string,
+  code: ProviderErrorCode,
+): { reply: string; toolCalls: AgentToolCall[] } {
   const agent = getAgent(agentId)!;
-  const toolCalls: AgentToolCall[] = [];
-  const lower = message.toLowerCase();
-  const now = () => new Date().toISOString();
-  const isChat = trigger === "chat" || trigger === "manual" || trigger === "mcp";
-
-  const call = async (name: string, args: Record<string, unknown>) => {
-    const at = now();
-    const result = await executeMcpTool(name, args, { runId, agentId, tenant });
-    toolCalls.push({ name, args, result: result.data, at });
-    return result;
+  return {
+    reply: [
+      `[SIMULATED · non_executing · not_real_llm_result]`,
+      `AI-udbyder utilgængelig (${code}: ${reason}).`,
+      `Ingen tool-kald, model-arbejde eller kode-arbejde er udført.`,
+      agent.signature.replace("{clinic}", "bypilar"),
+    ].join(" "),
+    toolCalls: [],
   };
-
-  switch (agentId) {
-    case "aria": {
-      const wantsCreate =
-        isChat &&
-        (lower.includes("book en") ||
-          lower.includes("book tid") ||
-          lower.includes("book en tid") ||
-          lower.startsWith("book") ||
-          lower.includes("reserver"));
-      if (wantsCreate) {
-        const startsAt = new Date(Date.now() + 2 * 86400_000);
-        startsAt.setHours(14, 0, 0, 0);
-        const created = await call("create_booking", {
-          tenant,
-          serviceId: "fod-med",
-          startsAt: startsAt.toISOString(),
-          clientName: "Ny klient",
-          clientEmail: "klient@example.dk",
-          modality: "Klinik",
-        });
-        const id = (created.data as any)?.id ?? "—";
-        return {
-          reply: `${agent.greeting}\n\nJeg har reserveret **Medicinsk fodpleje** ${startsAt.toLocaleString("da-DK")} (booking ${id}). Bekræft hvis navn/telefon skal ændres.\n\n${agent.signature.replace("{clinic}", tenant)}`,
-          toolCalls,
-        };
-      }
-      if (isChat && (lower.includes("ombook") || lower.includes("aflys"))) {
-        const upcoming = listBookings({ tenant, status: ["confirmed", "pending"] })[0];
-        if (upcoming && lower.includes("aflys")) {
-          await call("cancel_booking", { bookingId: upcoming.id, reason: "Patientønske via Aria" });
-          return {
-            reply: `Jeg har aflyst ${upcoming.clientName}'s tid (${upcoming.service}). Skal jeg foreslå en ny tid?\n\n${agent.signature.replace("{clinic}", tenant)}`,
-            toolCalls,
-          };
-        }
-        const list = await call("list_bookings", { tenant, status: "confirmed", limit: 5 });
-        return {
-          reply: `Jeg har hentet de næste bookinger (${(list.data as any)?.count ?? 0}). Sig booking-id + ny tid, så ombooker jeg.\n\n${agent.signature.replace("{clinic}", tenant)}`,
-          toolCalls,
-        };
-      }
-      const bookings = await call("list_bookings", { tenant, limit: 5 });
-      if (!isChat) {
-        const upcoming = listBookings({ tenant, status: ["confirmed", "pending"] }).slice(0, 3);
-        let smsOk = 0;
-        for (const b of upcoming) {
-          const client = getClient(b.clientId);
-          if (!client?.phone) continue;
-          const when = new Date(b.startsAt).toLocaleString("da-DK", {
-            weekday: "short",
-            day: "numeric",
-            month: "short",
-            hour: "2-digit",
-            minute: "2-digit",
-          });
-          const sent = await call("send_message_via_agent", {
-            agentId: "aria",
-            clientId: b.clientId,
-            topic: `Påmindelse: ${b.service} ${when}. Mvh bypilar`,
-            channel: "sms",
-          });
-          if ((sent.data as any)?.result?.ok || (sent.data as any)?.queued) smsOk += 1;
-        }
-        return {
-          reply: `Aria workflow: ${(bookings.data as any)?.count ?? 0} bookinger. Forsøgte SMS til ${smsOk}/${upcoming.length} kommende tider (kræver Bird).\n\n${agent.signature.replace("{clinic}", tenant)}`,
-          toolCalls,
-        };
-      }
-      return {
-        reply: `${agent.greeting}\n\nJeg ser ${(bookings.data as any)?.count ?? 0} aktuelle tider. Sig hvad du vil booke, ombooke eller aflyse.\n\n${agent.signature.replace("{clinic}", tenant)}`,
-        toolCalls,
-      };
-    }
-    case "niels": {
-      const client = listClients()[0];
-      const bookingMatch = message.match(/bk_[a-z0-9]+/i);
-      const draft = await call("draft_soap_note", {
-        clientId: client?.id ?? "mette",
-        bookingId: bookingMatch?.[0],
-        tenant,
-        transcript: message,
-      });
-      const data = draft.data as any;
-      return {
-        reply: `SOAP-udkast klar for ${data?.clientId ?? client?.name ?? "patient"} — journal ${data?.journalId ?? "—"}${data?.url ? ` (${data.url})` : ""}. Afventer godkendelse (approval ${draft.approvalId ?? "—"}).\n\nS: ${data?.S}\nO: ${data?.O}\nA: ${data?.A}\nP: ${data?.P}\n\n${agent.signature.replace("{clinic}", tenant)}`,
-        toolCalls,
-      };
-    }
-    case "sigrid": {
-      const clientId = lower.includes("per") ? "per" : "mette";
-      const calc = await call("calculate_subsidy", {
-        clientId,
-        serviceId: "fod-med",
-        servicePriceKr: 495,
-      });
-      const best = (calc.data as any)?.best;
-      return {
-        reply: best
-          ? `Bedste tilskud for ${clientId}: **${best.schemeLabel}** · ${best.subsidyKr} kr (myndighed: ${best.authority}). Jeg kan klargøre indberetning til godkendelse.\n\n${agent.signature}`
-          : `Jeg fandt ingen aktive tilskud for den valgte profil. Tjek medlemskab/diagnose.\n\n${agent.signature}`,
-        toolCalls,
-      };
-    }
-    case "magnus": {
-      const candidates = listClients().filter(
-        (c) => c.lastVisit.includes("uge") || c.forloeb?.status === "done" || c.forloeb?.status === "active",
-      );
-      const pick = (candidates.length ? candidates : listClients()).slice(0, 2);
-      for (const c of pick) {
-        await call("send_message_via_agent", {
-          agentId: "magnus",
-          clientId: c.id,
-          topic: `Venlig genbooking/recall fra bypilar — vi glæder os til at se dig igen.`,
-          channel: "sms",
-        });
-      }
-      return {
-        reply: `Magnus: ${pick.length} recall-kandidater. Marketing-SMS kræver din godkendelse i automation-UI før afsendelse.\n\n${agent.signature}`,
-        toolCalls,
-      };
-    }
-    case "frej": {
-      const audit = await call("list_audit_events", { tenant });
-      return {
-        reply: `Compliance-scan: ${(audit.data as any)?.count ?? 0} events i loggen. Ingen kritiske anomalies i denne kørsel.\n\n${agent.signature}`,
-        toolCalls,
-      };
-    }
-    case "vega": {
-      const unpaid = listBookings({ tenant }).filter((b) => !b.paid && b.status !== "cancelled");
-      const sum = unpaid.reduce((s, b) => s + b.priceKr, 0);
-      return {
-        reply: `Cash-flow snapshot: ${unpaid.length} ubetalte bookinger · ca. ${sum} kr. Jeg sender kun venlige rykkere — inkasso kræver dig.\n\n${agent.signature}`,
-        toolCalls,
-      };
-    }
-    case "bjorn": {
-      const home = listBookings({ tenant, status: ["confirmed", "pending"] }).filter((b) => b.modality === "Hjemmebesøg");
-      return {
-        reply: `Felt-rute i dag: ${home.length} hjemmebesøg. Jeg foreslår rækkefølge efter geografi/tid — bekræft før klienter får SMS.\n\n${agent.signature}`,
-        toolCalls,
-      };
-    }
-    case "liv": {
-      const active = listClients().filter((c) => c.forloeb?.status === "active");
-      return {
-        reply: `Jeg følger ${active.length} aktive forløb. Check-in-beskeder er klar som udkast — ingen medicinske råd.\n\n${agent.signature}`,
-        toolCalls,
-      };
-    }
-    case "atlas": {
-      const events = listEvents({ tenant, limit: 10 });
-      return {
-        reply: `Platform-health: ${events.length} seneste events. Forslag er read-only indtil CI er grøn + manuel approve.\n\n${agent.signature}`,
-        toolCalls,
-      };
-    }
-    default: {
-      const _exhaustive: never = agentId;
-      return { reply: `Ukendt agent: ${_exhaustive}`, toolCalls };
-    }
-  }
 }
+
+type LlmReplyOk = {
+  ok: true;
+  reply: string;
+  toolCalls: AgentToolCall[];
+  model: string;
+  usage?: {
+    promptTokens: number;
+    completionTokens: number;
+    totalTokens: number;
+    estimated: boolean;
+  };
+};
+
+type LlmReplyFail = {
+  ok: false;
+  code: ProviderErrorCode;
+  error: string;
+  toolCalls: AgentToolCall[];
+  usage?: LlmReplyOk["usage"];
+};
 
 async function llmReply(
   agentId: AgentId,
@@ -247,17 +117,7 @@ async function llmReply(
     workstreamId?: string;
     role?: import("@/lib/prime/mission-types").MissionRole;
   },
-): Promise<{
-  reply: string;
-  toolCalls: AgentToolCall[];
-  model: string;
-  usage?: {
-    promptTokens: number;
-    completionTokens: number;
-    totalTokens: number;
-    estimated: boolean;
-  };
-}> {
+): Promise<LlmReplyOk | LlmReplyFail> {
   const agent = getAgent(agentId)!;
   const tools = toolsForAgent(agentId);
   const messages: LlmMessage[] = [
@@ -266,14 +126,7 @@ async function llmReply(
   ];
   const toolCalls: AgentToolCall[] = [];
   const oaTools = toOpenAiTools(tools);
-  let lastUsage:
-    | {
-        promptTokens: number;
-        completionTokens: number;
-        totalTokens: number;
-        estimated: boolean;
-      }
-    | undefined;
+  let lastUsage: LlmReplyOk["usage"];
 
   for (let round = 0; round < maxToolRounds; round++) {
     const res = await chatCompletions({
@@ -284,9 +137,10 @@ async function llmReply(
     });
     if (!res.ok) {
       return {
-        reply: `LLM-fejl: ${res.error}. Skifter til lokal heuristik.`,
+        ok: false,
+        code: res.code,
+        error: res.error,
         toolCalls,
-        model: llmModel(),
         usage: lastUsage,
       };
     }
@@ -294,6 +148,7 @@ async function llmReply(
 
     if (res.toolCalls.length === 0) {
       return {
+        ok: true,
         reply: res.content?.trim() || "(tomt svar)",
         toolCalls,
         model: res.model,
@@ -329,11 +184,68 @@ async function llmReply(
   }
 
   return {
+    ok: true,
     reply: "Jeg nåede tool-loftet — her er hvad jeg har indtil videre. Prøv igen for næste skridt.",
     toolCalls,
     model: llmModel(),
     usage: lastUsage,
   };
+}
+
+function finishProviderMiss(
+  run: AgentRun,
+  agentId: AgentId,
+  code: AgentProviderErrorCode,
+  error: string,
+  mode: RunAgentResult["mode"],
+  extras?: {
+    toolCalls?: AgentToolCall[];
+    tokenUsage?: AgentRun["tokenUsage"];
+  },
+): RunAgentResult {
+  // provider_unavailable → blocked; timeout/error → failed. Never completed/FINISH.
+  const status = code === "provider_unavailable" ? "blocked" : "failed";
+  const reply = `Agent ${status}: ${code} — ${error}. Ingen FINISH/success.`;
+  const updated =
+    updateRun(run.id, {
+      status,
+      error,
+      errorCode: code,
+      output: reply,
+      toolCalls: extras?.toolCalls ?? [],
+      mode,
+      finishedAt: new Date().toISOString(),
+      tokenUsage: extras?.tokenUsage,
+      simulated: false,
+      nonExecuting: true,
+      notRealLlmResult: true,
+    }) ?? run;
+  return { run: updated, agentId, reply, mode };
+}
+
+function finishSimulated(
+  run: AgentRun,
+  agentId: AgentId,
+  code: ProviderErrorCode,
+  reason: string,
+  tokenUsage?: AgentRun["tokenUsage"],
+): RunAgentResult {
+  const sim = simulatedFallbackReply(agentId, reason, code);
+  const updated =
+    updateRun(run.id, {
+      // Marked simulated — must never be read as a real LLM FINISH
+      status: "completed",
+      output: sim.reply,
+      toolCalls: [],
+      mode: "simulated",
+      model: "simulated-non-executing",
+      error: reason,
+      errorCode: code,
+      finishedAt: new Date().toISOString(),
+      tokenUsage,
+      ...TRUTHFULNESS_MARKERS,
+    }) ?? run;
+  return { run: updated, agentId, reply: sim.reply, mode: "simulated" };
 }
 
 export async function runAgent(input: RunAgentInput): Promise<RunAgentResult> {
@@ -347,6 +259,7 @@ export async function runAgent(input: RunAgentInput): Promise<RunAgentResult> {
 
   const agentId = (getAgent(routed.agent) ? routed.agent : "aria") as AgentId;
   const preferLlm = isLlmConfigured();
+  const allowSimulated = input.allowSimulatedFallback === true;
 
   const run = createRun({
     agentId,
@@ -355,20 +268,14 @@ export async function runAgent(input: RunAgentInput): Promise<RunAgentResult> {
     workflowId: input.workflowId,
     eventId: input.eventId,
     input: input.message,
-    model: preferLlm ? llmModel() : "heuristic-da-v1",
-    mode: preferLlm ? "llm" : "heuristic",
+    model: preferLlm ? llmModel() : "unconfigured",
+    mode: preferLlm ? "llm" : "simulated",
     status: "running",
     missionId: input.missionId,
     workstreamId: input.workstreamId,
   });
 
   try {
-    let reply: string;
-    let toolCalls: AgentToolCall[] = [];
-    let mode: "llm" | "heuristic" = "heuristic";
-    let model = "heuristic-da-v1";
-    let tokenUsage: AgentRun["tokenUsage"];
-
     const budget =
       input.missionId
         ? {
@@ -378,66 +285,77 @@ export async function runAgent(input: RunAgentInput): Promise<RunAgentResult> {
           }
         : undefined;
 
-    if (preferLlm) {
-      const llm = await llmReply(
-        agentId,
-        input.message,
-        tenant,
-        run.id,
-        input.maxToolRounds ?? 4,
-        budget,
-      );
-      if (llm.reply.startsWith("LLM-fejl:")) {
-        const h = await heuristicReply(agentId, input.message, tenant, run.id, input.trigger ?? "chat");
-        reply = `${llm.reply}\n\n${h.reply}`;
-        toolCalls = [...llm.toolCalls, ...h.toolCalls];
-        mode = "heuristic";
-        tokenUsage = llm.usage;
-      } else {
-        reply = llm.reply;
-        toolCalls = llm.toolCalls;
-        mode = "llm";
-        model = llm.model;
-        tokenUsage = llm.usage;
+    // Missing provider config → blocked (or opt-in simulated), never silent success
+    if (!preferLlm) {
+      const code: ProviderErrorCode = "provider_unavailable";
+      const error = "OPENAI_API_KEY mangler — LLM ikke konfigureret";
+      if (allowSimulated) {
+        return finishSimulated(run, agentId, code, error);
       }
-    } else {
-      const h = await heuristicReply(agentId, input.message, tenant, run.id, input.trigger ?? "chat");
-      reply = h.reply;
-      toolCalls = h.toolCalls;
+      return finishProviderMiss(run, agentId, code, error, "simulated");
     }
 
-    const needsApproval = toolCalls.some((t) => {
+    const llm = await llmReply(
+      agentId,
+      input.message,
+      tenant,
+      run.id,
+      input.maxToolRounds ?? 4,
+      budget,
+    );
+
+    if (!llm.ok) {
+      if (allowSimulated) {
+        return finishSimulated(run, agentId, llm.code, llm.error, llm.usage);
+      }
+      return finishProviderMiss(run, agentId, llm.code, llm.error, "llm", {
+        toolCalls: llm.toolCalls,
+        tokenUsage: llm.usage,
+      });
+    }
+
+    const needsApproval = llm.toolCalls.some((t) => {
       const r = t.result as any;
-      return r && typeof r === "object" && (r.status === "draft_pending_approval" || r.requiresApproval || r.status === "pending_approval");
+      return (
+        r &&
+        typeof r === "object" &&
+        (r.status === "draft_pending_approval" ||
+          r.requiresApproval ||
+          r.status === "pending_approval")
+      );
     });
 
     const updated =
       updateRun(run.id, {
         status: needsApproval ? "awaiting_approval" : "completed",
-        output: reply,
-        toolCalls,
-        mode,
-        model,
+        output: llm.reply,
+        toolCalls: llm.toolCalls,
+        mode: "llm",
+        model: llm.model,
         finishedAt: new Date().toISOString(),
         requiresApproval: needsApproval,
-        tokenUsage,
+        tokenUsage: llm.usage,
+        simulated: false,
+        nonExecuting: false,
+        notRealLlmResult: false,
+        error: undefined,
+        errorCode: undefined,
       }) ?? run;
 
-    return { run: updated, agentId, reply, mode };
+    return { run: updated, agentId, reply: llm.reply, mode: "llm" };
   } catch (err: any) {
-    const updated =
-      updateRun(run.id, {
-        status: "failed",
-        error: err?.message || "agent_failed",
-        finishedAt: new Date().toISOString(),
-      }) ?? run;
-    return {
-      run: updated,
-      agentId,
-      reply: `Agent-fejl: ${err?.message || "ukendt"}`,
-      mode: preferLlm ? "llm" : "heuristic",
-    };
+    const msg = err?.message || "agent_failed";
+    const code: ProviderErrorCode = isTimeoutLike(msg) ? "provider_timeout" : "provider_error";
+    if (allowSimulated) {
+      return finishSimulated(run, agentId, code, msg);
+    }
+    return finishProviderMiss(run, agentId, code, msg, preferLlm ? "llm" : "simulated");
   }
+}
+
+function isTimeoutLike(msg: string): boolean {
+  const m = msg.toLowerCase();
+  return m.includes("timeout") || m.includes("timed out") || m.includes("aborted");
 }
 
 /** Lightweight helpers used by workflows without full chat */
