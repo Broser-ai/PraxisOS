@@ -7,6 +7,7 @@ import {
   createWorkstream as storeCreateWorkstream,
   getAgentRun as storeGetAgentRun,
   getMission,
+  getWorkstream,
   listAgentRuns as storeListAgentRuns,
   listMissions as storeListMissions,
   listWorkstreams as storeListWorkstreams,
@@ -38,6 +39,16 @@ import {
 } from "@/lib/prime/mission-validation";
 
 export type DomainResult<T> = T | { error: string; field?: string };
+
+// mission-store returns live objects; the domain repo hands out copies so a
+// caller cannot mutate stored state by editing a returned value.
+function copy<T>(value: T): T {
+  return structuredClone(value);
+}
+
+function copyAll<T>(values: T[]): T[] {
+  return values.map(copy);
+}
 
 export type CreateMissionInput = {
   tenantSlug: string;
@@ -128,22 +139,25 @@ export class MemoryMissionDomainRepository implements MissionDomainRepository {
     });
     if (!check.ok) return { error: check.error, field: check.field };
 
-    return storeCreateMission({
-      tenantSlug: input.tenantSlug,
-      title: input.title,
-      goal: input.objective,
-      objective: input.objective,
-      createdBy: input.createdBy,
-      riskLevel: input.riskLevel,
-      budgets: input.budgets,
-      acceptanceCriteria: input.acceptanceCriteria,
-      platformScope: input.platformScope,
-      fixtureId: input.fixtureId,
-    });
+    return copy(
+      storeCreateMission({
+        tenantSlug: input.tenantSlug,
+        title: input.title,
+        goal: input.objective,
+        objective: input.objective,
+        createdBy: input.createdBy,
+        riskLevel: input.riskLevel,
+        budgets: input.budgets,
+        acceptanceCriteria: input.acceptanceCriteria,
+        platformScope: input.platformScope,
+        fixtureId: input.fixtureId,
+      }),
+    );
   }
 
   getMission(id: string): Mission | undefined {
-    return getMission(id);
+    const found = getMission(id);
+    return found ? copy(found) : undefined;
   }
 
   listMissions(opts?: {
@@ -151,7 +165,7 @@ export class MemoryMissionDomainRepository implements MissionDomainRepository {
     status?: MissionStatus;
     limit?: number;
   }): Mission[] {
-    return storeListMissions(opts);
+    return copyAll(storeListMissions(opts));
   }
 
   updateMissionStatus(
@@ -163,7 +177,7 @@ export class MemoryMissionDomainRepository implements MissionDomainRepository {
     }
     const updated = storeUpdateMissionStatus(id, status);
     if (!updated) return { error: "mission_not_found" };
-    return updated;
+    return copy(updated);
   }
 
   createWorkstream(input: CreateWorkstreamInput): DomainResult<Workstream> {
@@ -181,7 +195,7 @@ export class MemoryMissionDomainRepository implements MissionDomainRepository {
       acceptanceCriteria: input.acceptanceCriteria,
     });
     if ("error" in created) return { error: created.error };
-    return created;
+    return copy(created);
   }
 
   listWorkstreams(opts?: {
@@ -190,7 +204,7 @@ export class MemoryMissionDomainRepository implements MissionDomainRepository {
     status?: WorkstreamStatus;
     limit?: number;
   }): Workstream[] {
-    return storeListWorkstreams(opts);
+    return copyAll(storeListWorkstreams(opts));
   }
 
   updateWorkstreamStatus(
@@ -202,7 +216,7 @@ export class MemoryMissionDomainRepository implements MissionDomainRepository {
     }
     const updated = storeUpdateWorkstreamStatus(id, status);
     if (!updated) return { error: "workstream_not_found" };
-    return updated;
+    return copy(updated);
   }
 
   createAgentRun(input: CreateAgentRunInput): DomainResult<AgentRun> {
@@ -213,26 +227,39 @@ export class MemoryMissionDomainRepository implements MissionDomainRepository {
       return { error: "mission_not_found", field: "missionId" };
     }
 
-    return storeCreateAgentRun({
-      missionId: input.missionId,
-      workstreamId: input.workstreamId,
-      role: input.role,
-      status: input.status,
-      tokenUsage: input.tokenUsage ?? {
-        promptTokens: 0,
-        completionTokens: 0,
-        totalTokens: 0,
-        estimated: true,
-        reservedTokens: 0,
-      },
-      toolCallCount: input.toolCallCount ?? 0,
-      agentRunId: input.agentRunId,
-      startedAt: input.startedAt ?? new Date().toISOString(),
-    });
+    if (input.workstreamId !== undefined) {
+      const ws = getWorkstream(input.workstreamId);
+      if (!ws) {
+        return { error: "workstream_not_found", field: "workstreamId" };
+      }
+      if (ws.missionId !== input.missionId) {
+        return { error: "workstream_mission_mismatch", field: "workstreamId" };
+      }
+    }
+
+    return copy(
+      storeCreateAgentRun({
+        missionId: input.missionId,
+        workstreamId: input.workstreamId,
+        role: input.role,
+        status: input.status,
+        tokenUsage: input.tokenUsage ?? {
+          promptTokens: 0,
+          completionTokens: 0,
+          totalTokens: 0,
+          estimated: true,
+          reservedTokens: 0,
+        },
+        toolCallCount: input.toolCallCount ?? 0,
+        agentRunId: input.agentRunId,
+        startedAt: input.startedAt ?? new Date().toISOString(),
+      }),
+    );
   }
 
   getAgentRun(id: string): AgentRun | undefined {
-    return storeGetAgentRun(id);
+    const found = storeGetAgentRun(id);
+    return found ? copy(found) : undefined;
   }
 
   updateAgentRun(
@@ -247,7 +274,7 @@ export class MemoryMissionDomainRepository implements MissionDomainRepository {
     }
     const updated = storeUpdateAgentRun(id, patch);
     if (!updated) return { error: "agent_run_not_found" };
-    return updated;
+    return copy(updated);
   }
 
   listAgentRuns(opts?: {
@@ -255,7 +282,7 @@ export class MemoryMissionDomainRepository implements MissionDomainRepository {
     workstreamId?: string;
     limit?: number;
   }): AgentRun[] {
-    return storeListAgentRuns(opts);
+    return copyAll(storeListAgentRuns(opts));
   }
 
   resetForTests(): void {

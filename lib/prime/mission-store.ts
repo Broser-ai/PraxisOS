@@ -110,6 +110,8 @@ function persist(): void {
       join(dir, "mission-store.json"),
       JSON.stringify(
         {
+          durability: "memory_json",
+          note: "NOT Postgres-durable — leases/workstreams hydrate from this JSON only",
           missions: s.missions.slice(0, 100),
           workstreams: s.workstreams.slice(0, 200),
           evidence: s.evidence.slice(0, 200),
@@ -128,6 +130,25 @@ function persist(): void {
 export function resetMissionStoreForTests(): void {
   const g = globalThis as typeof globalThis & { [GKEY]?: MissionStoreRoot };
   g[GKEY] = { missions: [], workstreams: [], evidence: [], runs: [] };
+}
+
+/**
+ * Simulate process restart for the mission store: drop in-memory root and
+ * rehydrate from PRAXIS_DATA_DIR JSON (memory/JSON — not Postgres).
+ */
+export function resumeMissionStoreAfterRestart(): {
+  missions: number;
+  workstreams: number;
+  durability: "memory_json";
+} {
+  const g = globalThis as typeof globalThis & { [GKEY]?: MissionStoreRoot };
+  delete g[GKEY];
+  const s = store();
+  return {
+    missions: s.missions.length,
+    workstreams: s.workstreams.length,
+    durability: "memory_json",
+  };
 }
 
 export function createMission(input: {

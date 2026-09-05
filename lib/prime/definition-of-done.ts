@@ -1,10 +1,20 @@
 // DefinitionOfDoneValidator — workstream cannot become ready_for_review on empty shells.
+// Fan-in join lives here so dispatcher stays lease/fan-out focused.
 
 import {
+  appendHumanDecision,
   getEvidenceForWorkstream,
+  getMission,
   getWorkstream,
+  listWorkstreams,
+  updateMission,
 } from "@/lib/prime/mission-store";
-import type { Workstream, WorkstreamEvidence } from "@/lib/prime/mission-types";
+import {
+  EXECUTION_CONTROL_INVARIANTS,
+  type Mission,
+  type Workstream,
+  type WorkstreamEvidence,
+} from "@/lib/prime/mission-types";
 import { evaluateMissionPolicy } from "@/lib/prime/mission-policy";
 
 export type DodVerdict =
@@ -171,4 +181,216 @@ export function validateDefinitionOfDone(workstreamId: string): DodVerdict {
 /** Attempt transition to ready_for_review — fails closed without DoD. */
 export function assertReadyForReview(ws: Workstream): DodVerdict {
   return validateDefinitionOfDone(ws.id);
+}
+
+// ---------------------------------------------------------------------------
+// Mission fan-in (join) — memory/JSON mission domain only; never merge/deploy.
+// Persistence is the same in-memory + optional PRAXIS_DATA_DIR JSON mirror as
+// mission-store — NOT Postgres-durable.
+// ---------------------------------------------------------------------------
+
+const FANIN_OK_STATUSES = new Set([
+  "done",
+  "ready_for_review",
+  "approved_for_merge",
+]);
+
+export type MissionFanInVerdict =
+  | {
+      ok: true;
+      code: "ready_for_review";
+      missionId: string;
+      /** Explicit: fan-in ready ≠ completed merge/deploy */
+      completedMeansMerge: false;
+      completedMeansDeploy: false;
+      NO_AUTO_MERGE: true;
+      NO_AUTO_DEPLOY: true;
+    }
+  | {
+      ok: false;
+      code:
+        | "mission_not_found"
+        | "mission_not_running"
+        | "workstreams_incomplete"
+        | "mission_blocked_failed"
+        | "mission_blocked_blocked"
+        | "verifier_required"
+        | "reviewer_required";
+      missionId: string;
+      reasons: string[];
+      blockingWorkstreamIds?: string[];
+    };
+
+/**
+ * Fan-in gate: mission is ready_for_review only when every workstream is in an
+ * OK terminal, at least one verifier + reviewer finished, and nothing is
+ * failed/blocked. Never equates ready/completed with merge or deploy.
+ */
+export function evaluateMissionFanIn(missionId: string): MissionFanInVerdict {
+  const mission = getMission(missionId);
+  if (!mission) {
+    return {
+      ok: false,
+      code: "mission_not_found",
+      missionId,
+      reasons: ["mission_not_found"],
+    };
+  }
+  if (mission.status !== "running" && mission.status !== "paused") {
+    return {
+      ok: false,
+      code: "mission_not_running",
+      missionId,
+      reasons: [`invalid_status_${mission.status}`],
+    };
+  }
+
+  const streams = listWorkstreams({ missionId });
+  if (streams.length === 0) {
+    return {
+      ok: false,
+      code: "workstreams_incomplete",
+      missionId,
+      reasons: ["no_workstreams"],
+    };
+  }
+
+  const failed = streams.filter((w) => w.status === "failed");
+  if (failed.length) {
+    return {
+      ok: false,
+      code: "mission_blocked_failed",
+      missionId,
+      reasons: failed.map((w) => `failed:${w.id}`),
+      blockingWorkstreamIds: failed.map((w) => w.id),
+    };
+  }
+
+  const blocked = streams.filter((w) => w.status === "blocked");
+  if (blocked.length) {
+    return {
+      ok: false,
+      code: "mission_blocked_blocked",
+      missionId,
+      reasons: blocked.map((w) => `blocked:${w.id}:${w.blockedReason ?? ""}`),
+      blockingWorkstreamIds: blocked.map((w) => w.id),
+    };
+  }
+
+  const incomplete = streams.filter(
+    (w) => w.status !== "cancelled" && !FANIN_OK_STATUSES.has(w.status),
+  );
+  if (incomplete.length) {
+    return {
+      ok: false,
+      code: "workstreams_incomplete",
+      missionId,
+      reasons: incomplete.map((w) => `${w.id}:${w.status}`),
+      blockingWorkstreamIds: incomplete.map((w) => w.id),
+    };
+  }
+
+  const verifiers = streams.filter((w) => w.role === "verifier");
+  if (
+    verifiers.length === 0 ||
+    !verifiers.some((w) => FANIN_OK_STATUSES.has(w.status))
+  ) {
+    return {
+      ok: false,
+      code: "verifier_required",
+      missionId,
+      reasons: ["verifier_not_ready"],
+    };
+  }
+
+  const reviewers = streams.filter((w) => w.role === "reviewer");
+  if (
+    reviewers.length === 0 ||
+    !reviewers.some((w) => FANIN_OK_STATUSES.has(w.status))
+  ) {
+    return {
+      ok: false,
+      code: "reviewer_required",
+      missionId,
+      reasons: ["reviewer_not_ready"],
+    };
+  }
+
+  // Hard locks — fan-in never authorizes merge/deploy
+  if (
+    EXECUTION_CONTROL_INVARIANTS.NO_AUTO_MERGE !== true ||
+    EXECUTION_CONTROL_INVARIANTS.NO_AUTO_DEPLOY !== true
+  ) {
+    return {
+      ok: false,
+      code: "workstreams_incomplete",
+      missionId,
+      reasons: ["invariant_lock_broken"],
+    };
+  }
+
+  return {
+    ok: true,
+    code: "ready_for_review",
+    missionId,
+    completedMeansMerge: false,
+    completedMeansDeploy: false,
+    NO_AUTO_MERGE: true,
+    NO_AUTO_DEPLOY: true,
+  };
+}
+
+/**
+ * Apply fan-in: on success record human-facing ready_for_review intent only.
+ * Does NOT set mission.status=completed (completed ≠ merge/deploy).
+ * Failed/blocked workstreams pause the mission.
+ */
+export function applyMissionFanIn(missionId: string): MissionFanInVerdict {
+  const verdict = evaluateMissionFanIn(missionId);
+  const mission = getMission(missionId);
+  if (!mission) return verdict;
+
+  if (!verdict.ok) {
+    if (
+      verdict.code === "mission_blocked_failed" ||
+      verdict.code === "mission_blocked_blocked"
+    ) {
+      if (mission.status === "running") {
+        updateMission(missionId, { status: "paused" });
+        appendHumanDecision(missionId, {
+          kind: "pause",
+          actor: "fan_in",
+          detail: `Fan-in blocked: ${verdict.code} — ${verdict.reasons.join("; ")}`,
+          meta: {
+            fanInCode: verdict.code,
+            blockingWorkstreamIds: verdict.blockingWorkstreamIds,
+          },
+        });
+      }
+    }
+    return verdict;
+  }
+
+  appendHumanDecision(missionId, {
+    kind: "approve_action",
+    actor: "fan_in",
+    detail:
+      "Mission fan-in ready_for_review — NO_AUTO_MERGE / NO_AUTO_DEPLOY; human merge/deploy only",
+    meta: {
+      fanInCode: "ready_for_review",
+      completedMeansMerge: false,
+      completedMeansDeploy: false,
+    },
+  });
+  // Keep mission running (or paused) — never auto-complete as merge/deploy.
+  return verdict;
+}
+
+/** True when mission.completed must not be treated as merge/deploy. */
+export function missionCompletedIsNotMergeDeploy(_mission?: Mission): boolean {
+  return (
+    EXECUTION_CONTROL_INVARIANTS.NO_AUTO_MERGE === true &&
+    EXECUTION_CONTROL_INVARIANTS.NO_AUTO_DEPLOY === true &&
+    EXECUTION_CONTROL_INVARIANTS.MANUAL_MERGE_ONLY === true
+  );
 }
