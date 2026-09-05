@@ -557,9 +557,11 @@ export function recordBudget(input: {
       m.usage.recordedTokens + (input.usage.estimated ? 0 : charged),
     toolCalls: m.usage.toolCalls + toolDelta,
     runtimeMinutes: m.usage.runtimeMinutes + runtimeDelta,
-    // reserveBudget claims a slot; without this the mission leaks one per run
-    // and eventually fails closed on maxAgents forever.
-    agents: Math.max(0, m.usage.agents - 1),
+    // reserveBudget claims a slot. Only a run that still holds one may return it,
+    // otherwise a second finalisation frees a concurrent run's slot instead.
+    agents: run.status === "running"
+      ? Math.max(0, m.usage.agents - 1)
+      : m.usage.agents,
   };
 
   updateMission(m.id, { usage: nextUsage });
@@ -609,13 +611,18 @@ export function releaseBudgetReservation(input: {
   if (!run)
     return { ok: false, code: "run_not_found", reason: "run_not_found" };
 
-  updateMission(m.id, {
-    usage: { ...m.usage, agents: Math.max(0, m.usage.agents - 1) },
-  });
-  updateMissionRun(input.runId, {
-    status: "failed",
-    finishedAt: new Date().toISOString(),
-  });
+  // Only release a slot the run still holds — releasing twice would free a
+  // concurrent run's slot.
+  const holdsSlot = run.status === "running";
+  if (holdsSlot) {
+    updateMission(m.id, {
+      usage: { ...m.usage, agents: Math.max(0, m.usage.agents - 1) },
+    });
+    updateMissionRun(input.runId, {
+      status: "failed",
+      finishedAt: new Date().toISOString(),
+    });
+  }
   auditLog("prime.budget_reservation_released", {
     tenant_id: m.tenantSlug,
     target_ref: `mission/${m.id}`,
