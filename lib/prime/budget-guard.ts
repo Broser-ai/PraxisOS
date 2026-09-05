@@ -412,7 +412,13 @@ export function reserveBudget(input: {
     agentsDelta: 1,
   });
   if (exhausted.length) {
-    markBudgetExhausted(mission, exhausted);
+    const onlyConcurrency = exhausted.every(
+      (key) => key === "maxAgents" || key === "maxParallelWorkstreams",
+    );
+    // Occupied agent slots are reusable — do not hard-stop the mission.
+    if (!onlyConcurrency) {
+      markBudgetExhausted(mission, exhausted);
+    }
     return exhaustionReport(getMission(mission.id)!, exhausted);
   }
 
@@ -447,6 +453,123 @@ export function reserveBudget(input: {
     reservation,
     usage: getMission(mission.id)!.usage,
     budgets: getMission(mission.id)!.budgets,
+  };
+}
+
+export type AgentSlotReleaseReason =
+  | "completed"
+  | "failed"
+  | "blocked"
+  | "timeout"
+  | "cancelled"
+  | "budget_stop";
+
+function runStatusForSlotReason(
+  reason: AgentSlotReleaseReason,
+): MissionAgentRun["status"] {
+  switch (reason) {
+    case "completed":
+      return "completed";
+    case "failed":
+    case "blocked":
+    case "timeout":
+    case "cancelled":
+      return "failed";
+    case "budget_stop":
+      return "budget_exhausted";
+    default: {
+      const _exhaustive: never = reason;
+      return _exhaustive;
+    }
+  }
+}
+
+/**
+ * Decrement the reserved agent slot for a still-running run.
+ * Idempotent: a non-running run has already released (or never held) its slot.
+ * Never writes a negative count; non-finite usage.agents is treated as 0.
+ */
+function decrementReservedAgentSlot(missionId: string, runId: string): boolean {
+  const mission = getMission(missionId);
+  const run = getMissionRun(runId);
+  if (!mission || !run) return false;
+  if (run.missionId !== missionId) return false;
+  if (run.status !== "running") return false;
+  const current = isFiniteNonNegative(mission.usage.agents)
+    ? mission.usage.agents
+    : 0;
+  updateMission(mission.id, {
+    usage: {
+      ...mission.usage,
+      agents: Math.max(0, current - 1),
+    },
+  });
+  return true;
+}
+
+/**
+ * Release the agent slot held by a reserved run.
+ * Safe to call more than once for the same run — the count drops at most once.
+ */
+export function releaseAgentSlot(input: {
+  missionId: string;
+  runId: string;
+  reason: AgentSlotReleaseReason;
+}): BudgetStatusReport {
+  const m = getMission(input.missionId);
+  if (!m) {
+    return { ok: false, code: "mission_not_found", reason: "mission_not_found" };
+  }
+
+  const run = getMissionRun(input.runId);
+  if (!run) {
+    return {
+      ok: false,
+      code: "run_not_found",
+      limit: "reservation_required",
+      reason: "run_not_found",
+      usage: m.usage,
+      budgets: m.budgets,
+    };
+  }
+  if (run.missionId !== input.missionId) {
+    return {
+      ok: false,
+      code: "reservation_required",
+      limit: "reservation_required",
+      reason: "run_mission_mismatch",
+      usage: m.usage,
+      budgets: m.budgets,
+    };
+  }
+
+  if (run.status !== "running") {
+    return {
+      ok: true,
+      code: "run_already_finished",
+      limit: "run_already_finished",
+      reason: `run_status_${run.status}`,
+      usage: m.usage,
+      budgets: m.budgets,
+    };
+  }
+
+  decrementReservedAgentSlot(m.id, run.id);
+  updateMissionRun(run.id, {
+    status: runStatusForSlotReason(input.reason),
+    finishedAt: new Date().toISOString(),
+    error: input.reason === "completed" ? undefined : input.reason,
+  });
+
+  if (input.reason === "budget_stop" && m.status !== "budget_exhausted") {
+    markBudgetExhausted(getMission(m.id)!, []);
+  }
+
+  const refreshed = getMission(m.id)!;
+  return {
+    ok: true,
+    usage: refreshed.usage,
+    budgets: refreshed.budgets,
   };
 }
 
@@ -560,6 +683,7 @@ export function recordBudget(input: {
   };
 
   updateMission(m.id, { usage: nextUsage });
+  decrementReservedAgentSlot(m.id, input.runId);
   updateMissionRun(input.runId, {
     status: "completed",
     tokenUsage: {
