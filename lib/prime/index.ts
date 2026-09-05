@@ -18,3 +18,5 @@ export * from "@/lib/prime/dispatcher";
 export * from "@/lib/prime/seed";
 export * from "@/lib/prime/fixtures";
 export * from "@/lib/prime/mock-repo";
+export * from "@/lib/prime/execution-provider-types";
+export * from "@/lib/prime/execution-provider-registry";
