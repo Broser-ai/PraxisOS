@@ -290,9 +290,11 @@ export type RoleSeparationResult =
  * on the same workstream: a builder cannot verify its own work, and a verifier
  * cannot review its own verdict.
  */
-const UPSTREAM_ROLE: Partial<Record<MissionRole, MissionRole>> = {
-  verifier: "builder",
-  reviewer: "verifier",
+const UPSTREAM_ROLES: Partial<Record<MissionRole, MissionRole[]>> = {
+  verifier: ["builder"],
+  // A reviewer must be independent of everyone who produced or checked the work,
+  // not just the verifier — otherwise a builder can review its own output.
+  reviewer: ["verifier", "builder"],
 };
 
 export function assertRoleSeparation(input: {
@@ -306,21 +308,22 @@ export function assertRoleSeparation(input: {
 }): RoleSeparationResult {
   if (input.allowSameIdentity) return { ok: true };
 
-  const upstream = UPSTREAM_ROLE[input.role];
-  if (!upstream) return { ok: true };
+  const upstream = UPSTREAM_ROLES[input.role];
+  if (!upstream?.length) return { ok: true };
 
   const mine = executionIdentityForRole({
     missionId: input.missionId,
     workstreamId: input.workstreamId,
     role: input.role,
   });
-  const theirs = input.priorIdentities[upstream];
-  if (theirs && theirs === mine) {
-    return {
-      ok: false,
-      error: `${input.role}_cannot_be_own_${upstream}`,
-      conflictingRole: upstream,
-    };
+  for (const role of upstream) {
+    if (input.priorIdentities[role] === mine) {
+      return {
+        ok: false,
+        error: `${input.role}_cannot_be_own_${role}`,
+        conflictingRole: role,
+      };
+    }
   }
   return { ok: true };
 }
