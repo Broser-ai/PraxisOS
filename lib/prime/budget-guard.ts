@@ -4,6 +4,7 @@
 import { auditLog } from "@/lib/audit";
 import {
   getMission,
+  getMissionRun,
   updateMission,
   updateMissionRun,
   createMissionRun,
@@ -15,15 +16,18 @@ import type {
   TokenUsageRecord,
 } from "@/lib/prime/mission-types";
 import { EXECUTION_CONTROL_INVARIANTS } from "@/lib/prime/mission-types";
+import { validateMissionBudgets } from "@/lib/prime/mission-validation";
 
 export type BudgetStatusReport = {
   ok: boolean;
   code?:
-    | "budget_exhausted"
-    | "mission_not_found"
-    | "mission_not_running"
-    | "agents_cannot_raise_budgets"
-    | "owner_required";
+  | "budget_exhausted"
+  | "mission_not_found"
+  | "mission_not_running"
+  | "agents_cannot_raise_budgets"
+  | "owner_required"
+  | "budget_invalid"
+  | "run_not_found";
   reason?: string;
   exhausted?: Array<keyof Mission["budgets"]>;
   usage?: Mission["usage"];
@@ -199,13 +203,30 @@ export function recordBudget(input: {
   // Never assume 0 for a completed call
   const charged = tokens > 0 ? tokens : Math.max(64, input.usage.reservedTokens || 64);
 
+  const run = getMissionRun(input.runId);
+  if (!run) {
+    return { ok: false, code: "run_not_found", reason: "run_not_found" };
+  }
+
+  // Runtime is derived from the run's own timestamps when the caller omits a
+  // delta, otherwise maxRuntimeMinutes is unenforceable by simply not passing one.
+  const elapsedMinutes = (() => {
+    if (input.runtimeMinutesDelta !== undefined) return input.runtimeMinutesDelta;
+    const started = Date.parse(run.startedAt ?? "");
+    if (!Number.isFinite(started)) return 0;
+    return Math.max(0, (Date.now() - started) / 60_000);
+  })();
+
   const nextUsage = {
     ...m.usage,
     totalTokens: m.usage.totalTokens + charged,
     estimatedTokens: m.usage.estimatedTokens + (input.usage.estimated ? charged : 0),
     recordedTokens: m.usage.recordedTokens + (input.usage.estimated ? 0 : charged),
     toolCalls: m.usage.toolCalls + (input.toolCallCount ?? 0),
-    runtimeMinutes: m.usage.runtimeMinutes + (input.runtimeMinutesDelta ?? 0),
+    runtimeMinutes: m.usage.runtimeMinutes + elapsedMinutes,
+    // Release the slot reserved by reserveBudget; otherwise a mission leaks an
+    // agent slot per run and eventually blocks on maxAgents forever.
+    agents: Math.max(0, m.usage.agents - 1),
   };
 
   updateMission(m.id, { usage: nextUsage });
@@ -217,7 +238,13 @@ export function recordBudget(input: {
   });
 
   const refreshed = getMission(input.missionId)!;
+
+  // The per-run cap is checked at reserve time against an estimate; enforce it
+  // again against what the run actually consumed.
+  const perRunExceeded = charged > refreshed.budgets.maxTokensPerRun;
   const exhausted = checkExhausted(refreshed, {});
+  if (perRunExceeded) exhausted.push("maxTokensPerRun");
+
   if (exhausted.length) {
     markBudgetExhausted(refreshed, exhausted);
     return {
@@ -229,6 +256,37 @@ export function recordBudget(input: {
       budgets: refreshed.budgets,
     };
   }
+  return { ok: true, usage: refreshed.usage, budgets: refreshed.budgets };
+}
+
+/**
+ * Release a reservation without recording usage — for runs that never completed
+ * (provider error, crash, cancelled lease). Without this the agent slot leaks.
+ */
+export function releaseBudgetReservation(input: {
+  missionId: string;
+  runId: string;
+  reason: string;
+}): BudgetStatusReport {
+  const m = getMission(input.missionId);
+  if (!m) return { ok: false, code: "mission_not_found", reason: "mission_not_found" };
+  const run = getMissionRun(input.runId);
+  if (!run) return { ok: false, code: "run_not_found", reason: "run_not_found" };
+
+  updateMission(m.id, {
+    usage: { ...m.usage, agents: Math.max(0, m.usage.agents - 1) },
+  });
+  updateMissionRun(input.runId, {
+    status: "failed",
+    finishedAt: new Date().toISOString(),
+  });
+  auditLog("prime.budget_reservation_released", {
+    tenant_id: m.tenantSlug,
+    target_ref: `mission/${m.id}`,
+    run_id: input.runId,
+    reason: input.reason,
+  });
+  const refreshed = getMission(m.id)!;
   return { ok: true, usage: refreshed.usage, budgets: refreshed.budgets };
 }
 
@@ -320,6 +378,12 @@ export function raiseMissionBudget(input: {
   if (!m) return { ok: false, code: "mission_not_found", reason: "mission_not_found" };
 
   const budgets = { ...m.budgets, ...input.patch };
+  // An owner raise must still produce a finite, non-negative budget: Infinity
+  // would make checkExhausted unreachable and persists as null.
+  const valid = validateMissionBudgets(budgets);
+  if (!valid.ok) {
+    return { ok: false, code: "budget_invalid", reason: valid.error };
+  }
   // Only allow increases
   for (const key of Object.keys(input.patch) as (keyof Mission["budgets"])[]) {
     const next = input.patch[key];
