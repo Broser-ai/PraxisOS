@@ -149,3 +149,87 @@ export const DEFAULT_FLOW: MissionRole[] = [
   "verifier",
   "reviewer",
 ];
+
+/**
+ * Logical Prime identity per mission/workstream/role.
+ *
+ * Scout, verifier and reviewer share a clinic persona template (`frej`) in the
+ * dispatcher. Identity is what keeps those roles distinguishable. It is not a
+ * dedicated external model or provider session — none exists for these roles.
+ */
+export function primeIdentityForRole(input: {
+  missionId: string;
+  workstreamId: string;
+  role: MissionRole;
+}): string {
+  return `prime:${input.missionId}:${input.workstreamId}:${input.role}`;
+}
+
+export type RoleExecutionBinding = {
+  role: MissionRole;
+  identity: string;
+  claimsSeparateExternalModel: false;
+  claimsSeparateExternalSession: false;
+  externalModelId: null;
+  externalSessionId: null;
+};
+
+export function roleExecutionBinding(input: {
+  missionId: string;
+  workstreamId: string;
+  role: MissionRole;
+}): RoleExecutionBinding {
+  return {
+    role: input.role,
+    identity: primeIdentityForRole(input),
+    claimsSeparateExternalModel: false,
+    claimsSeparateExternalSession: false,
+    externalModelId: null,
+    externalSessionId: null,
+  };
+}
+
+export type PrimeRoleSeparationResult =
+  | { ok: true }
+  | { ok: false; error: string; conflictingRole: MissionRole };
+
+/**
+ * A role may not be filled by the identity that already filled an upstream role
+ * on the same workstream. Reviewer is independent of both verifier and builder
+ * so a builder cannot skip verification and review its own output.
+ */
+const UPSTREAM_ROLES: Partial<Record<MissionRole, MissionRole[]>> = {
+  verifier: ["builder"],
+  reviewer: ["verifier", "builder"],
+};
+
+export function assertPrimeRoleSeparation(input: {
+  missionId: string;
+  workstreamId: string;
+  role: MissionRole;
+  /** Identities that already acted on this workstream, keyed by role. */
+  priorIdentities: Partial<Record<MissionRole, string>>;
+  /** Test-only escape hatch. Never set in production code paths. */
+  allowSameIdentity?: boolean;
+}): PrimeRoleSeparationResult {
+  if (input.allowSameIdentity) return { ok: true };
+
+  const upstream = UPSTREAM_ROLES[input.role];
+  if (!upstream?.length) return { ok: true };
+
+  const mine = primeIdentityForRole({
+    missionId: input.missionId,
+    workstreamId: input.workstreamId,
+    role: input.role,
+  });
+  for (const role of upstream) {
+    if (input.priorIdentities[role] === mine) {
+      return {
+        ok: false,
+        error: `${input.role}_cannot_be_own_${role}`,
+        conflictingRole: role,
+      };
+    }
+  }
+  return { ok: true };
+}
