@@ -90,7 +90,11 @@ export type ExecutionProviderEvidence = {
   configurationPresent?: boolean;
   adapterPresent?: boolean;
   enabled?: boolean;
-  /** Inventory claim — still fail-closed; cannot invent live_ready as default. */
+  /**
+   * Inventory claim — still fail-closed. live_ready requires the registry's
+   * actual adapterPresent plus actual env-key configuration; overlays cannot
+   * invent live_ready for an unadapted provider.
+   */
   claimedStatus?: ExecutionProviderStatus;
 };
 

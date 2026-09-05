@@ -163,6 +163,19 @@ export function listExecutionProviders(): ExecutionProviderDescriptor[] {
   }));
 }
 
+/**
+ * Public registry snapshot. Includes boolean configurationPresent only —
+ * never secret values from process.env.
+ */
+export function dumpExecutionProviderRegistry(): Array<
+  ExecutionProviderDescriptor & { configurationPresent: boolean }
+> {
+  return listExecutionProviders().map((p) => ({
+    ...p,
+    configurationPresent: configurationPresentFor(p),
+  }));
+}
+
 export function getExecutionProvider(
   kind: ExecutionProviderKind,
 ): ExecutionProviderDescriptor | undefined {
@@ -261,10 +274,13 @@ export function resolveExecutionProviderStatus(
   const adapterOk = adapterPresentFor(descriptor, evidence);
 
   // Claimed live_ready still requires human approval downstream; we never
-  // invent it as a default. Only honor an explicit claim when evidence is fully green.
+  // invent it as a default. Evidence overlays cannot invent live_ready —
+  // require the registry's actual adapter flag AND actual env-key presence.
   if (evidence?.claimedStatus === "live_ready") {
-    if (configOk && adapterOk) return "live_ready";
-    if (!configOk) return "unconfigured";
+    const actualAdapter = descriptor.adapterPresent === true;
+    const actualConfig = configurationPresentFor(descriptor);
+    if (actualAdapter && actualConfig) return "live_ready";
+    if (!actualConfig) return "unconfigured";
     return "unavailable";
   }
 
