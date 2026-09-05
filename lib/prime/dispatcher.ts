@@ -28,7 +28,11 @@ import {
   type MissionRole,
   type Workstream,
 } from "@/lib/prime/mission-types";
-import { roleMay } from "@/lib/prime/roles";
+import {
+  assertPrimeRoleSeparation,
+  primeIdentityForRole,
+  roleMay,
+} from "@/lib/prime/roles";
 import { createWorktreeForTask } from "@/lib/swarm/worktree-manager";
 
 const LEASE_MS = 5 * 60_000;
@@ -278,7 +282,7 @@ export function executionIdentityForRole(input: {
   workstreamId: string;
   role: MissionRole;
 }): string {
-  return `prime:${input.missionId}:${input.workstreamId}:${input.role}`;
+  return primeIdentityForRole(input);
 }
 
 export type RoleSeparationResult =
@@ -286,43 +290,21 @@ export type RoleSeparationResult =
   | { ok: false; error: string; conflictingRole: MissionRole };
 
 /**
- * A role may not be filled by the identity that already filled an upstream role
- * on the same workstream: a builder cannot verify its own work, and a verifier
- * cannot review its own verdict.
+ * Same execution identity cannot fill builder, verifier, or reviewer.
+ * Callers must pass the identity that is about to act — do not derive it from
+ * the current role, or the check cannot detect actor reuse.
  */
-const UPSTREAM_ROLE: Partial<Record<MissionRole, MissionRole>> = {
-  verifier: "builder",
-  reviewer: "verifier",
-};
-
 export function assertRoleSeparation(input: {
   missionId: string;
   workstreamId: string;
   role: MissionRole;
+  identity: string;
   /** Identities that already acted on this workstream, keyed by role. */
   priorIdentities: Partial<Record<MissionRole, string>>;
   /** Test-only escape hatch. Never set in production code paths. */
   allowSameIdentity?: boolean;
 }): RoleSeparationResult {
-  if (input.allowSameIdentity) return { ok: true };
-
-  const upstream = UPSTREAM_ROLE[input.role];
-  if (!upstream) return { ok: true };
-
-  const mine = executionIdentityForRole({
-    missionId: input.missionId,
-    workstreamId: input.workstreamId,
-    role: input.role,
-  });
-  const theirs = input.priorIdentities[upstream];
-  if (theirs && theirs === mine) {
-    return {
-      ok: false,
-      error: `${input.role}_cannot_be_own_${upstream}`,
-      conflictingRole: upstream,
-    };
-  }
-  return { ok: true };
+  return assertPrimeRoleSeparation(input);
 }
 
 async function runRoleAgent(ws: Workstream, mission: Mission): Promise<{

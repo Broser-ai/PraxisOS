@@ -194,36 +194,38 @@ export type PrimeRoleSeparationResult =
   | { ok: false; error: string; conflictingRole: MissionRole };
 
 /**
- * A role may not be filled by the identity that already filled an upstream role
- * on the same workstream. Reviewer is independent of both verifier and builder
- * so a builder cannot skip verification and review its own output.
+ * Builder, verifier and reviewer must be distinct execution identities.
+ * Scout/commander/steward are not in this set: they do not verify or review
+ * implementation output.
  */
-const UPSTREAM_ROLES: Partial<Record<MissionRole, MissionRole[]>> = {
-  verifier: ["builder"],
-  reviewer: ["verifier", "builder"],
-};
+const SEPARATED_ROLES = ["builder", "verifier", "reviewer"] as const;
+type SeparatedRole = (typeof SEPARATED_ROLES)[number];
+
+function isSeparatedRole(role: MissionRole): role is SeparatedRole {
+  return (SEPARATED_ROLES as readonly MissionRole[]).includes(role);
+}
 
 export function assertPrimeRoleSeparation(input: {
   missionId: string;
   workstreamId: string;
   role: MissionRole;
+  /**
+   * Execution identity that is about to fill `role`. Must be the actor's
+   * identity, not a string derived from the current role — role-suffixed
+   * identities can never equal a correctly filled prior map.
+   */
+  identity: string;
   /** Identities that already acted on this workstream, keyed by role. */
   priorIdentities: Partial<Record<MissionRole, string>>;
   /** Test-only escape hatch. Never set in production code paths. */
   allowSameIdentity?: boolean;
 }): PrimeRoleSeparationResult {
   if (input.allowSameIdentity) return { ok: true };
+  if (!isSeparatedRole(input.role)) return { ok: true };
 
-  const upstream = UPSTREAM_ROLES[input.role];
-  if (!upstream?.length) return { ok: true };
-
-  const mine = primeIdentityForRole({
-    missionId: input.missionId,
-    workstreamId: input.workstreamId,
-    role: input.role,
-  });
-  for (const role of upstream) {
-    if (input.priorIdentities[role] === mine) {
+  for (const role of SEPARATED_ROLES) {
+    if (role === input.role) continue;
+    if (input.priorIdentities[role] === input.identity) {
       return {
         ok: false,
         error: `${input.role}_cannot_be_own_${role}`,

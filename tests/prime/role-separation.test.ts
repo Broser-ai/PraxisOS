@@ -68,6 +68,7 @@ describe("prime roles · separation invariants", () => {
       missionId,
       workstreamId,
       role: "verifier",
+      identity: identity("verifier"),
       priorIdentities: { builder: identity("verifier") },
     });
     expect(res.ok).toBe(false);
@@ -82,6 +83,7 @@ describe("prime roles · separation invariants", () => {
       missionId,
       workstreamId,
       role: "reviewer",
+      identity: identity("reviewer"),
       priorIdentities: { verifier: identity("reviewer") },
     });
     expect(res.ok).toBe(false);
@@ -96,6 +98,7 @@ describe("prime roles · separation invariants", () => {
       missionId,
       workstreamId,
       role: "reviewer",
+      identity: identity("reviewer"),
       priorIdentities: { builder: identity("reviewer") },
     });
     expect(res.ok).toBe(false);
@@ -110,6 +113,7 @@ describe("prime roles · separation invariants", () => {
       missionId,
       workstreamId,
       role: "reviewer",
+      identity: identity("reviewer"),
       priorIdentities: {
         builder: identity("reviewer"),
         verifier: identity("reviewer"),
@@ -123,6 +127,7 @@ describe("prime roles · separation invariants", () => {
       missionId,
       workstreamId,
       role: "verifier",
+      identity: identity("verifier"),
       priorIdentities: { builder: identity("builder") },
     });
     expect(res.ok).toBe(true);
@@ -133,6 +138,7 @@ describe("prime roles · separation invariants", () => {
       missionId,
       workstreamId,
       role: "reviewer",
+      identity: identity("reviewer"),
       priorIdentities: {
         builder: identity("builder"),
         verifier: identity("verifier"),
@@ -148,10 +154,136 @@ describe("prime roles · separation invariants", () => {
           missionId,
           workstreamId,
           role,
+          identity: identity(role),
           priorIdentities: { builder: identity(role) },
         }).ok,
       ).toBe(true);
     }
+  });
+});
+
+describe("prime roles · same execution identity cannot fill builder, verifier, or reviewer", () => {
+  const shared = "prime:shared-execution-identity";
+
+  it("rejects the same identity used as builder then verifier", () => {
+    const res = assertPrimeRoleSeparation({
+      missionId,
+      workstreamId,
+      role: "verifier",
+      identity: shared,
+      priorIdentities: { builder: shared },
+    });
+    expect(res.ok).toBe(false);
+    if (!res.ok) {
+      expect(res.error).toBe("verifier_cannot_be_own_builder");
+      expect(res.conflictingRole).toBe("builder");
+    }
+  });
+
+  it("rejects the same identity used as builder then reviewer", () => {
+    const res = assertPrimeRoleSeparation({
+      missionId,
+      workstreamId,
+      role: "reviewer",
+      identity: shared,
+      priorIdentities: { builder: shared },
+    });
+    expect(res.ok).toBe(false);
+    if (!res.ok) {
+      expect(res.error).toBe("reviewer_cannot_be_own_builder");
+      expect(res.conflictingRole).toBe("builder");
+    }
+  });
+
+  it("rejects the same identity used as verifier then reviewer", () => {
+    const res = assertPrimeRoleSeparation({
+      missionId,
+      workstreamId,
+      role: "reviewer",
+      identity: shared,
+      priorIdentities: { verifier: shared },
+    });
+    expect(res.ok).toBe(false);
+    if (!res.ok) {
+      expect(res.error).toBe("reviewer_cannot_be_own_verifier");
+      expect(res.conflictingRole).toBe("verifier");
+    }
+  });
+
+  it("rejects the same identity used as verifier then builder", () => {
+    const res = assertPrimeRoleSeparation({
+      missionId,
+      workstreamId,
+      role: "builder",
+      identity: shared,
+      priorIdentities: { verifier: shared },
+    });
+    expect(res.ok).toBe(false);
+    if (!res.ok) {
+      expect(res.error).toBe("builder_cannot_be_own_verifier");
+      expect(res.conflictingRole).toBe("verifier");
+    }
+  });
+
+  it("rejects the same identity used as reviewer then builder", () => {
+    const res = assertPrimeRoleSeparation({
+      missionId,
+      workstreamId,
+      role: "builder",
+      identity: shared,
+      priorIdentities: { reviewer: shared },
+    });
+    expect(res.ok).toBe(false);
+    if (!res.ok) {
+      expect(res.error).toBe("builder_cannot_be_own_reviewer");
+      expect(res.conflictingRole).toBe("reviewer");
+    }
+  });
+
+  it("rejects the same identity used as reviewer then verifier", () => {
+    const res = assertPrimeRoleSeparation({
+      missionId,
+      workstreamId,
+      role: "verifier",
+      identity: shared,
+      priorIdentities: { reviewer: shared },
+    });
+    expect(res.ok).toBe(false);
+    if (!res.ok) {
+      expect(res.error).toBe("verifier_cannot_be_own_reviewer");
+      expect(res.conflictingRole).toBe("reviewer");
+    }
+  });
+
+  it("rejects a correctly filled prior map when the current identity matches an upstream actor", () => {
+    const res = assertPrimeRoleSeparation({
+      missionId,
+      workstreamId,
+      role: "reviewer",
+      identity: shared,
+      priorIdentities: {
+        builder: shared,
+        verifier: identity("verifier"),
+      },
+    });
+    expect(res.ok).toBe(false);
+    if (!res.ok) {
+      expect(res.conflictingRole).toBe("builder");
+    }
+  });
+
+  it("allows distinct identities across builder, verifier, and reviewer", () => {
+    const res = assertPrimeRoleSeparation({
+      missionId,
+      workstreamId,
+      role: "reviewer",
+      identity: "prime:reviewer-actor",
+      priorIdentities: {
+        builder: "prime:builder-actor",
+        verifier: "prime:verifier-actor",
+      },
+    });
+    expect(res.ok).toBe(true);
   });
 });
 
@@ -215,6 +347,7 @@ describe("prime roles · test-only override", () => {
       missionId,
       workstreamId,
       role: "verifier",
+      identity: identity("verifier"),
       priorIdentities: { builder: identity("verifier") },
     });
     expect(res.ok).toBe(false);
@@ -225,6 +358,7 @@ describe("prime roles · test-only override", () => {
       missionId,
       workstreamId,
       role: "verifier",
+      identity: identity("verifier"),
       priorIdentities: { builder: identity("verifier") },
       allowSameIdentity: true,
     });
