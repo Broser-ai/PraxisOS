@@ -111,7 +111,8 @@ describe("Prime Execution Control", () => {
     const m = bootMission({ maxToolCallsPerRun: 3 });
     const r = assertToolCallBudget({ missionId: m.id, toolCallsThisRun: 4 });
     expect(r.ok).toBe(false);
-    expect(r.code).toBe("budget_exhausted");
+    expect(r.code).toBe("tool_call_limit_reached");
+    expect(r.limit).toBe("tool_call_limit_reached");
   });
 
   it("4. missing provider usage → estimated, never assume 0", () => {

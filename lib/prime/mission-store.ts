@@ -293,6 +293,10 @@ export function createMissionRun(input: Omit<MissionAgentRun, "id">): MissionAge
   return run;
 }
 
+export function getMissionRun(id: string): MissionAgentRun | undefined {
+  return store().runs.find((r) => r.id === id);
+}
+
 export function updateMissionRun(
   id: string,
   patch: Partial<MissionAgentRun>,
