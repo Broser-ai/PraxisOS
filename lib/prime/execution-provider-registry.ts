@@ -366,7 +366,7 @@ export function evaluateExecutionProviderGate(
       blocked: true,
       allowed: false,
       reason: `provider_${status}`,
-      requiresHumanApproval: isLiveScope(scope) || status === "live_ready",
+      requiresHumanApproval: isLiveScope(scope),
       autonomousReady: false,
       configurationPresent,
       adapterPresent,
