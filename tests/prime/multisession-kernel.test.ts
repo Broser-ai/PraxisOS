@@ -241,6 +241,8 @@ describe("Prime multi-session dispatch kernel", () => {
       kind: "block",
     });
     expect(blocks.length).toBeGreaterThanOrEqual(1);
+    // Claim-time path conflict must stop the mission (same as execute-time block).
+    expect(getMission(m.id)?.status).toBe("paused");
   });
 
   it("fan-in: ready_for_review only when workstreams + verifier/reviewer ok", () => {
