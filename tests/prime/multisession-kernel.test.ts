@@ -2,7 +2,7 @@
  * Controlled multi-session dispatch kernel tests.
  * Memory/JSON only — NOT Postgres-durable.
  */
-import { mkdtempSync, rmSync } from "node:fs";
+import { existsSync, mkdtempSync, readFileSync, rmSync } from "node:fs";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
 import { describe, it, expect, beforeEach, afterEach } from "vitest";
@@ -14,6 +14,7 @@ import {
   claimWorkstreamLease,
   draftMission,
   evaluateMissionFanIn,
+  executeLeasedWorkstream,
   explainClaimSkip,
   getMission,
   getWorkstream,
@@ -21,11 +22,11 @@ import {
   listDispatchCheckpoints,
   missionCompletedIsNotMergeDeploy,
   reclaimExpiredLeases,
-  releaseLease,
   resetMissionStoreForTests,
   resumeDispatcherAfterRestart,
   spawnWorkstream,
   startMission,
+  tickMissions,
   tryLeaseWorkstream,
   updateMission,
   updateWorkstream,
@@ -57,11 +58,11 @@ describe("Prime multi-session dispatch kernel", () => {
   let tmpData: string | null = null;
 
   beforeEach(() => {
-    resetMissionStoreForTests();
-    __resetDispatcherCheckpointsForTests();
     prevDataDir = process.env.PRAXIS_DATA_DIR;
     tmpData = mkdtempSync(join(tmpdir(), "prime-ms-"));
     process.env.PRAXIS_DATA_DIR = tmpData;
+    resetMissionStoreForTests();
+    __resetDispatcherCheckpointsForTests();
   });
 
   afterEach(() => {
@@ -312,7 +313,7 @@ describe("Prime multi-session dispatch kernel", () => {
     expect(getMission(m.id)?.status).toBe("paused");
   });
 
-  it("checkpoint claim/start/completion + resume after simulated restart (memory/JSON)", () => {
+  it("checkpoint claim/start/completion + JSON lease resume after simulated restart", async () => {
     const m = bootMission();
     const ws = spawnWorkstream({
       missionId: m.id,
@@ -325,26 +326,173 @@ describe("Prime multi-session dispatch kernel", () => {
     const claim = claimWorkstreamLease({ workstreamId: ws.id, owner: "w1" });
     expect(claim.ok).toBe(true);
     if (!claim.ok) throw new Error("claim");
+    const leaseId = claim.workstream.leaseId;
+    expect(leaseId).toBeTruthy();
 
     const claims = listDispatchCheckpoints({ kind: "claim", workstreamId: ws.id });
     expect(claims.length).toBeGreaterThanOrEqual(1);
     expect(claims[0]?.durability).toBe("memory_json");
     expect(claims[0]?.durability).not.toBe("postgres");
 
-    releaseLease(ws.id);
-    updateWorkstream(ws.id, { status: "queued" });
+    const executed = await executeLeasedWorkstream(ws.id);
+    expect(["done", "failed", "awaiting_verification", "ready_for_review"]).toContain(
+      executed.status,
+    );
+    const starts = listDispatchCheckpoints({ kind: "start", workstreamId: ws.id });
+    const completions = listDispatchCheckpoints({
+      kind: "completion",
+      workstreamId: ws.id,
+    });
+    expect(starts.length).toBeGreaterThanOrEqual(1);
+    expect(completions.length).toBeGreaterThanOrEqual(1);
+    expect(starts[0]?.durability).toBe("memory_json");
+    expect(completions[0]?.durability).toBe("memory_json");
+
+    const storePath = join(tmpData!, "mission-store.json");
+    const cpPath = join(tmpData!, "dispatch-checkpoints.json");
+    expect(existsSync(storePath)).toBe(true);
+    expect(existsSync(cpPath)).toBe(true);
+    const storeJson = JSON.parse(readFileSync(storePath, "utf8")) as {
+      workstreams: Array<{ id: string; leaseId?: string }>;
+    };
+    const cpJson = JSON.parse(readFileSync(cpPath, "utf8")) as {
+      durability: string;
+      checkpoints: Array<{ kind: string; workstreamId: string }>;
+    };
+    expect(cpJson.durability).toBe("memory_json");
+    expect(cpJson.checkpoints.some((c) => c.kind === "claim")).toBe(true);
+    expect(cpJson.checkpoints.some((c) => c.kind === "start")).toBe(true);
+    expect(cpJson.checkpoints.some((c) => c.kind === "completion")).toBe(true);
+    expect(storeJson.workstreams.some((w) => w.id === ws.id)).toBe(true);
 
     const resumed = resumeDispatcherAfterRestart();
     expect(resumed.durability).toBe("memory_json");
-    expect(resumed.checkpoints).toBeGreaterThanOrEqual(1);
+    expect(resumed.checkpoints).toBeGreaterThanOrEqual(3);
+    expect(resumed.workstreams).toBeGreaterThanOrEqual(1);
 
     const afterRestart = listDispatchCheckpoints({ workstreamId: ws.id });
     expect(afterRestart.some((c) => c.kind === "claim")).toBe(true);
+    expect(afterRestart.some((c) => c.kind === "start")).toBe(true);
+    expect(afterRestart.some((c) => c.kind === "completion")).toBe(true);
+    expect(getWorkstream(ws.id)?.id).toBe(ws.id);
+  });
 
-    // Lease fields still on workstream via mission-store JSON hydrate path is
-    // separate; claim again after restart works.
-    const again = claimWorkstreamLease({ workstreamId: ws.id, owner: "w2" });
-    expect(again.ok).toBe(true);
+  it("JSON lease fields survive memory drop; second owner still blocked", () => {
+    const m = bootMission();
+    const ws = spawnWorkstream({
+      missionId: m.id,
+      title: "Durable lease",
+      role: "scout",
+      acceptanceCriteria: [{ text: "lease" }],
+    });
+    if ("error" in ws) throw new Error(ws.error);
+
+    const a = claimWorkstreamLease({ workstreamId: ws.id, owner: "worker_a" });
+    expect(a.ok).toBe(true);
+    if (!a.ok) throw new Error("claim");
+    const leaseId = a.workstream.leaseId;
+    const claimedAt = a.workstream.claimedAt;
+    const expires = a.workstream.leaseExpiresAt;
+
+    const storePath = join(tmpData!, "mission-store.json");
+    const raw = JSON.parse(readFileSync(storePath, "utf8")) as {
+      workstreams: Array<{
+        id: string;
+        leaseId?: string;
+        leaseOwner?: string;
+        claimedAt?: string;
+        leaseExpiresAt?: string;
+      }>;
+    };
+    const persisted = raw.workstreams.find((w) => w.id === ws.id);
+    expect(persisted?.leaseId).toBe(leaseId);
+    expect(persisted?.leaseOwner).toBe("worker_a");
+    expect(persisted?.claimedAt).toBe(claimedAt);
+    expect(persisted?.leaseExpiresAt).toBe(expires);
+
+    const resumed = resumeDispatcherAfterRestart();
+    expect(resumed.durability).toBe("memory_json");
+    expect(resumed.leasesHeld).toBeGreaterThanOrEqual(1);
+    expect(resumed.reclaimed).toBe(0);
+
+    const after = getWorkstream(ws.id)!;
+    expect(after.leaseId).toBe(leaseId);
+    expect(after.leaseOwner).toBe("worker_a");
+    expect(after.claimedAt).toBe(claimedAt);
+    expect(after.status).toBe("running");
+
+    const b = claimWorkstreamLease({ workstreamId: ws.id, owner: "worker_b" });
+    expect(b.ok).toBe(false);
+    if (!b.ok) expect(b.limit.code).toBe("lease_held");
+  });
+
+  it("resume reclaims expired JSON leases so another owner may claim", () => {
+    const m = bootMission();
+    const ws = spawnWorkstream({
+      missionId: m.id,
+      title: "Expire across restart",
+      role: "scout",
+      acceptanceCriteria: [{ text: "e" }],
+    });
+    if ("error" in ws) throw new Error(ws.error);
+
+    const past = Date.now() - 60_000;
+    const claimed = claimWorkstreamLease({
+      workstreamId: ws.id,
+      owner: "worker_a",
+      ttlMs: 1,
+      now: past,
+    });
+    expect(claimed.ok).toBe(true);
+
+    const resumed = resumeDispatcherAfterRestart({ now: Date.now() });
+    expect(resumed.reclaimed).toBeGreaterThanOrEqual(1);
+    expect(resumed.durability).toBe("memory_json");
+
+    const after = getWorkstream(ws.id)!;
+    expect(after.status).toBe("queued");
+    expect(after.leaseId).toBeUndefined();
+    expect(after.claimedAt).toBeUndefined();
+
+    const b = claimWorkstreamLease({ workstreamId: ws.id, owner: "worker_b" });
+    expect(b.ok).toBe(true);
+    if (b.ok) expect(b.workstream.leaseOwner).toBe("worker_b");
+  });
+
+  it("fan-out tick: maxParallel=1 claims one workstream, not both", async () => {
+    const m = bootMission({ maxParallelWorkstreams: 4 });
+    const first = spawnWorkstream({
+      missionId: m.id,
+      title: "Tick A",
+      role: "scout",
+      acceptanceCriteria: [{ text: "a" }],
+    });
+    if ("error" in first) throw new Error(first.error);
+    const second = spawnWorkstream({
+      missionId: m.id,
+      title: "Tick B",
+      role: "scout",
+      acceptanceCriteria: [{ text: "b" }],
+    });
+    if ("error" in second) throw new Error(second.error);
+
+    const tick = await tickMissions({
+      tenantSlug: "bypilar",
+      maxParallel: 1,
+      owner: "tick_fanout",
+    });
+    expect(tick.ok).toBe(true);
+    expect(tick.claimed).toBe(1);
+    expect(tick.limits?.some((l) => l.code === "max_parallel_workstreams")).toBe(
+      true,
+    );
+
+    const a = getWorkstream(first.id)!;
+    const b = getWorkstream(second.id)!;
+    const runningOrDone = [a, b].filter((w) => w.status !== "queued");
+    const stillQueued = [a, b].filter((w) => w.status === "queued");
+    expect(runningOrDone.length).toBe(1);
+    expect(stillQueued.length).toBe(1);
   });
 
   it("no infinite retry: rework_limit_reached is machine-readable", () => {

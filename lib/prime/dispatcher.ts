@@ -28,6 +28,7 @@ import {
   getWorkstream,
   listMissions,
   listWorkstreams,
+  resumeMissionStoreAfterRestart,
   updateMissionRun,
   updateWorkstream,
 } from "@/lib/prime/mission-store";
@@ -222,17 +223,33 @@ export function listDispatchCheckpoints(opts?: {
 }
 
 /**
- * Simulate process restart: drop in-memory dispatcher root, rehydrate
- * checkpoints from PRAXIS_DATA_DIR JSON (memory/JSON — not Postgres).
+ * Simulate process restart: drop in-memory mission store + dispatcher root,
+ * rehydrate leases/workstreams and checkpoints from PRAXIS_DATA_DIR JSON
+ * (memory/JSON — not Postgres), then reclaim expired leases.
  */
-export function resumeDispatcherAfterRestart(): {
+export function resumeDispatcherAfterRestart(opts?: { now?: number }): {
   checkpoints: number;
+  workstreams: number;
+  leasesHeld: number;
+  reclaimed: number;
   durability: "memory_json";
 } {
+  const now = opts?.now ?? Date.now();
+  const storeResume = resumeMissionStoreAfterRestart();
   const g = globalThis as typeof globalThis & { [DKEY]?: DispatcherRoot };
   delete g[DKEY];
   const root = getRoot();
-  return { checkpoints: root.checkpoints.length, durability: "memory_json" };
+  const reclaimed = reclaimExpiredLeases({ now });
+  const leasesHeld = listWorkstreams().filter(
+    (w) => Boolean(w.leaseId) && !leaseExpired(w, now),
+  ).length;
+  return {
+    checkpoints: root.checkpoints.length,
+    workstreams: storeResume.workstreams,
+    leasesHeld,
+    reclaimed: reclaimed.length,
+    durability: "memory_json",
+  };
 }
 
 /** Test helper — clear checkpoints without touching mission-store. */
