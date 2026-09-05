@@ -627,6 +627,7 @@ export function claimWorkstreamLease(input: {
         status: "blocked",
         detail: conflict.reason,
       });
+      applyMissionFanIn(fresh.missionId);
       return {
         ok: false,
         limit: {
