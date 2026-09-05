@@ -6,7 +6,18 @@ import { join } from "node:path";
 import type { AgentId } from "@/lib/agents";
 import { resolveSecret } from "@/lib/secrets";
 
-export type AgentRunStatus = "queued" | "running" | "completed" | "failed" | "awaiting_approval";
+export type AgentRunStatus =
+  | "queued"
+  | "running"
+  | "completed"
+  | "failed"
+  | "blocked"
+  | "awaiting_approval";
+
+export type AgentProviderErrorCode =
+  | "provider_unavailable"
+  | "provider_timeout"
+  | "provider_error";
 
 export type AgentToolCall = {
   name: string;
@@ -28,8 +39,17 @@ export type AgentRun = {
   output?: string;
   toolCalls: AgentToolCall[];
   model: string;
-  mode: "llm" | "heuristic";
+  mode: "llm" | "heuristic" | "simulated";
   error?: string;
+  /** Machine-readable provider failure — never treat as FINISH/success */
+  errorCode?: AgentProviderErrorCode;
+  /**
+   * Truthfulness markers for non-LLM paths.
+   * Simulated fallback MUST set all three when used.
+   */
+  simulated?: boolean;
+  nonExecuting?: boolean;
+  notRealLlmResult?: boolean;
   startedAt: string;
   finishedAt?: string;
   requiresApproval?: boolean;
@@ -279,7 +299,7 @@ export function getAutomationStats() {
     return Date.now() - t < 24 * 3600_000;
   }).length;
   const failed24h = s.runs.filter((r) => {
-    if (r.status !== "failed") return false;
+    if (r.status !== "failed" && r.status !== "blocked") return false;
     const t = Date.parse(r.finishedAt ?? r.startedAt);
     return Date.now() - t < 24 * 3600_000;
   }).length;
