@@ -233,8 +233,9 @@ function finishSimulated(
   const sim = simulatedFallbackReply(agentId, reason, code);
   const updated =
     updateRun(run.id, {
-      // Marked simulated — must never be read as a real LLM FINISH
-      status: "completed",
+      // Simulated work is never success. A consumer filtering on
+      // status === "completed" would otherwise count a run no model performed.
+      status: "blocked",
       output: sim.reply,
       toolCalls: [],
       mode: "simulated",
