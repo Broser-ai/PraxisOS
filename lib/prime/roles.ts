@@ -149,3 +149,89 @@ export const DEFAULT_FLOW: MissionRole[] = [
   "verifier",
   "reviewer",
 ];
+
+/**
+ * Logical Prime identity per mission/workstream/role.
+ *
+ * Scout, verifier and reviewer share a clinic persona template (`frej`) in the
+ * dispatcher. Identity is what keeps those roles distinguishable. It is not a
+ * dedicated external model or provider session — none exists for these roles.
+ */
+export function primeIdentityForRole(input: {
+  missionId: string;
+  workstreamId: string;
+  role: MissionRole;
+}): string {
+  return `prime:${input.missionId}:${input.workstreamId}:${input.role}`;
+}
+
+export type RoleExecutionBinding = {
+  role: MissionRole;
+  identity: string;
+  claimsSeparateExternalModel: false;
+  claimsSeparateExternalSession: false;
+  externalModelId: null;
+  externalSessionId: null;
+};
+
+export function roleExecutionBinding(input: {
+  missionId: string;
+  workstreamId: string;
+  role: MissionRole;
+}): RoleExecutionBinding {
+  return {
+    role: input.role,
+    identity: primeIdentityForRole(input),
+    claimsSeparateExternalModel: false,
+    claimsSeparateExternalSession: false,
+    externalModelId: null,
+    externalSessionId: null,
+  };
+}
+
+export type PrimeRoleSeparationResult =
+  | { ok: true }
+  | { ok: false; error: string; conflictingRole: MissionRole };
+
+/**
+ * Builder, verifier and reviewer must be distinct execution identities.
+ * Scout/commander/steward are not in this set: they do not verify or review
+ * implementation output.
+ */
+const SEPARATED_ROLES = ["builder", "verifier", "reviewer"] as const;
+type SeparatedRole = (typeof SEPARATED_ROLES)[number];
+
+function isSeparatedRole(role: MissionRole): role is SeparatedRole {
+  return (SEPARATED_ROLES as readonly MissionRole[]).includes(role);
+}
+
+export function assertPrimeRoleSeparation(input: {
+  missionId: string;
+  workstreamId: string;
+  role: MissionRole;
+  /**
+   * Execution identity that is about to fill `role`. Must be the actor's
+   * identity, not a string derived from the current role — role-suffixed
+   * identities can never equal a correctly filled prior map.
+   */
+  identity: string;
+  /** Identities that already acted on this workstream, keyed by role. */
+  priorIdentities: Partial<Record<MissionRole, string>>;
+  /** Test-only escape hatch. Never set in production code paths. */
+  allowSameIdentity?: boolean;
+}): PrimeRoleSeparationResult {
+  if (input.allowSameIdentity) return { ok: true };
+  if (!isSeparatedRole(input.role)) return { ok: true };
+
+  for (const role of SEPARATED_ROLES) {
+    if (role === input.role) continue;
+    if (input.priorIdentities[role] === input.identity) {
+      return {
+        ok: false,
+        error: `${input.role}_cannot_be_own_${role}`,
+        conflictingRole: role,
+      };
+    }
+  }
+  return { ok: true };
+}
