@@ -173,9 +173,39 @@ export type Workstream = {
   leaseId?: string;
   leaseOwner?: string;
   leaseExpiresAt?: string;
+  /** ISO timestamp when the current lease was claimed (cleared on release/reclaim). */
+  claimedAt?: string;
+  /**
+   * Fan-out dependency edges — workstream is not claimable until each id is
+   * in a dep-satisfied terminal (done / awaiting_verification / ready_for_review /
+   * approved_for_merge).
+   */
+  dependsOnWorkstreamIds?: string[];
   lastError?: string;
   createdAt: string;
   updatedAt: string;
+};
+
+/** Machine-readable dispatch / fan-out limit (no spin / busy-wait). */
+export type DispatchLimitCode =
+  | "max_parallel_workstreams"
+  | "dependency_unsatisfied"
+  | "path_conflict"
+  | "lease_held"
+  | "lease_expired_reclaim"
+  | "rework_limit_reached"
+  | "mission_not_running"
+  | "workstream_not_claimable"
+  | "dispatcher_tick_in_flight";
+
+export type DispatchLimit = {
+  code: DispatchLimitCode;
+  reason: string;
+  limit?: number;
+  active?: number;
+  waitingOn?: string[];
+  leaseOwner?: string;
+  conflictingWorkstreamId?: string;
 };
 
 /** Thin AgentRun extension for mission-scoped LLM usage. */

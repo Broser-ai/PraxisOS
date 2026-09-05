@@ -1,8 +1,16 @@
-// Mission dispatcher — lease + controlled concurrency for Execution Control.
+// Mission dispatcher — multi-session kernel: lease + fan-out + checkpoints.
 // Wired into /api/agents/tick. Failures are per-workstream (never kill the worker).
 // SAFETY: NO_AUTO_MERGE / NO_AUTO_DEPLOY / suggestion_only / no journal-sign autonomy.
+//
+// CONFLICT NOTE (budget-guard PR `cursor/budget-guard-hardening-2c11`):
+// That PR hardens lib/prime/budget-guard.ts (+ small getMissionRun helper on
+// mission-store). This kernel deliberately does NOT modify budget-guard.ts.
+// Checkpoint / lease / fan-out live here; fan-in lives in definition-of-done.ts.
+// Persistence = process memory + optional PRAXIS_DATA_DIR JSON — NOT Postgres.
 
 import { randomBytes } from "node:crypto";
+import { existsSync, mkdirSync, readFileSync, writeFileSync } from "node:fs";
+import { join } from "node:path";
 import { auditLog } from "@/lib/audit";
 import { appendAgentLedger } from "@/lib/agents/ledger";
 import { runAgent } from "@/lib/agents/runtime";
@@ -12,6 +20,7 @@ import {
   reserveBudget,
   estimateTokensFromMessages,
 } from "@/lib/prime/budget-guard";
+import { applyMissionFanIn } from "@/lib/prime/definition-of-done";
 import { appendEvidence, ensureEvidence } from "@/lib/prime/evidence";
 import { detectPathConflict } from "@/lib/prime/mission-policy";
 import {
@@ -24,9 +33,11 @@ import {
 } from "@/lib/prime/mission-store";
 import {
   EXECUTION_CONTROL_INVARIANTS,
+  type DispatchLimit,
   type Mission,
   type MissionRole,
   type Workstream,
+  type WorkstreamStatus,
 } from "@/lib/prime/mission-types";
 import { roleMay } from "@/lib/prime/roles";
 import { createWorktreeForTask } from "@/lib/swarm/worktree-manager";
@@ -34,10 +45,40 @@ import { createWorktreeForTask } from "@/lib/swarm/worktree-manager";
 const LEASE_MS = 5 * 60_000;
 const DEFAULT_MAX_PARALLEL = EXECUTION_CONTROL_INVARIANTS.MAX_PARALLEL_WORKSTREAMS;
 
+/** Dependency satisfied for fan-out (predecessor finished enough to unblock). */
+const DEP_SATISFIED: ReadonlySet<WorkstreamStatus> = new Set([
+  "done",
+  "awaiting_verification",
+  "ready_for_review",
+  "approved_for_merge",
+]);
+
+export type DispatchCheckpointKind =
+  | "claim"
+  | "start"
+  | "completion"
+  | "block"
+  | "lease_expiry";
+
+export type DispatchCheckpoint = {
+  id: string;
+  kind: DispatchCheckpointKind;
+  at: string;
+  missionId: string;
+  workstreamId: string;
+  leaseId?: string;
+  owner?: string;
+  status?: string;
+  detail?: string;
+  /** Explicit durability label — memory/JSON mirror only. */
+  durability: "memory_json";
+};
+
 type DispatcherRoot = {
   tickInFlight: boolean;
   lastTickAt: string | null;
   lastResult: MissionTickResult | null;
+  checkpoints: DispatchCheckpoint[];
 };
 
 const DKEY = "__praxisos_mission_dispatcher_v1__";
@@ -45,7 +86,13 @@ const DKEY = "__praxisos_mission_dispatcher_v1__";
 function getRoot(): DispatcherRoot {
   const g = globalThis as typeof globalThis & { [DKEY]?: DispatcherRoot };
   if (!g[DKEY]) {
-    g[DKEY] = { tickInFlight: false, lastTickAt: null, lastResult: null };
+    g[DKEY] = {
+      tickInFlight: false,
+      lastTickAt: null,
+      lastResult: null,
+      checkpoints: [],
+    };
+    hydrateCheckpoints(g[DKEY]);
   }
   return g[DKEY];
 }
@@ -58,6 +105,7 @@ export type WorkstreamTickResult = {
   agentRunId?: string;
   error?: string;
   leased: boolean;
+  limit?: DispatchLimit;
 };
 
 export type MissionTickResult = {
@@ -68,14 +116,136 @@ export type MissionTickResult = {
   failed: number;
   blocked: number;
   results: WorkstreamTickResult[];
+  limits?: DispatchLimit[];
   at: string;
 };
+
+export type LeaseClaimResult =
+  | { ok: true; workstream: Workstream }
+  | { ok: false; limit: DispatchLimit; workstream?: Workstream };
 
 function nid(prefix: string): string {
   return `${prefix}_${randomBytes(4).toString("hex")}`;
 }
 
-function leaseExpired(ws: Workstream, now = Date.now()): boolean {
+function dataDir(): string | null {
+  const dir = process.env.PRAXIS_DATA_DIR?.trim();
+  return dir || null;
+}
+
+function checkpointPath(): string | null {
+  const dir = dataDir();
+  return dir ? join(dir, "dispatch-checkpoints.json") : null;
+}
+
+function hydrateCheckpoints(root: DispatcherRoot): void {
+  const path = checkpointPath();
+  if (!path || !existsSync(path)) return;
+  try {
+    const raw = JSON.parse(readFileSync(path, "utf8")) as {
+      checkpoints?: DispatchCheckpoint[];
+    };
+    if (Array.isArray(raw.checkpoints)) {
+      root.checkpoints = raw.checkpoints.slice(0, 500).map((c) => ({
+        ...c,
+        durability: "memory_json" as const,
+      }));
+    }
+  } catch {
+    // ignore corrupt mirror — memory/JSON only, not Postgres
+  }
+}
+
+function persistCheckpoints(): void {
+  const path = checkpointPath();
+  if (!path) return;
+  try {
+    const dir = dataDir()!;
+    if (!existsSync(dir)) mkdirSync(dir, { recursive: true });
+    writeFileSync(
+      path,
+      JSON.stringify(
+        {
+          durability: "memory_json",
+          note: "NOT Postgres-durable — resume via memory/JSON hydrate only",
+          checkpoints: getRoot().checkpoints.slice(0, 400),
+        },
+        null,
+        2,
+      ),
+      "utf8",
+    );
+  } catch {
+    // ignore
+  }
+}
+
+export function recordDispatchCheckpoint(
+  input: Omit<DispatchCheckpoint, "id" | "at" | "durability"> & {
+    at?: string;
+  },
+): DispatchCheckpoint {
+  const cp: DispatchCheckpoint = {
+    id: nid("cp"),
+    at: input.at ?? new Date().toISOString(),
+    kind: input.kind,
+    missionId: input.missionId,
+    workstreamId: input.workstreamId,
+    leaseId: input.leaseId,
+    owner: input.owner,
+    status: input.status,
+    detail: input.detail,
+    durability: "memory_json",
+  };
+  const root = getRoot();
+  root.checkpoints.unshift(cp);
+  if (root.checkpoints.length > 500) root.checkpoints.length = 500;
+  persistCheckpoints();
+  return cp;
+}
+
+export function listDispatchCheckpoints(opts?: {
+  missionId?: string;
+  workstreamId?: string;
+  kind?: DispatchCheckpointKind;
+  limit?: number;
+}): DispatchCheckpoint[] {
+  const limit = Math.min(200, opts?.limit ?? 80);
+  return getRoot()
+    .checkpoints.filter((c) => {
+      if (opts?.missionId && c.missionId !== opts.missionId) return false;
+      if (opts?.workstreamId && c.workstreamId !== opts.workstreamId) return false;
+      if (opts?.kind && c.kind !== opts.kind) return false;
+      return true;
+    })
+    .slice(0, limit);
+}
+
+/**
+ * Simulate process restart: drop in-memory dispatcher root, rehydrate
+ * checkpoints from PRAXIS_DATA_DIR JSON (memory/JSON — not Postgres).
+ */
+export function resumeDispatcherAfterRestart(): {
+  checkpoints: number;
+  durability: "memory_json";
+} {
+  const g = globalThis as typeof globalThis & { [DKEY]?: DispatcherRoot };
+  delete g[DKEY];
+  const root = getRoot();
+  return { checkpoints: root.checkpoints.length, durability: "memory_json" };
+}
+
+/** Test helper — clear checkpoints without touching mission-store. */
+export function __resetDispatcherCheckpointsForTests(): void {
+  const root = getRoot();
+  root.checkpoints = [];
+  root.lastTickAt = null;
+  root.lastResult = null;
+  root.tickInFlight = false;
+  persistCheckpoints();
+}
+
+export function leaseExpired(ws: Workstream, now = Date.now()): boolean {
   if (!ws.leaseExpiresAt) return true;
   return Date.parse(ws.leaseExpiresAt) <= now;
 }
@@ -104,15 +274,72 @@ function runningOrLeasedCount(missionId: string, now = Date.now()): number {
   }).length;
 }
 
+export function dependenciesSatisfied(
+  ws: Workstream,
+): { ok: true } | { ok: false; waitingOn: string[] } {
+  const deps = ws.dependsOnWorkstreamIds ?? [];
+  if (!deps.length) return { ok: true };
+  const waitingOn: string[] = [];
+  for (const id of deps) {
+    const dep = getWorkstream(id);
+    if (!dep || !DEP_SATISFIED.has(dep.status)) waitingOn.push(id);
+  }
+  return waitingOn.length ? { ok: false, waitingOn } : { ok: true };
+}
+
 /**
- * Eligible: mission running, workstream queued (or expired lease), role may run.
- * Builders with overlapping scopes are left queued/blocked separately.
+ * Controlled reclaim: expired leases on running workstreams return to queued
+ * so another worker may claim. Records lease_expiry checkpoint (memory/JSON).
+ */
+export function reclaimExpiredLeases(opts?: {
+  tenantSlug?: string;
+  now?: number;
+}): Workstream[] {
+  const now = opts?.now ?? Date.now();
+  const reclaimed: Workstream[] = [];
+  const missions = listMissions({
+    tenantSlug: opts?.tenantSlug,
+    status: "running",
+    limit: 50,
+  });
+  for (const m of missions) {
+    for (const w of listWorkstreams({ missionId: m.id })) {
+      if (!w.leaseId || !leaseExpired(w, now)) continue;
+      if (w.status !== "running" && w.status !== "queued") continue;
+      const prevLease = w.leaseId;
+      updateWorkstream(w.id, {
+        status: "queued",
+        leaseId: undefined,
+        leaseOwner: undefined,
+        leaseExpiresAt: undefined,
+        claimedAt: undefined,
+      });
+      recordDispatchCheckpoint({
+        kind: "lease_expiry",
+        missionId: m.id,
+        workstreamId: w.id,
+        leaseId: prevLease,
+        owner: w.leaseOwner,
+        status: "queued",
+        detail: "lease_expired_reclaim",
+      });
+      const after = getWorkstream(w.id);
+      if (after) reclaimed.push(after);
+    }
+  }
+  return reclaimed;
+}
+
+/**
+ * Eligible: mission running, workstream queued (or expired lease), deps ok,
+ * under maxParallel — machine-readable skip, no spin.
  */
 export function listClaimableWorkstreams(opts?: {
   tenantSlug?: string;
   now?: number;
 }): Workstream[] {
   const now = opts?.now ?? Date.now();
+  reclaimExpiredLeases({ tenantSlug: opts?.tenantSlug, now });
   const missions = listMissions({
     tenantSlug: opts?.tenantSlug,
     status: "running",
@@ -123,21 +350,30 @@ export function listClaimableWorkstreams(opts?: {
     const slots = missionCap(m) - runningOrLeasedCount(m.id, now);
     if (slots <= 0) continue;
     const queued = listWorkstreams({ missionId: m.id }).filter((w) => {
-      if (w.status === "queued" && (!w.leaseId || leaseExpired(w, now))) return true;
-      // retry failed if under rework budget
+      if (w.status === "queued" && (!w.leaseId || leaseExpired(w, now))) {
+        return dependenciesSatisfied(w).ok;
+      }
+      // retry failed if under rework budget — finite, no infinite retry
       if (
         w.status === "failed" &&
         w.reworkLoops < m.budgets.maxReworkLoops &&
         (!w.leaseId || leaseExpired(w, now))
       ) {
-        return true;
+        return dependenciesSatisfied(w).ok;
       }
       return false;
     });
-    // Prefer scout → builder → verifier → reviewer order
-    const order: MissionRole[] = ["scout", "builder", "verifier", "reviewer", "release_steward"];
+    const order: MissionRole[] = [
+      "scout",
+      "builder",
+      "verifier",
+      "reviewer",
+      "release_steward",
+    ];
     queued.sort(
-      (a, b) => order.indexOf(a.role) - order.indexOf(b.role) || a.createdAt.localeCompare(b.createdAt),
+      (a, b) =>
+        order.indexOf(a.role) - order.indexOf(b.role) ||
+        a.createdAt.localeCompare(b.createdAt),
     );
     out.push(...queued.slice(0, Math.max(0, slots)));
   }
@@ -145,67 +381,278 @@ export function listClaimableWorkstreams(opts?: {
 }
 
 /**
+ * Why a workstream is not claimable right now (machine-readable; no spin).
+ */
+export function explainClaimSkip(
+  workstreamId: string,
+  opts?: { now?: number; owner?: string },
+): DispatchLimit | null {
+  const ws = getWorkstream(workstreamId);
+  if (!ws) {
+    return {
+      code: "workstream_not_claimable",
+      reason: "workstream_not_found",
+    };
+  }
+  const now = opts?.now ?? Date.now();
+  const m = getMission(ws.missionId);
+  if (!m || m.status !== "running") {
+    return { code: "mission_not_running", reason: "mission_not_running" };
+  }
+  if (ws.leaseId && !leaseExpired(ws, now) && ws.leaseOwner !== opts?.owner) {
+    return {
+      code: "lease_held",
+      reason: "lease_held_by_other",
+      leaseOwner: ws.leaseOwner,
+    };
+  }
+  const deps = dependenciesSatisfied(ws);
+  if (!deps.ok) {
+    return {
+      code: "dependency_unsatisfied",
+      reason: "depends_on_incomplete",
+      waitingOn: deps.waitingOn,
+    };
+  }
+  if (
+    ws.status === "failed" &&
+    ws.reworkLoops >= m.budgets.maxReworkLoops
+  ) {
+    return {
+      code: "rework_limit_reached",
+      reason: "max_rework_loops",
+      limit: m.budgets.maxReworkLoops,
+    };
+  }
+  const active = runningOrLeasedCount(m.id, now);
+  const limit = missionCap(m);
+  if (active >= limit && ws.status !== "running") {
+    return {
+      code: "max_parallel_workstreams",
+      reason: "max_parallel_workstreams",
+      limit,
+      active,
+    };
+  }
+  if (ws.status !== "queued" && ws.status !== "failed") {
+    if (!(ws.status === "running" && ws.leaseOwner === opts?.owner)) {
+      return {
+        code: "workstream_not_claimable",
+        reason: `status_${ws.status}`,
+      };
+    }
+  }
+  return null;
+}
+
+/**
  * Atomic-ish lease: only one tick can claim a workstream (process-local + expiry).
- * Returns null if already leased by another owner.
+ * Returns null if already leased by another owner (legacy API).
  */
 export function tryLeaseWorkstream(input: {
   workstreamId: string;
   owner: string;
   ttlMs?: number;
+  now?: number;
 }): Workstream | null {
-  const ws = getWorkstream(input.workstreamId);
-  if (!ws) return null;
-  const now = Date.now();
-  if (ws.leaseId && !leaseExpired(ws, now) && ws.leaseOwner !== input.owner) {
+  const result = claimWorkstreamLease(input);
+  if (!result.ok) {
+    if (result.workstream?.status === "blocked") return result.workstream;
     return null;
   }
-  const claimable =
-    ws.status === "queued" ||
-    ws.status === "failed" ||
-    (ws.status === "running" && ws.leaseOwner === input.owner);
-  if (!claimable) return null;
+  return result.workstream;
+}
 
-  const m = getMission(ws.missionId);
-  if (!m || m.status !== "running") return null;
+/**
+ * Single-worker claim with leaseId / claimedAt / leaseExpiresAt.
+ * Controlled reclaim when prior lease expired. Machine-readable limit on deny.
+ */
+export function claimWorkstreamLease(input: {
+  workstreamId: string;
+  owner: string;
+  ttlMs?: number;
+  now?: number;
+}): LeaseClaimResult {
+  const ws = getWorkstream(input.workstreamId);
+  if (!ws) {
+    return {
+      ok: false,
+      limit: {
+        code: "workstream_not_claimable",
+        reason: "workstream_not_found",
+      },
+    };
+  }
+  const now = input.now ?? Date.now();
 
-  // Builder path overlap → block instead of lease
-  if (ws.role === "builder" && ws.changedFiles.length) {
-    const conflict = detectPathConflict({
+  // Controlled reclaim of expired lease before re-claim
+  if (ws.leaseId && leaseExpired(ws, now)) {
+    recordDispatchCheckpoint({
+      kind: "lease_expiry",
       missionId: ws.missionId,
       workstreamId: ws.id,
-      proposedFiles: ws.changedFiles,
+      leaseId: ws.leaseId,
+      owner: ws.leaseOwner,
+      status: ws.status,
+      detail: "expired_before_claim",
+    });
+    updateWorkstream(ws.id, {
+      status: ws.status === "running" ? "queued" : ws.status,
+      leaseId: undefined,
+      leaseOwner: undefined,
+      leaseExpiresAt: undefined,
+      claimedAt: undefined,
+    });
+  }
+
+  const fresh = getWorkstream(ws.id)!;
+  if (
+    fresh.leaseId &&
+    !leaseExpired(fresh, now) &&
+    fresh.leaseOwner !== input.owner
+  ) {
+    return {
+      ok: false,
+      limit: {
+        code: "lease_held",
+        reason: "no_double_claim",
+        leaseOwner: fresh.leaseOwner,
+      },
+    };
+  }
+
+  const m = getMission(fresh.missionId);
+  if (!m || m.status !== "running") {
+    return {
+      ok: false,
+      limit: { code: "mission_not_running", reason: "mission_not_running" },
+    };
+  }
+
+  const deps = dependenciesSatisfied(fresh);
+  if (!deps.ok) {
+    return {
+      ok: false,
+      limit: {
+        code: "dependency_unsatisfied",
+        reason: "depends_on_incomplete",
+        waitingOn: deps.waitingOn,
+      },
+    };
+  }
+
+  if (
+    fresh.status === "failed" &&
+    fresh.reworkLoops >= m.budgets.maxReworkLoops
+  ) {
+    return {
+      ok: false,
+      limit: {
+        code: "rework_limit_reached",
+        reason: "max_rework_loops",
+        limit: m.budgets.maxReworkLoops,
+      },
+    };
+  }
+
+  const claimable =
+    fresh.status === "queued" ||
+    fresh.status === "failed" ||
+    (fresh.status === "running" && fresh.leaseOwner === input.owner);
+  if (!claimable) {
+    return {
+      ok: false,
+      limit: {
+        code: "workstream_not_claimable",
+        reason: `status_${fresh.status}`,
+      },
+    };
+  }
+
+  // Parallel cap — machine-readable, no spin
+  const active = runningOrLeasedCount(m.id, now);
+  const cap = missionCap(m);
+  if (
+    fresh.status !== "running" &&
+    active >= cap
+  ) {
+    return {
+      ok: false,
+      limit: {
+        code: "max_parallel_workstreams",
+        reason: "max_parallel_workstreams",
+        limit: cap,
+        active,
+      },
+    };
+  }
+
+  // Builder path overlap → block instead of lease
+  if (fresh.role === "builder" && fresh.changedFiles.length) {
+    const conflict = detectPathConflict({
+      missionId: fresh.missionId,
+      workstreamId: fresh.id,
+      proposedFiles: fresh.changedFiles,
     });
     if (!conflict.ok) {
-      updateWorkstream(ws.id, {
+      updateWorkstream(fresh.id, {
         status: "blocked",
         blockedReason: conflict.reason,
         leaseId: undefined,
         leaseOwner: undefined,
         leaseExpiresAt: undefined,
+        claimedAt: undefined,
       });
-      return getWorkstream(ws.id) ?? null;
+      recordDispatchCheckpoint({
+        kind: "block",
+        missionId: fresh.missionId,
+        workstreamId: fresh.id,
+        status: "blocked",
+        detail: conflict.reason,
+      });
+      return {
+        ok: false,
+        limit: {
+          code: "path_conflict",
+          reason: conflict.reason,
+          conflictingWorkstreamId: conflict.conflictingWorkstreamId,
+        },
+        workstream: getWorkstream(fresh.id),
+      };
     }
   }
 
   const leaseId = nid("lease");
+  const claimedAt = new Date(now).toISOString();
   const expires = new Date(now + (input.ttlMs ?? LEASE_MS)).toISOString();
-  updateWorkstream(ws.id, {
+  updateWorkstream(fresh.id, {
     status: "running",
     leaseId,
     leaseOwner: input.owner,
     leaseExpiresAt: expires,
-    attemptCount: ws.attemptCount + 1,
+    claimedAt,
+    attemptCount: fresh.attemptCount + 1,
     blockedReason: undefined,
     lastError: undefined,
   });
-  auditLog("prime.workstream_leased", {
-    tenant_id: ws.tenantSlug,
-    target_ref: `workstream/${ws.id}`,
+  recordDispatchCheckpoint({
+    kind: "claim",
+    missionId: fresh.missionId,
+    workstreamId: fresh.id,
     leaseId,
     owner: input.owner,
-    role: ws.role,
+    status: "running",
+    detail: `claimedAt=${claimedAt}`,
   });
-  return getWorkstream(ws.id) ?? null;
+  auditLog("prime.workstream_leased", {
+    tenant_id: fresh.tenantSlug,
+    target_ref: `workstream/${fresh.id}`,
+    leaseId,
+    owner: input.owner,
+    role: fresh.role,
+    claimedAt,
+  });
+  return { ok: true, workstream: getWorkstream(fresh.id)! };
 }
 
 export function releaseLease(workstreamId: string): void {
@@ -215,6 +662,7 @@ export function releaseLease(workstreamId: string): void {
     leaseId: undefined,
     leaseOwner: undefined,
     leaseExpiresAt: undefined,
+    claimedAt: undefined,
   });
 }
 
@@ -393,6 +841,14 @@ export async function executeLeasedWorkstream(
   }
 
   try {
+    recordDispatchCheckpoint({
+      kind: "start",
+      missionId: ws.missionId,
+      workstreamId: ws.id,
+      leaseId: ws.leaseId,
+      owner: ws.leaseOwner,
+      status: "running",
+    });
     ensureEvidence(ws.id);
 
     if (ws.role === "builder") {
@@ -411,7 +867,15 @@ export async function executeLeasedWorkstream(
             status: "blocked",
             blockedReason: conflict.reason,
           });
+          recordDispatchCheckpoint({
+            kind: "block",
+            missionId: ws.missionId,
+            workstreamId: ws.id,
+            status: "blocked",
+            detail: conflict.reason,
+          });
           releaseLease(ws.id);
+          applyMissionFanIn(ws.missionId);
           return {
             workstreamId: ws.id,
             missionId: ws.missionId,
@@ -419,6 +883,11 @@ export async function executeLeasedWorkstream(
             status: "blocked",
             error: conflict.reason,
             leased: true,
+            limit: {
+              code: "path_conflict",
+              reason: conflict.reason,
+              conflictingWorkstreamId: conflict.conflictingWorkstreamId,
+            },
           };
         }
       }
@@ -446,6 +915,16 @@ export async function executeLeasedWorkstream(
 
     updateWorkstream(ws.id, { status: nextStatus });
     releaseLease(ws.id);
+    recordDispatchCheckpoint({
+      kind: "completion",
+      missionId: ws.missionId,
+      workstreamId: ws.id,
+      status: nextStatus,
+      detail: `agentRunId=${ran.agentRunId}`,
+    });
+
+    // Fan-in attempt after each completion (ready only when all gates pass)
+    applyMissionFanIn(ws.missionId);
 
     appendAgentLedger({
       tenantSlug: ws.tenantSlug,
@@ -477,6 +956,14 @@ export async function executeLeasedWorkstream(
       reworkLoops: ws.reworkLoops + 1,
     });
     releaseLease(ws.id);
+    recordDispatchCheckpoint({
+      kind: "completion",
+      missionId: ws.missionId,
+      workstreamId: ws.id,
+      status: "failed",
+      detail: message,
+    });
+    applyMissionFanIn(ws.missionId);
     auditLog("prime.workstream_failed", {
       tenant_id: ws.tenantSlug,
       target_ref: `workstream/${ws.id}`,
@@ -546,6 +1033,12 @@ export async function tickMissions(opts?: {
       completed: 0,
       failed: 0,
       blocked: 0,
+      limits: [
+        {
+          code: "dispatcher_tick_in_flight",
+          reason: "dispatcher_tick_in_flight",
+        },
+      ],
       results: [],
       at,
     };
@@ -560,12 +1053,23 @@ export async function tickMissions(opts?: {
   try {
     const claimable = listClaimableWorkstreams({ tenantSlug: opts?.tenantSlug });
     const leased: Workstream[] = [];
+    const limits: DispatchLimit[] = [];
     for (const ws of claimable) {
-      if (leased.length >= maxParallel) break;
-      const got = tryLeaseWorkstream({ workstreamId: ws.id, owner });
-      if (!got) continue;
-      if (got.status === "blocked") continue;
-      leased.push(got);
+      if (leased.length >= maxParallel) {
+        limits.push({
+          code: "max_parallel_workstreams",
+          reason: "tick_max_parallel",
+          limit: maxParallel,
+          active: leased.length,
+        });
+        break;
+      }
+      const got = claimWorkstreamLease({ workstreamId: ws.id, owner });
+      if (!got.ok) {
+        limits.push(got.limit);
+        continue;
+      }
+      leased.push(got.workstream);
     }
 
     const results = await runPool(leased, maxParallel, (ws) =>
@@ -581,6 +1085,7 @@ export async function tickMissions(opts?: {
       failed: results.filter((r) => r.status === "failed").length,
       blocked: results.filter((r) => r.status === "blocked").length,
       results,
+      limits: limits.length ? limits : undefined,
       at,
     };
     root.lastTickAt = at;
@@ -603,6 +1108,8 @@ export function getDispatcherState() {
     tickInFlight: root.tickInFlight,
     lastTickAt: root.lastTickAt,
     lastResult: root.lastResult,
+    checkpointCount: root.checkpoints.length,
+    durability: "memory_json" as const,
     maxParallelDefault: DEFAULT_MAX_PARALLEL,
     invariants: {
       NO_AUTO_MERGE: EXECUTION_CONTROL_INVARIANTS.NO_AUTO_MERGE,
